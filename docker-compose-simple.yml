@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  # Main Business Platform with Integrated Expense Claims
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DJANGO_DEBUG=True
+      - USE_SQLITE=True  # Use SQLite for simplicity
+      - SECRET_KEY=integrated-business-platform-secret-key-2024
+      - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0,web
+    volumes:
+      - ./media:/app/media
+      - ./staticfiles:/app/staticfiles
+      - ./logs:/app/logs
+      - ./db.sqlite3:/app/db.sqlite3
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/admin/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  default:
+    driver: bridge

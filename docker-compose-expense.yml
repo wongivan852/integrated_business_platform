@@ -1,0 +1,112 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: business_platform_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    ports:
+      - "5433:5432"  # Changed port to avoid conflicts
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Redis for Caching/Sessions  
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"  # Changed port to avoid conflicts
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Main Business Platform
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DJANGO_DEBUG=True
+      - DB_HOST=db
+      - DB_NAME=business_platform_db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ./media:/app/media
+      - ./staticfiles:/app/staticfiles
+      - ./logs:/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/admin/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Expense Claim System
+  expense-system:
+    build:
+      context: ../company_expense_claim_system
+      dockerfile: Dockerfile
+    ports:
+      - "8003:8084"
+    environment:
+      - DJANGO_DEBUG=True
+      - ALLOWED_HOSTS=localhost,127.0.0.1,web,expense-system
+      - USE_SQLITE=True
+      - SECRET_KEY=expense-claim-system-secret-key
+      - TIME_ZONE=Asia/Hong_Kong
+    volumes:
+      - expense_media:/app/media
+      - expense_static:/app/staticfiles
+      - expense_data:/app/data
+      - expense_logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8084/admin/login/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Nginx Reverse Proxy (simplified)
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8080:80"  # Changed port to avoid conflicts
+    volumes:
+      - ./nginx/nginx-simple.conf:/etc/nginx/nginx.conf:ro
+      - ./staticfiles:/app/staticfiles:ro
+    depends_on:
+      - web
+      - expense-system
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data:
+  redis_data:
+  expense_media:
+  expense_static:
+  expense_data:
+  expense_logs:
+
+networks:
+  default:
+    driver: bridge

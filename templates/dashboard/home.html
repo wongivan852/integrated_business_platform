@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Krystal Platform{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-tachometer-alt"></i> Dashboard
+        </h1>
+        <p class="lead">Welcome, {{ user.get_display_name }}! Access your business applications below.</p>
+    </div>
+</div>
+
+{% if available_apps %}
+<div class="row">
+    <div class="col-12">
+        <h3 class="mb-3">Available Applications</h3>
+    </div>
+</div>
+
+<div class="row">
+    {% for app in available_apps %}
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="krystal-card h-100 krystal-fade-in">
+            <div class="krystal-card-body text-center">
+                <div class="mb-3">
+                    <i class="{{ app.icon }} fa-3x krystal-text-gold"></i>
+                </div>
+                <h5 class="card-title krystal-text-primary">{{ app.display_name }}</h5>
+                <p class="card-text krystal-text-muted">{{ app.description }}</p>
+                <a href="{{ app.url }}" class="krystal-btn krystal-btn-primary">
+                    <i class="fas fa-external-link-alt"></i> Launch App
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="row">
+    <div class="col-12">
+        <div class="krystal-alert krystal-alert-info">
+            <i class="fas fa-info-circle"></i>
+            <strong>No applications available.</strong>
+            {% if not user.is_superuser %}
+            Contact your administrator to request access to applications.
+            {% else %}
+            Configure application access in the <a href="/admin/" class="alert-link">admin panel</a>.
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if recent_sessions %}
+<div class="row mt-5">
+    <div class="col-12">
+        <h4>Recent Activity</h4>
+        <div class="table-responsive">
+            <table class="krystal-table">
+                <thead>
+                    <tr>
+                        <th>Application</th>
+                        <th>Last Activity</th>
+                        <th>IP Address</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for session in recent_sessions %}
+                    <tr>
+                        <td>{{ session.app_name }}</td>
+                        <td>{{ session.last_activity|timesince }} ago</td>
+                        <td>{{ session.ip_address|default:"Unknown" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
