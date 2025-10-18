@@ -37,14 +37,10 @@ THIRD_PARTY_APPS = [
 
 LOCAL_APPS = [
     # Core platform apps
-    'authentication',
-    'dashboard',
-    # 'app_integration',  # TODO: Create app integration layer
-    # Expense Claim System Apps (temporarily disabled due to user model conflict)
-    # 'expense_claims',
-    # 'expense_accounts',
-    # 'expense_documents',
-    # 'expense_reports',
+    'apps.core',
+    'apps.authentication',
+    'apps.dashboard',
+    'apps.app_integrations',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

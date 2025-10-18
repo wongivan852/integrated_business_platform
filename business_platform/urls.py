@@ -1,38 +1,33 @@
 """
-URL configuration for business_platform project.
+URL configuration for Integrated Business Platform.
+
+Main hub that provides access to all business applications.
 """
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from django.views.generic import RedirectView
+from apps.dashboard.views import home_view
 
 urlpatterns = [
     # Admin
     path('admin/', admin.site.urls),
 
-    # Authentication
+    # Home and Authentication
+    path('', home_view, name='home'),
     path('auth/', include('authentication.urls')),
 
-    # Dashboard
-    path('', RedirectView.as_view(url='/auth/login/', permanent=False)),  # Redirect to login
-    path('dashboard/', include('dashboard.urls')),
+    # Main Dashboard
+    path('dashboard/', include('apps.dashboard.urls')),
 
-    # App Integration - Fixed paths for each business application
-    # path('apps/leave/', include('app_integration.urls', namespace='app_leave')),
-    # path('apps/quotations/', include('app_integration.urls', namespace='app_quotations')),
-    # path('apps/expenses/', include('expense_claims.urls')),  # TODO: Fix expense claims integration
-    # path('apps/crm/', include('app_integration.urls', namespace='app_crm')),
-    # path('apps/assets/', include('app_integration.urls', namespace='app_assets')),
-    # path('apps/stripe/', include('app_integration.urls', namespace='app_stripe')),
-
-    # Expense System Direct Routes (TODO: Fix URL patterns)
-    # path('expense-accounts/', include('expense_accounts.urls')),
-    # path('expense-documents/', include('expense_documents.urls')),
-    # path('expense-reports/', include('expense_reports.urls')),
-
-    # API endpoints (commented out until api module is created)
-    # path('api/v1/', include('app_integration.api.urls')),
+    # External App Proxies/Links
+    # These will redirect or proxy to the actual applications
+    # path('expense-claims/', proxy_view('http://localhost:8001')),
+    # path('leave/', proxy_view('http://localhost:8002')),
+    # path('assets/', proxy_view('http://localhost:8003')),
+    # path('crm/', proxy_view('http://localhost:8004')),
+    # path('quotations/', proxy_view('http://localhost:8005')),
+    # path('stripe/', proxy_view('http://localhost:8081')),
 ]
 
 # Serve media files in development

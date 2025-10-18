@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Dashboard - Krystal Business Platform{% endblock %}
+
+{% block extra_css %}
+<style>
+    .app-card {
+        border: none;
+        border-radius: 15px;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+        height: 100%;
+    }
+
+    .app-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .app-card-header {
+        padding: 2rem;
+        color: white;
+        min-height: 150px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .app-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.9;
+    }
+
+    .app-card-body {
+        padding: 1.5rem;
+    }
+
+    .app-launch-btn {
+        width: 100%;
+        padding: 0.75rem;
+        font-weight: 600;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .app-launch-btn:hover {
+        transform: scale(1.02);
+    }
+
+    .platform-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 3rem 0;
+        margin-bottom: 2rem;
+        border-radius: 0 0 30px 30px;
+    }
+
+    .welcome-message {
+        font-size: 2rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+        font-size: 1.1rem;
+        opacity: 0.9;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="platform-header">
+    <div class="container">
+        <div class="welcome-message">
+            Welcome, {{ user.get_full_name|default:user.username }}!
+        </div>
+        <div class="subtitle">
+            {{ platform_name }} - Your centralized business management hub
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h3 class="mb-3">
+                <i class="fas fa-th-large me-2"></i>Available Applications
+            </h3>
+            <p class="text-muted">Select an application to access its features</p>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        {% for app in apps %}
+        <div class="col-md-6 col-lg-4">
+            <div class="app-card">
+                <div class="app-card-header" style="background: {{ app.gradient }};">
+                    <div class="app-icon">
+                        <i class="fas {{ app.icon }}"></i>
+                    </div>
+                    <h5 class="mb-0">{{ app.name }}</h5>
+                </div>
+                <div class="app-card-body">
+                    <p class="text-muted mb-3">{{ app.description }}</p>
+                    <a href="{{ app.url }}" target="_blank" class="btn btn-{{ app.color }} app-launch-btn">
+                        <i class="fas fa-external-link-alt me-2"></i>Launch Application
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                No applications are currently available. Please contact your administrator.
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="row mt-5">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-info-circle me-2 text-primary"></i>Quick Tips
+                    </h5>
+                    <ul class="mb-0">
+                        <li>Click "Launch Application" to open any app in a new tab</li>
+                        <li>All apps share the same authentication - you only need to log in once</li>
+                        <li>Your data is synchronized across all applications</li>
+                        <li>For support, contact the IT department</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
