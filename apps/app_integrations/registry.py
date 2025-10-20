@@ -70,6 +70,17 @@ INTEGRATED_APPS = {
         'status': 'active',
         'order': 6,
     },
+    'attendance': {
+        'name': 'Attendance System',
+        'description': 'WiFi-based attendance tracking with auto clock-in/out',
+        'icon': 'fa-clock',
+        'url': 'http://localhost:8007',
+        'internal_path': '/attendance/',
+        'color': 'success',
+        'gradient': 'linear-gradient(135deg, #56ab2f 0%, #a8e063 100%)',
+        'status': 'active',
+        'order': 7,
+    },
 }
 
 

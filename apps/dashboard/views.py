@@ -23,11 +23,39 @@ def home_view(request):
 @login_required
 def dashboard_view(request):
     """
-    Main dashboard showing all available applications
+    Main dashboard showing available applications based on user permissions
     """
+    from core.models import UserAppAccess
+    from apps.app_integrations.registry import INTEGRATED_APPS
+
+    # Get all active apps
+    all_apps = get_active_apps()
+
+    # Filter apps based on user permissions
+    if request.user.is_superuser:
+        # Superuser can see all apps
+        permitted_apps = all_apps
+    else:
+        # Get user's permitted app codes
+        user_accesses = UserAppAccess.objects.filter(
+            user=request.user,
+            is_active=True
+        ).exclude(role='none').values_list('app_code', flat=True)
+
+        permitted_app_codes = set(user_accesses)
+
+        # Filter apps
+        permitted_apps = []
+        for app in all_apps:
+            app_key = next((k for k, v in INTEGRATED_APPS.items() if v == app), None)
+            if app_key and app_key in permitted_app_codes:
+                permitted_apps.append(app)
+
     context = {
         'user': request.user,
-        'apps': get_active_apps(),
+        'apps': permitted_apps,
+        'total_apps': len(all_apps),
+        'permitted_apps_count': len(permitted_apps),
         'platform_name': 'Krystal Business Platform',
         'company_name': 'CG Global Entertainment Ltd',
     }
@@ -37,16 +65,66 @@ def dashboard_view(request):
 @login_required
 def app_launcher_view(request, app_key):
     """
-    Launch an integrated app (opens in iframe or new tab)
+    Launch an integrated app with SSO token
     """
-    from apps.app_integrations.registry import get_app_by_key
+    from apps.app_integrations.registry import get_app_by_key, INTEGRATED_APPS
+    from core.models import UserAppAccess, AppAccessAuditLog
+    from sso.utils import SSOTokenManager
+    from django.contrib import messages
 
     app = get_app_by_key(app_key)
     if not app:
+        messages.error(request, "Application not found")
         return redirect('dashboard:main')
+
+    # Check user permission
+    has_access = False
+    user_role = 'none'
+
+    if request.user.is_superuser:
+        has_access = True
+        user_role = 'admin'
+    else:
+        try:
+            access = UserAppAccess.objects.get(
+                user=request.user,
+                app_code=app_key,
+                is_active=True
+            )
+            if access.role != 'none':
+                has_access = True
+                user_role = access.role
+        except UserAppAccess.DoesNotExist:
+            pass
+
+    if not has_access:
+        # Log access denied
+        AppAccessAuditLog.log_change(
+            user=request.user,
+            app_code=app_key,
+            action='access_denied',
+            request=request
+        )
+        messages.error(request, f"You don't have permission to access {app['name']}")
+        return redirect('dashboard:main')
+
+    # Generate SSO token
+    tokens = SSOTokenManager.generate_token(request.user, request)
+
+    # Log successful app access
+    AppAccessAuditLog.log_change(
+        user=request.user,
+        app_code=app_key,
+        action='permission_checked',
+        new_value={'role': user_role, 'access_granted': True},
+        request=request
+    )
 
     context = {
         'app': app,
+        'app_key': app_key,
         'user': request.user,
+        'sso_token': tokens['access'],
+        'user_role': user_role,
     }
     return render(request, 'dashboard/app_launcher.html', context)

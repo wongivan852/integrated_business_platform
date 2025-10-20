@@ -1,0 +1,345 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}App Timeline{% endblock %}
+
+{% block extra_css %}
+<style>
+    .timeline-section {
+        margin-bottom: 40px;
+    }
+    .timeline-header {
+        padding: 15px 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        color: white;
+        font-weight: bold;
+    }
+    .timeline-card {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border-left: 5px solid;
+    }
+    .timeline-card.overdue {
+        border-left-color: #dc3545;
+    }
+    .timeline-card.upcoming {
+        border-left-color: #ffc107;
+    }
+    .timeline-card.on-track {
+        border-left-color: #0dcaf0;
+    }
+    .timeline-card.completed {
+        border-left-color: #28a745;
+    }
+    .app-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+    .app-title {
+        font-size: 1.25rem;
+        font-weight: bold;
+    }
+    .date-info {
+        font-size: 0.9rem;
+        color: #6c757d;
+    }
+    .progress-section {
+        margin-top: 15px;
+    }
+    .milestone-list {
+        list-style: none;
+        padding-left: 0;
+        margin-top: 10px;
+    }
+    .milestone-list li {
+        padding: 5px 0;
+        border-left: 3px solid #dee2e6;
+        padding-left: 15px;
+        margin-bottom: 5px;
+    }
+    .milestone-list li.done {
+        border-left-color: #28a745;
+        color: #28a745;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col">
+            <h2><i class="fas fa-calendar-alt"></i> App Development Timeline</h2>
+            <p class="text-muted">Track target dates and project milestones</p>
+        </div>
+        <div class="col-auto">
+            <span class="badge bg-secondary me-2">Today: {{ today|date:"Y-m-d" }}</span>
+            <a href="{% url 'admin_panel:app_status_dashboard' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Overdue Apps -->
+    {% if timeline_groups.overdue %}
+    <div class="timeline-section">
+        <div class="timeline-header bg-danger">
+            <i class="fas fa-exclamation-triangle"></i> Overdue ({{ timeline_groups.overdue|length }})
+        </div>
+
+        {% for app in timeline_groups.overdue %}
+        <div class="timeline-card overdue">
+            <div class="app-header">
+                <div>
+                    <div class="app-title">
+                        <i class="fas {{ app.icon|default:'fa-app' }}"></i> {{ app.app_name }}
+                    </div>
+                    <div class="date-info">
+                        <strong>Target:</strong> {{ app.target_launch_date|date:"Y-m-d" }}
+                        <span class="badge bg-danger ms-2">
+                            {{ app.target_launch_date|timeuntil }} overdue
+                        </span>
+                    </div>
+                </div>
+                <div>
+                    <span class="badge bg-{{ app.get_status_color }}">{{ app.get_status_display }}</span>
+                    <span class="badge bg-{{ app.get_priority_color }}">{{ app.get_priority_display }}</span>
+                </div>
+            </div>
+
+            <div class="progress-section">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Progress</span>
+                    <span>{{ app.completion_percentage }}%</span>
+                </div>
+                <div class="progress" style="height: 25px;">
+                    <div class="progress-bar bg-danger" style="width: {{ app.completion_percentage }}%">
+                        {{ app.functions_complete }} / {{ app.functions_total }} functions
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-3">
+                <strong>Status:</strong> {{ app.notes|truncatewords:20 }}
+            </div>
+
+            <div class="mt-3">
+                <a href="{% url 'admin_panel:app_status_detail' app.app_code %}" class="btn btn-sm btn-primary">
+                    <i class="fas fa-eye"></i> View Details
+                </a>
+                {% if app.repository_url %}
+                <a href="{{ app.repository_url }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                    <i class="fab fa-gitlab"></i> Repository
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Upcoming Apps (Next 30 days) -->
+    {% if timeline_groups.upcoming %}
+    <div class="timeline-section">
+        <div class="timeline-header bg-warning text-dark">
+            <i class="fas fa-clock"></i> Upcoming (Next 30 Days) - {{ timeline_groups.upcoming|length }}
+        </div>
+
+        {% for app in timeline_groups.upcoming %}
+        <div class="timeline-card upcoming">
+            <div class="app-header">
+                <div>
+                    <div class="app-title">
+                        <i class="fas {{ app.icon|default:'fa-app' }}"></i> {{ app.app_name }}
+                    </div>
+                    <div class="date-info">
+                        <strong>Target:</strong> {{ app.target_launch_date|date:"Y-m-d" }}
+                        <span class="badge bg-warning text-dark ms-2">
+                            {{ app.target_launch_date|timeuntil }} remaining
+                        </span>
+                    </div>
+                </div>
+                <div>
+                    <span class="badge bg-{{ app.get_status_color }}">{{ app.get_status_display }}</span>
+                    <span class="badge bg-{{ app.get_priority_color }}">{{ app.get_priority_display }}</span>
+                </div>
+            </div>
+
+            <div class="progress-section">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Progress</span>
+                    <span>{{ app.completion_percentage }}%</span>
+                </div>
+                <div class="progress" style="height: 25px;">
+                    <div class="progress-bar bg-warning" style="width: {{ app.completion_percentage }}%">
+                        {{ app.functions_complete }} / {{ app.functions_total }} functions
+                    </div>
+                </div>
+            </div>
+
+            <!-- Milestones -->
+            <div class="mt-3">
+                <strong>Milestones:</strong>
+                <ul class="milestone-list">
+                    {% if app.started_at %}
+                    <li class="done"><i class="fas fa-check-circle"></i> Started: {{ app.started_at|date:"Y-m-d" }}</li>
+                    {% endif %}
+                    {% if app.prototype_date %}
+                    <li class="done"><i class="fas fa-check-circle"></i> Prototype: {{ app.prototype_date|date:"Y-m-d" }}</li>
+                    {% endif %}
+                    {% if app.uat_date %}
+                    <li class="done"><i class="fas fa-check-circle"></i> UAT: {{ app.uat_date|date:"Y-m-d" }}</li>
+                    {% endif %}
+                    {% if app.softlaunch_date %}
+                    <li class="done"><i class="fas fa-check-circle"></i> Soft Launch: {{ app.softlaunch_date|date:"Y-m-d" }}</li>
+                    {% endif %}
+                    <li><i class="fas fa-circle"></i> Production: {{ app.target_launch_date|date:"Y-m-d" }}</li>
+                </ul>
+            </div>
+
+            <div class="mt-3">
+                <a href="{% url 'admin_panel:app_status_detail' app.app_code %}" class="btn btn-sm btn-primary">
+                    <i class="fas fa-eye"></i> View Details
+                </a>
+                {% if app.repository_url %}
+                <a href="{{ app.repository_url }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                    <i class="fab fa-gitlab"></i> Repository
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- On Track Apps -->
+    {% if timeline_groups.on_track %}
+    <div class="timeline-section">
+        <div class="timeline-header bg-info">
+            <i class="fas fa-check-circle"></i> On Track - {{ timeline_groups.on_track|length }}
+        </div>
+
+        {% for app in timeline_groups.on_track %}
+        <div class="timeline-card on-track">
+            <div class="app-header">
+                <div>
+                    <div class="app-title">
+                        <i class="fas {{ app.icon|default:'fa-app' }}"></i> {{ app.app_name }}
+                    </div>
+                    <div class="date-info">
+                        {% if app.target_launch_date %}
+                        <strong>Target:</strong> {{ app.target_launch_date|date:"Y-m-d" }}
+                        <span class="badge bg-info ms-2">
+                            {{ app.target_launch_date|timeuntil }} remaining
+                        </span>
+                        {% else %}
+                        <span class="text-muted">No target date set</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div>
+                    <span class="badge bg-{{ app.get_status_color }}">{{ app.get_status_display }}</span>
+                    <span class="badge bg-{{ app.get_priority_color }}">{{ app.get_priority_display }}</span>
+                </div>
+            </div>
+
+            <div class="progress-section">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Progress</span>
+                    <span>{{ app.completion_percentage }}%</span>
+                </div>
+                <div class="progress" style="height: 25px;">
+                    <div class="progress-bar bg-info" style="width: {{ app.completion_percentage }}%">
+                        {{ app.functions_complete }} / {{ app.functions_total }} functions
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-3">
+                <a href="{% url 'admin_panel:app_status_detail' app.app_code %}" class="btn btn-sm btn-primary">
+                    <i class="fas fa-eye"></i> View Details
+                </a>
+                {% if app.repository_url %}
+                <a href="{{ app.repository_url }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                    <i class="fab fa-gitlab"></i> Repository
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Completed Apps -->
+    {% if timeline_groups.completed %}
+    <div class="timeline-section">
+        <div class="timeline-header bg-success">
+            <i class="fas fa-star"></i> Completed / Production - {{ timeline_groups.completed|length }}
+        </div>
+
+        {% for app in timeline_groups.completed %}
+        <div class="timeline-card completed">
+            <div class="app-header">
+                <div>
+                    <div class="app-title">
+                        <i class="fas {{ app.icon|default:'fa-app' }}"></i> {{ app.app_name }}
+                    </div>
+                    <div class="date-info">
+                        {% if app.production_date %}
+                        <strong>Launched:</strong> {{ app.production_date|date:"Y-m-d" }}
+                        {% else %}
+                        <strong>Status:</strong> {{ app.get_status_display }}
+                        {% endif %}
+                    </div>
+                </div>
+                <div>
+                    <span class="badge bg-success">{{ app.get_status_display }}</span>
+                </div>
+            </div>
+
+            <div class="progress-section">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Progress</span>
+                    <span>{{ app.completion_percentage }}%</span>
+                </div>
+                <div class="progress" style="height: 25px;">
+                    <div class="progress-bar bg-success" style="width: {{ app.completion_percentage }}%">
+                        {{ app.functions_complete }} / {{ app.functions_total }} functions
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-3">
+                <a href="{% url 'admin_panel:app_status_detail' app.app_code %}" class="btn btn-sm btn-success">
+                    <i class="fas fa-eye"></i> View Details
+                </a>
+                {% if app.repository_url %}
+                <a href="{{ app.repository_url }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                    <i class="fab fa-gitlab"></i> Repository
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Empty State -->
+    {% if not timeline_groups.overdue and not timeline_groups.upcoming and not timeline_groups.on_track and not timeline_groups.completed %}
+    <div class="text-center py-5">
+        <i class="fas fa-calendar-times fa-4x text-muted mb-3"></i>
+        <h4>No Apps with Target Dates</h4>
+        <p class="text-muted">Set target launch dates in the app status dashboard to see them here.</p>
+        <a href="{% url 'admin_panel:app_status_dashboard' %}" class="btn btn-primary">
+            Go to Dashboard
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -36,10 +36,14 @@ THIRD_PARTY_APPS = [
 ]
 
 LOCAL_APPS = [
-    # Core platform apps
-    'apps.core',
-    'apps.authentication',
-    'apps.dashboard',
+    # Core platform apps (root level)
+    'core',
+    'authentication',
+    'dashboard',
+    'sso',  # Single Sign-On system
+    'admin_panel',  # Admin panel for user and app access management
+    'attendance_integration.apps.AttendanceIntegrationConfig',  # Attendance system integration
+    # App integrations (in apps/ directory)
     'apps.app_integrations',
 ]
 
@@ -236,6 +240,12 @@ SECURE_SSL_REDIRECT = False
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
 
+# SSO Configuration
+SSO_SECRET_KEY = config('SSO_SECRET_KEY', default=SECRET_KEY)
+SSO_ALGORITHM = 'HS256'
+SSO_TOKEN_LIFETIME = 3600  # 1 hour
+SSO_REFRESH_LIFETIME = 86400  # 24 hours
+
 # Security settings for production
 if not DEBUG:
     SECURE_BROWSER_XSS_FILTER = True
@@ -287,3 +297,10 @@ if not DEBUG:
     }
     LOGGING['root']['handlers'].append('file')
     LOGGING['loggers']['django']['handlers'].append('file')
+# ============================================================================
+# ATTENDANCE SYSTEM INTEGRATION
+# ============================================================================
+# Automatic attendance tracking when users login/logout
+ATTENDANCE_INTEGRATION_ENABLED = config('ATTENDANCE_INTEGRATION_ENABLED', default=True, cast=bool)
+ATTENDANCE_API_URL = config('ATTENDANCE_API_URL', default='http://localhost:8007')
+ATTENDANCE_DEFAULT_PASSWORD = config('ATTENDANCE_DEFAULT_PASSWORD', default='krystal2025')

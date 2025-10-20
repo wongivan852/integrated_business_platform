@@ -1,0 +1,612 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ app.app_name }} - Status Detail{% endblock %}
+
+{% block extra_css %}
+<style>
+    .app-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 10px;
+        margin-bottom: 30px;
+    }
+    .app-icon {
+        font-size: 3rem;
+        margin-bottom: 15px;
+    }
+    .stat-card {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    .stat-value {
+        font-size: 2rem;
+        font-weight: bold;
+        margin: 10px 0;
+    }
+    .stat-label {
+        color: #6c757d;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+    }
+    .function-group {
+        margin-bottom: 30px;
+    }
+    .function-group-header {
+        padding: 12px 20px;
+        border-radius: 8px;
+        color: white;
+        font-weight: bold;
+        margin-bottom: 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .function-list {
+        list-style: none;
+        padding: 0;
+    }
+    .function-item {
+        background: white;
+        border-left: 4px solid;
+        padding: 15px 20px;
+        margin-bottom: 10px;
+        border-radius: 4px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .function-item:hover {
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    .function-item.planned { border-left-color: #6c757d; }
+    .function-item.developing { border-left-color: #0dcaf0; }
+    .function-item.completed { border-left-color: #20c997; }
+    .function-item.uat { border-left-color: #ffc107; }
+    .function-item.softlaunch { border-left-color: #fd7e14; }
+    .function-item.production { border-left-color: #28a745; }
+    .function-item.blocked { border-left-color: #dc3545; }
+
+    .function-info {
+        flex-grow: 1;
+    }
+    .function-name {
+        font-weight: 600;
+        margin-bottom: 5px;
+    }
+    .function-meta {
+        font-size: 0.85rem;
+        color: #6c757d;
+    }
+    .function-actions {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+    .status-selector {
+        min-width: 150px;
+        padding: 5px 10px;
+        border-radius: 4px;
+        border: 1px solid #dee2e6;
+    }
+    .history-timeline {
+        position: relative;
+        padding-left: 30px;
+    }
+    .history-timeline::before {
+        content: '';
+        position: absolute;
+        left: 10px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #dee2e6;
+    }
+    .history-item {
+        position: relative;
+        margin-bottom: 20px;
+        padding: 15px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .history-item::before {
+        content: '';
+        position: absolute;
+        left: -25px;
+        top: 20px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #667eea;
+        border: 2px solid white;
+    }
+    .history-date {
+        font-size: 0.85rem;
+        color: #6c757d;
+        margin-bottom: 5px;
+    }
+    .history-change {
+        font-weight: 600;
+        margin-bottom: 5px;
+    }
+    .blocked-alert {
+        background: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 15px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+    }
+    .milestone-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 30px;
+    }
+    .milestone-card {
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        text-align: center;
+    }
+    .milestone-card.completed {
+        border-left: 4px solid #28a745;
+    }
+    .milestone-card.pending {
+        border-left: 4px solid #6c757d;
+    }
+    .progress-large {
+        height: 40px;
+        font-size: 1.1rem;
+        font-weight: bold;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- App Header -->
+    <div class="app-header">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <div class="app-icon">
+                    <i class="fas {{ app.icon|default:'fa-cube' }}"></i>
+                </div>
+                <h2>{{ app.app_name }}</h2>
+                <p class="mb-2">{{ app.description }}</p>
+                <div class="d-flex gap-2 mt-3">
+                    <span class="badge bg-{{ app.get_status_color }} fs-6">{{ app.get_status_display }}</span>
+                    <span class="badge bg-{{ app.get_priority_color }} fs-6">{{ app.get_priority_display }}</span>
+                    {% if app.version %}
+                    <span class="badge bg-light text-dark fs-6">v{{ app.version }}</span>
+                    {% endif %}
+                    {% if app.port %}
+                    <span class="badge bg-light text-dark fs-6">Port: {{ app.port }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="text-end">
+                <a href="{% url 'admin_panel:app_status_dashboard' %}" class="btn btn-light mb-2">
+                    <i class="fas fa-arrow-left"></i> Back to Dashboard
+                </a>
+                {% if app.repository_url %}
+                <a href="{{ app.repository_url }}" target="_blank" class="btn btn-light mb-2">
+                    <i class="fab fa-gitlab"></i> Repository
+                </a>
+                {% endif %}
+                <br>
+                <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#statusModal">
+                    <i class="fas fa-edit"></i> Update Status
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Row -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-label">Completion</div>
+                <div class="stat-value text-primary">{{ app.completion_percentage }}%</div>
+                <div class="progress progress-large">
+                    <div class="progress-bar bg-primary" style="width: {{ app.completion_percentage }}%">
+                        {{ app.functions_complete }} / {{ app.functions_total }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-label">Total Functions</div>
+                <div class="stat-value text-info">{{ app.functions_total }}</div>
+                <small class="text-muted">Tracked features</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-label">Completed</div>
+                <div class="stat-value text-success">{{ app.functions_complete }}</div>
+                <small class="text-muted">Production ready</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-label">Blocked</div>
+                <div class="stat-value text-danger">{{ blocked_functions.count }}</div>
+                <small class="text-muted">Needs attention</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Milestones -->
+    {% if app.started_at or app.prototype_date or app.uat_date or app.softlaunch_date or app.production_date or app.target_launch_date %}
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-flag-checkered"></i> Project Milestones</h5>
+        </div>
+        <div class="card-body">
+            <div class="milestone-grid">
+                {% if app.started_at %}
+                <div class="milestone-card completed">
+                    <i class="fas fa-play-circle fa-2x text-success mb-2"></i>
+                    <div class="fw-bold">Started</div>
+                    <div class="text-muted">{{ app.started_at|date:"Y-m-d" }}</div>
+                </div>
+                {% endif %}
+
+                {% if app.prototype_date %}
+                <div class="milestone-card completed">
+                    <i class="fas fa-flask fa-2x text-success mb-2"></i>
+                    <div class="fw-bold">Prototype</div>
+                    <div class="text-muted">{{ app.prototype_date|date:"Y-m-d" }}</div>
+                </div>
+                {% endif %}
+
+                {% if app.uat_date %}
+                <div class="milestone-card completed">
+                    <i class="fas fa-vial fa-2x text-success mb-2"></i>
+                    <div class="fw-bold">UAT</div>
+                    <div class="text-muted">{{ app.uat_date|date:"Y-m-d" }}</div>
+                </div>
+                {% endif %}
+
+                {% if app.softlaunch_date %}
+                <div class="milestone-card completed">
+                    <i class="fas fa-rocket fa-2x text-success mb-2"></i>
+                    <div class="fw-bold">Soft Launch</div>
+                    <div class="text-muted">{{ app.softlaunch_date|date:"Y-m-d" }}</div>
+                </div>
+                {% endif %}
+
+                {% if app.production_date %}
+                <div class="milestone-card completed">
+                    <i class="fas fa-star fa-2x text-success mb-2"></i>
+                    <div class="fw-bold">Production</div>
+                    <div class="text-muted">{{ app.production_date|date:"Y-m-d" }}</div>
+                </div>
+                {% elif app.target_launch_date %}
+                <div class="milestone-card pending">
+                    <i class="fas fa-calendar-alt fa-2x text-muted mb-2"></i>
+                    <div class="fw-bold">Target Launch</div>
+                    <div class="text-muted">{{ app.target_launch_date|date:"Y-m-d" }}</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Blocked Functions Alert -->
+    {% if blocked_functions %}
+    <div class="blocked-alert">
+        <h5><i class="fas fa-exclamation-triangle text-warning"></i> {{ blocked_functions.count }} Blocked Function{{ blocked_functions.count|pluralize }}</h5>
+        <p class="mb-0">Some functions are currently blocked and need attention. See details below.</p>
+    </div>
+    {% endif %}
+
+    <!-- Functions by Status -->
+    <div class="row">
+        <div class="col-12">
+            <h4 class="mb-4"><i class="fas fa-tasks"></i> Functions by Status</h4>
+
+            <!-- Production -->
+            {% if functions_by_status.production %}
+            <div class="function-group">
+                <div class="function-group-header bg-success">
+                    <span><i class="fas fa-check-circle"></i> Production</span>
+                    <span class="badge bg-light text-dark">{{ functions_by_status.production.count }}</span>
+                </div>
+                <ul class="function-list">
+                    {% for func in functions_by_status.production %}
+                    <li class="function-item production">
+                        <div class="function-info">
+                            <div class="function-name">
+                                {{ func.function_name }}
+                                {% if func.is_api %}<span class="badge bg-info">API</span>{% endif %}
+                                {% if func.is_ui %}<span class="badge bg-primary">UI</span>{% endif %}
+                            </div>
+                            <div class="function-meta">
+                                Code: {{ func.function_code }}
+                                {% if func.assigned_to %} | Assigned: {{ func.assigned_to.get_full_name }}{% endif %}
+                                {% if func.completed_at %} | Completed: {{ func.completed_at|date:"Y-m-d" }}{% endif %}
+                            </div>
+                        </div>
+                        <div class="function-actions">
+                            <span class="badge bg-{{ func.get_priority_color }}">{{ func.get_priority_display }}</span>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <!-- Soft Launch -->
+            {% if functions_by_status.softlaunch %}
+            <div class="function-group">
+                <div class="function-group-header bg-warning text-dark">
+                    <span><i class="fas fa-rocket"></i> Soft Launch</span>
+                    <span class="badge bg-light text-dark">{{ functions_by_status.softlaunch.count }}</span>
+                </div>
+                <ul class="function-list">
+                    {% for func in functions_by_status.softlaunch %}
+                    <li class="function-item softlaunch">
+                        <div class="function-info">
+                            <div class="function-name">
+                                {{ func.function_name }}
+                                {% if func.is_api %}<span class="badge bg-info">API</span>{% endif %}
+                                {% if func.is_ui %}<span class="badge bg-primary">UI</span>{% endif %}
+                            </div>
+                            <div class="function-meta">
+                                Code: {{ func.function_code }}
+                                {% if func.assigned_to %} | Assigned: {{ func.assigned_to.get_full_name }}{% endif %}
+                            </div>
+                        </div>
+                        <div class="function-actions">
+                            <span class="badge bg-{{ func.get_priority_color }}">{{ func.get_priority_display }}</span>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <!-- UAT -->
+            {% if functions_by_status.uat %}
+            <div class="function-group">
+                <div class="function-group-header bg-info">
+                    <span><i class="fas fa-vial"></i> UAT</span>
+                    <span class="badge bg-light text-dark">{{ functions_by_status.uat.count }}</span>
+                </div>
+                <ul class="function-list">
+                    {% for func in functions_by_status.uat %}
+                    <li class="function-item uat">
+                        <div class="function-info">
+                            <div class="function-name">
+                                {{ func.function_name }}
+                                {% if func.is_api %}<span class="badge bg-info">API</span>{% endif %}
+                                {% if func.is_ui %}<span class="badge bg-primary">UI</span>{% endif %}
+                            </div>
+                            <div class="function-meta">
+                                Code: {{ func.function_code }}
+                                {% if func.assigned_to %} | Assigned: {{ func.assigned_to.get_full_name }}{% endif %}
+                            </div>
+                        </div>
+                        <div class="function-actions">
+                            <span class="badge bg-{{ func.get_priority_color }}">{{ func.get_priority_display }}</span>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <!-- Completed -->
+            {% if functions_by_status.completed %}
+            <div class="function-group">
+                <div class="function-group-header" style="background: #20c997;">
+                    <span><i class="fas fa-check"></i> Completed</span>
+                    <span class="badge bg-light text-dark">{{ functions_by_status.completed.count }}</span>
+                </div>
+                <ul class="function-list">
+                    {% for func in functions_by_status.completed %}
+                    <li class="function-item completed">
+                        <div class="function-info">
+                            <div class="function-name">
+                                {{ func.function_name }}
+                                {% if func.is_api %}<span class="badge bg-info">API</span>{% endif %}
+                                {% if func.is_ui %}<span class="badge bg-primary">UI</span>{% endif %}
+                            </div>
+                            <div class="function-meta">
+                                Code: {{ func.function_code }}
+                                {% if func.assigned_to %} | Assigned: {{ func.assigned_to.get_full_name }}{% endif %}
+                                {% if func.completed_at %} | Completed: {{ func.completed_at|date:"Y-m-d" }}{% endif %}
+                            </div>
+                        </div>
+                        <div class="function-actions">
+                            <span class="badge bg-{{ func.get_priority_color }}">{{ func.get_priority_display }}</span>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <!-- Developing -->
+            {% if functions_by_status.developing %}
+            <div class="function-group">
+                <div class="function-group-header" style="background: #0dcaf0;">
+                    <span><i class="fas fa-code"></i> Developing</span>
+                    <span class="badge bg-light text-dark">{{ functions_by_status.developing.count }}</span>
+                </div>
+                <ul class="function-list">
+                    {% for func in functions_by_status.developing %}
+                    <li class="function-item developing">
+                        <div class="function-info">
+                            <div class="function-name">
+                                {{ func.function_name }}
+                                {% if func.is_api %}<span class="badge bg-info">API</span>{% endif %}
+                                {% if func.is_ui %}<span class="badge bg-primary">UI</span>{% endif %}
+                                {% if func.is_blocked %}<span class="badge bg-danger">BLOCKED</span>{% endif %}
+                            </div>
+                            <div class="function-meta">
+                                Code: {{ func.function_code }}
+                                {% if func.assigned_to %} | Assigned: {{ func.assigned_to.get_full_name }}{% endif %}
+                                {% if func.is_blocked %} | <strong class="text-danger">Blocker: {{ func.blocked_reason }}</strong>{% endif %}
+                            </div>
+                        </div>
+                        <div class="function-actions">
+                            <span class="badge bg-{{ func.get_priority_color }}">{{ func.get_priority_display }}</span>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <!-- Planned -->
+            {% if functions_by_status.planned %}
+            <div class="function-group">
+                <div class="function-group-header bg-secondary">
+                    <span><i class="fas fa-clipboard-list"></i> Planned</span>
+                    <span class="badge bg-light text-dark">{{ functions_by_status.planned.count }}</span>
+                </div>
+                <ul class="function-list">
+                    {% for func in functions_by_status.planned %}
+                    <li class="function-item planned">
+                        <div class="function-info">
+                            <div class="function-name">
+                                {{ func.function_name }}
+                                {% if func.is_api %}<span class="badge bg-info">API</span>{% endif %}
+                                {% if func.is_ui %}<span class="badge bg-primary">UI</span>{% endif %}
+                            </div>
+                            <div class="function-meta">
+                                Code: {{ func.function_code }}
+                                {% if func.assigned_to %} | Assigned: {{ func.assigned_to.get_full_name }}{% endif %}
+                            </div>
+                        </div>
+                        <div class="function-actions">
+                            <span class="badge bg-{{ func.get_priority_color }}">{{ func.get_priority_display }}</span>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <!-- Blocked -->
+            {% if functions_by_status.blocked %}
+            <div class="function-group">
+                <div class="function-group-header bg-danger">
+                    <span><i class="fas fa-ban"></i> Blocked</span>
+                    <span class="badge bg-light text-dark">{{ functions_by_status.blocked.count }}</span>
+                </div>
+                <ul class="function-list">
+                    {% for func in functions_by_status.blocked %}
+                    <li class="function-item blocked">
+                        <div class="function-info">
+                            <div class="function-name">
+                                {{ func.function_name }}
+                                {% if func.is_api %}<span class="badge bg-info">API</span>{% endif %}
+                                {% if func.is_ui %}<span class="badge bg-primary">UI</span>{% endif %}
+                            </div>
+                            <div class="function-meta">
+                                Code: {{ func.function_code }}
+                                {% if func.assigned_to %} | Assigned: {{ func.assigned_to.get_full_name }}{% endif %}
+                            </div>
+                            {% if func.blocked_reason %}
+                            <div class="text-danger mt-2">
+                                <strong>Blocker:</strong> {{ func.blocked_reason }}
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="function-actions">
+                            <span class="badge bg-{{ func.get_priority_color }}">{{ func.get_priority_display }}</span>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Status History -->
+    {% if status_history %}
+    <div class="row mt-5">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="fas fa-history"></i> Status History</h5>
+                </div>
+                <div class="card-body">
+                    <div class="history-timeline">
+                        {% for history in status_history %}
+                        <div class="history-item">
+                            <div class="history-date">
+                                {{ history.created_at|date:"Y-m-d H:i" }}
+                            </div>
+                            <div class="history-change">
+                                <span class="badge bg-{{ history.old_status_color }}">{{ history.get_old_status_display }}</span>
+                                <i class="fas fa-arrow-right mx-2"></i>
+                                <span class="badge bg-{{ history.new_status_color }}">{{ history.get_new_status_display }}</span>
+                            </div>
+                            <div class="text-muted">
+                                Changed by: {{ history.changed_by.get_full_name }}
+                            </div>
+                            {% if history.notes %}
+                            <div class="mt-2">
+                                <strong>Notes:</strong> {{ history.notes }}
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Update Status Modal -->
+<div class="modal fade" id="statusModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Update App Status</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'admin_panel:update_app_status' app.app_code %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">New Status</label>
+                        <select name="status" class="form-select" required>
+                            <option value="developing" {% if app.status == 'developing' %}selected{% endif %}>Developing</option>
+                            <option value="prototype" {% if app.status == 'prototype' %}selected{% endif %}>Prototype</option>
+                            <option value="uat" {% if app.status == 'uat' %}selected{% endif %}>UAT</option>
+                            <option value="softlaunch" {% if app.status == 'softlaunch' %}selected{% endif %}>Soft Launch</option>
+                            <option value="production" {% if app.status == 'production' %}selected{% endif %}>Production</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes (optional)</label>
+                        <textarea name="notes" class="form-control" rows="3" placeholder="Reason for status change..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Status</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

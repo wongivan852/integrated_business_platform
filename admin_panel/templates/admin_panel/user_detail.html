@@ -1,0 +1,298 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ user_obj.email }} - User Detail{% endblock %}
+
+{% block extra_css %}
+<style>
+    .app-access-card {
+        transition: all 0.3s ease;
+        border-left: 4px solid #dee2e6;
+    }
+    .app-access-card.has-access {
+        border-left-color: #28a745;
+        background-color: #f8fff9;
+    }
+    .role-selector {
+        min-width: 150px;
+    }
+    .role-badge {
+        font-size: 0.9rem;
+        padding: 0.4rem 0.8rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'admin_panel:dashboard' %}">Admin Panel</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'admin_panel:user_list' %}">Users</a></li>
+                    <li class="breadcrumb-item active">{{ user_obj.email }}</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <!-- User Info Card -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-user"></i> User Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <strong>Name:</strong><br>
+                        {{ user_obj.get_full_name|default:"N/A" }}
+                    </div>
+                    <div class="mb-3">
+                        <strong>Email:</strong><br>
+                        {{ user_obj.email }}
+                    </div>
+                    <div class="mb-3">
+                        <strong>Employee ID:</strong><br>
+                        {{ user_obj.employee_id|default:"N/A" }}
+                    </div>
+                    <div class="mb-3">
+                        <strong>Region:</strong><br>
+                        {{ user_obj.get_region_display|default:"N/A" }}
+                    </div>
+                    <div class="mb-3">
+                        <strong>Department:</strong><br>
+                        {{ user_obj.get_department_display|default:"N/A" }}
+                    </div>
+                    <div class="mb-3">
+                        <strong>Status:</strong><br>
+                        {% if user_obj.is_active %}
+                            <span class="badge bg-success">Active</span>
+                        {% else %}
+                            <span class="badge bg-danger">Inactive</span>
+                        {% endif %}
+
+                        {% if user_obj.is_superuser %}
+                            <span class="badge bg-warning">Superuser</span>
+                        {% endif %}
+
+                        {% if user_obj.is_staff %}
+                            <span class="badge bg-info">Staff</span>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <strong>Joined:</strong><br>
+                        {{ user_obj.date_joined|date:"Y-m-d" }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- App Access Control -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-th"></i> Application Access Control</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">
+                        Configure which applications this user can access and their role in each app.
+                    </p>
+
+                    <div class="row">
+                        {% for app in apps_with_access %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card app-access-card {% if app.role != 'none' %}has-access{% endif %}">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div>
+                                            <h6 class="mb-1">
+                                                <i class="fas {{ app.icon }} text-{{ app.color }}"></i>
+                                                {{ app.name }}
+                                            </h6>
+                                            <small class="text-muted">{{ app.description }}</small>
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-3">
+                                        <label class="form-label small">Access Role:</label>
+                                        <select class="form-select role-selector"
+                                                data-user-id="{{ user_obj.id }}"
+                                                data-app-code="{{ app.key }}"
+                                                onchange="updateAppAccess(this)">
+                                            <option value="none" {% if app.role == 'none' %}selected{% endif %}>
+                                                No Access
+                                            </option>
+                                            <option value="employee" {% if app.role == 'employee' %}selected{% endif %}>
+                                                Employee
+                                            </option>
+                                            <option value="manager" {% if app.role == 'manager' %}selected{% endif %}>
+                                                Manager
+                                            </option>
+                                            <option value="admin" {% if app.role == 'admin' %}selected{% endif %}>
+                                                Admin
+                                            </option>
+                                        </select>
+                                    </div>
+
+                                    <div class="mt-2">
+                                        <span class="badge role-badge
+                                            {% if app.role == 'admin' %}bg-danger
+                                            {% elif app.role == 'manager' %}bg-warning
+                                            {% elif app.role == 'employee' %}bg-success
+                                            {% else %}bg-secondary{% endif %}">
+                                            Current: {{ app.role|title }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audit Logs -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-history"></i> Access History</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Action</th>
+                                    <th>Application</th>
+                                    <th>Old Value</th>
+                                    <th>New Value</th>
+                                    <th>Modified By</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in audit_logs %}
+                                <tr>
+                                    <td><small>{{ log.created_at|date:"Y-m-d H:i" }}</small></td>
+                                    <td>
+                                        <span class="badge
+                                            {% if log.action == 'access_granted' %}bg-success
+                                            {% elif log.action == 'access_revoked' %}bg-danger
+                                            {% elif log.action == 'role_changed' %}bg-warning
+                                            {% else %}bg-secondary{% endif %}">
+                                            {{ log.get_action_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ log.app_code }}</td>
+                                    <td><small>{{ log.old_value.role|default:"-" }}</small></td>
+                                    <td><small>{{ log.new_value.role|default:"-" }}</small></td>
+                                    <td><small>{{ log.modified_by.email|default:"System" }}</small></td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted">No access history</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updateAppAccess(selectElement) {
+    const userId = selectElement.dataset.userId;
+    const appCode = selectElement.dataset.appCode;
+    const role = selectElement.value;
+    const card = selectElement.closest('.app-access-card');
+    const badge = card.querySelector('.role-badge');
+
+    // Show loading state
+    selectElement.disabled = true;
+
+    fetch(`/admin-panel/users/${userId}/update-access/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: `app_code=${appCode}&role=${role}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update UI
+            if (role !== 'none') {
+                card.classList.add('has-access');
+            } else {
+                card.classList.remove('has-access');
+            }
+
+            // Update badge
+            badge.textContent = `Current: ${role.charAt(0).toUpperCase() + role.slice(1)}`;
+            badge.className = 'badge role-badge';
+            if (role === 'admin') badge.classList.add('bg-danger');
+            else if (role === 'manager') badge.classList.add('bg-warning');
+            else if (role === 'employee') badge.classList.add('bg-success');
+            else badge.classList.add('bg-secondary');
+
+            // Show success message
+            showToast('Success', `Access updated to ${role} for ${data.app_name}`, 'success');
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to update access');
+    })
+    .finally(() => {
+        selectElement.disabled = false;
+    });
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function showToast(title, message, type) {
+    // Simple toast notification
+    const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+    const toast = `
+        <div class="alert ${alertClass} alert-dismissible fade show position-fixed top-0 end-0 m-3" role="alert" style="z-index: 9999;">
+            <strong>${title}:</strong> ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', toast);
+    setTimeout(() => {
+        const alerts = document.querySelectorAll('.alert');
+        if (alerts.length > 0) {
+            alerts[alerts.length - 1].remove();
+        }
+    }, 3000);
+}
+</script>
+{% endblock %}

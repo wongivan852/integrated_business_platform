@@ -1,0 +1,401 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Blocked Functions Report{% endblock %}
+
+{% block extra_css %}
+<style>
+    .report-header {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 10px;
+        margin-bottom: 30px;
+    }
+    .summary-card {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 30px;
+    }
+    .summary-stat {
+        text-align: center;
+        padding: 20px;
+    }
+    .summary-stat-value {
+        font-size: 3rem;
+        font-weight: bold;
+        color: #dc3545;
+    }
+    .summary-stat-label {
+        color: #6c757d;
+        text-transform: uppercase;
+        font-size: 0.9rem;
+        margin-top: 10px;
+    }
+    .app-section {
+        margin-bottom: 40px;
+    }
+    .app-section-header {
+        background: linear-gradient(135deg, #495057 0%, #6c757d 100%);
+        color: white;
+        padding: 15px 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .app-section-title {
+        font-size: 1.25rem;
+        font-weight: bold;
+    }
+    .blocked-card {
+        background: white;
+        border-left: 5px solid #dc3545;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .blocked-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .function-header {
+        display: flex;
+        justify-content: between;
+        align-items: flex-start;
+        margin-bottom: 15px;
+    }
+    .function-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 5px;
+    }
+    .function-code {
+        font-family: monospace;
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+    .blocker-section {
+        background: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 15px;
+        border-radius: 4px;
+        margin-top: 15px;
+    }
+    .blocker-title {
+        font-weight: bold;
+        color: #856404;
+        margin-bottom: 10px;
+    }
+    .blocker-text {
+        color: #856404;
+    }
+    .function-meta {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+        margin-top: 15px;
+        padding-top: 15px;
+        border-top: 1px solid #dee2e6;
+    }
+    .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .meta-item i {
+        color: #6c757d;
+    }
+    .priority-high {
+        border-left-color: #dc3545;
+    }
+    .priority-medium {
+        border-left-color: #ffc107;
+    }
+    .priority-low {
+        border-left-color: #6c757d;
+    }
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        background: white;
+        border-radius: 10px;
+    }
+    .empty-state i {
+        font-size: 4rem;
+        color: #28a745;
+        margin-bottom: 20px;
+    }
+    .filter-bar {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 30px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .dependency-badge {
+        background: #e7f1ff;
+        color: #004085;
+        padding: 5px 10px;
+        border-radius: 4px;
+        font-size: 0.85rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Report Header -->
+    <div class="report-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2><i class="fas fa-ban"></i> Blocked Functions Report</h2>
+                <p class="mb-0">Functions requiring immediate attention to unblock development</p>
+            </div>
+            <div>
+                <a href="{% url 'admin_panel:app_status_dashboard' %}" class="btn btn-light">
+                    <i class="fas fa-arrow-left"></i> Back to Dashboard
+                </a>
+                <a href="{% url 'admin_panel:function_status_board' %}" class="btn btn-light">
+                    <i class="fas fa-columns"></i> Function Board
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Section -->
+    <div class="summary-card">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="summary-stat">
+                    <div class="summary-stat-value">{{ total_blocked }}</div>
+                    <div class="summary-stat-label">Total Blocked Functions</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="summary-stat">
+                    <div class="summary-stat-value text-warning">
+                        {{ blocked_by_app|length }}
+                    </div>
+                    <div class="summary-stat-label">Apps Affected</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="summary-stat">
+                    <div class="summary-stat-value text-danger">
+                        {% widthratio blocked_functions.filter.priority.high.count total_blocked 100 %}%
+                    </div>
+                    <div class="summary-stat-label">High Priority Blockers</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if total_blocked > 0 %}
+    <!-- Priority Breakdown -->
+    <div class="filter-bar">
+        <h5 class="mb-3"><i class="fas fa-filter"></i> Priority Breakdown</h5>
+        <div class="d-flex gap-3">
+            <div>
+                <span class="badge bg-danger" style="font-size: 1rem; padding: 8px 15px;">
+                    High: {{ blocked_functions|dictsort:"priority"|slice:":"|length }}
+                </span>
+            </div>
+            <div>
+                <span class="badge bg-warning text-dark" style="font-size: 1rem; padding: 8px 15px;">
+                    Medium: {{ blocked_functions|dictsort:"priority"|slice:":-1"|length }}
+                </span>
+            </div>
+            <div>
+                <span class="badge bg-secondary" style="font-size: 1rem; padding: 8px 15px;">
+                    Low: {{ blocked_functions|dictsort:"priority"|slice:"-1:"|length }}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Blocked Functions by App -->
+    {% for app_name, functions in blocked_by_app.items %}
+    <div class="app-section">
+        <div class="app-section-header">
+            <div class="app-section-title">
+                <i class="fas fa-cube"></i> {{ app_name }}
+            </div>
+            <div>
+                <span class="badge bg-light text-dark" style="font-size: 1rem;">
+                    {{ functions|length }} blocked function{{ functions|length|pluralize }}
+                </span>
+            </div>
+        </div>
+
+        {% for func in functions %}
+        <div class="blocked-card priority-{{ func.priority }}">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="function-header">
+                        <div class="flex-grow-1">
+                            <div class="function-title">
+                                {{ func.function_name }}
+                                {% if func.is_api %}
+                                <span class="badge bg-info">API</span>
+                                {% endif %}
+                                {% if func.is_ui %}
+                                <span class="badge bg-primary">UI</span>
+                                {% endif %}
+                            </div>
+                            <div class="function-code">{{ func.function_code }}</div>
+                        </div>
+                    </div>
+
+                    {% if func.blocked_reason %}
+                    <div class="blocker-section">
+                        <div class="blocker-title">
+                            <i class="fas fa-exclamation-circle"></i> Blocking Issue
+                        </div>
+                        <div class="blocker-text">
+                            {{ func.blocked_reason }}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if func.description %}
+                    <div class="mt-3">
+                        <strong>Description:</strong>
+                        <p class="text-muted mb-0">{{ func.description }}</p>
+                    </div>
+                    {% endif %}
+
+                    {% if func.depends_on.all %}
+                    <div class="mt-3">
+                        <strong>Dependencies:</strong>
+                        <div class="mt-2">
+                            {% for dep in func.depends_on.all %}
+                            <span class="dependency-badge">
+                                <i class="fas fa-link"></i> {{ dep.function_name }}
+                                <span class="badge bg-{{ dep.get_status_color }} ms-1">{{ dep.get_status_display }}</span>
+                            </span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-4">
+                    <div class="text-end">
+                        <span class="badge bg-{{ func.get_priority_color }} mb-2" style="font-size: 1rem; padding: 8px 15px;">
+                            {{ func.get_priority_display }} Priority
+                        </span>
+                        <br>
+                        <span class="badge bg-{{ func.get_status_color }}" style="font-size: 0.9rem; padding: 6px 12px;">
+                            {{ func.get_status_display }}
+                        </span>
+                    </div>
+
+                    <div class="function-meta mt-4">
+                        {% if func.assigned_to %}
+                        <div class="meta-item">
+                            <i class="fas fa-user"></i>
+                            <span>{{ func.assigned_to.get_full_name }}</span>
+                        </div>
+                        {% endif %}
+
+                        {% if func.started_at %}
+                        <div class="meta-item">
+                            <i class="fas fa-calendar-alt"></i>
+                            <span>Started: {{ func.started_at|date:"Y-m-d" }}</span>
+                        </div>
+                        {% endif %}
+
+                        {% if func.estimated_hours %}
+                        <div class="meta-item">
+                            <i class="fas fa-clock"></i>
+                            <span>{{ func.estimated_hours }}h estimated</span>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mt-3">
+                        <a href="{% url 'admin_panel:app_status_detail' func.app.app_code %}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-eye"></i> View App
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endfor %}
+
+    <!-- Action Items -->
+    <div class="card mt-5">
+        <div class="card-header bg-warning text-dark">
+            <h5 class="mb-0"><i class="fas fa-tasks"></i> Recommended Actions</h5>
+        </div>
+        <div class="card-body">
+            <ul class="list-unstyled mb-0">
+                <li class="mb-3">
+                    <i class="fas fa-check-circle text-success"></i>
+                    <strong>Review blockers with assigned developers</strong> - Schedule meetings to resolve blocking issues
+                </li>
+                <li class="mb-3">
+                    <i class="fas fa-check-circle text-success"></i>
+                    <strong>Prioritize high-priority blockers</strong> - Focus resources on critical path items
+                </li>
+                <li class="mb-3">
+                    <i class="fas fa-check-circle text-success"></i>
+                    <strong>Check dependencies</strong> - Ensure dependent functions are completed first
+                </li>
+                <li class="mb-3">
+                    <i class="fas fa-check-circle text-success"></i>
+                    <strong>Update function statuses</strong> - Mark functions as unblocked when issues are resolved
+                </li>
+                <li class="mb-0">
+                    <i class="fas fa-check-circle text-success"></i>
+                    <strong>Track resolution time</strong> - Monitor how long functions remain blocked
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    {% else %}
+    <!-- Empty State - No Blocked Functions -->
+    <div class="empty-state">
+        <i class="fas fa-check-circle"></i>
+        <h3>No Blocked Functions!</h3>
+        <p class="text-muted">All functions are progressing smoothly. Great work!</p>
+        <div class="mt-4">
+            <a href="{% url 'admin_panel:app_status_dashboard' %}" class="btn btn-primary">
+                <i class="fas fa-chart-line"></i> View App Status Dashboard
+            </a>
+            <a href="{% url 'admin_panel:function_status_board' %}" class="btn btn-secondary">
+                <i class="fas fa-columns"></i> View Function Board
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-refresh every 5 minutes to get latest blocked functions
+setTimeout(function() {
+    location.reload();
+}, 300000);
+
+// Add visual indicator for stale data
+let loadTime = new Date();
+setInterval(function() {
+    let now = new Date();
+    let diff = Math.floor((now - loadTime) / 60000); // minutes
+    if (diff > 0) {
+        document.querySelector('.report-header p').innerHTML =
+            'Functions requiring immediate attention to unblock development ' +
+            '<small class="badge bg-light text-dark">Data from ' + diff + ' min ago</small>';
+    }
+}, 60000);
+</script>
+{% endblock %}

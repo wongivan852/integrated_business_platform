@@ -19,7 +19,10 @@ import json
 import uuid
 from urllib.parse import urlencode, urlparse
 
-from .forms import EmailAuthenticationForm, CompanyUserCreationForm, UserProfileForm
+from .forms import (
+    EmailAuthenticationForm, CompanyUserCreationForm, UserProfileForm,
+    UserRegistrationForm, UserPasswordChangeForm
+)
 from .models import CompanyUser, UserSession, ApplicationConfig
 
 
@@ -30,6 +33,30 @@ class EmailLoginView(LoginView):
     form_class = EmailAuthenticationForm
     template_name = 'authentication/login.html'
     success_url = reverse_lazy('dashboard:home')
+
+    def form_invalid(self, form):
+        """Check if login failed due to pending approval."""
+        email = form.data.get('username', '').lower()
+        if email:
+            # Check if user exists but is not approved
+            try:
+                user = CompanyUser.objects.get(email=email)
+                if not user.is_approved:
+                    messages.error(
+                        self.request,
+                        _('Your account is pending approval by an administrator. '
+                          'Please wait for approval notification.')
+                    )
+                elif not user.is_active:
+                    messages.error(
+                        self.request,
+                        _('Your account has been deactivated. '
+                          'Please contact your administrator.')
+                    )
+            except CompanyUser.DoesNotExist:
+                pass  # Let default error message show
+
+        return super().form_invalid(form)
 
     def form_valid(self, form):
         """Login user and update SSO token."""
@@ -88,26 +115,36 @@ class EmailLogoutView(LogoutView):
 
 class UserRegistrationView(CreateView):
     """
-    View for registering new company users.
+    Simplified self-registration view for internal staff.
+    Creates user with is_approved=False, requiring superadmin approval.
     """
     model = CompanyUser
-    form_class = CompanyUserCreationForm
+    form_class = UserRegistrationForm
     template_name = 'authentication/register.html'
-    success_url = reverse_lazy('authentication:login')
+    success_url = reverse_lazy('authentication:registration_pending')
 
     def form_valid(self, form):
-        """Create user and show success message."""
+        """Create user pending approval and show success message."""
         response = super().form_valid(form)
+        user = form.instance
         messages.success(
             self.request,
-            _('Account created successfully. Please log in.')
+            _('Registration submitted successfully! Your account is pending approval by an administrator. '
+              'You will receive notification once your account is approved.')
         )
         return response
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['page_title'] = _('Create Account')
+        context['page_title'] = _('Register for Company Platform')
         return context
+
+
+def registration_pending(request):
+    """View shown after successful registration while awaiting approval."""
+    return render(request, 'authentication/registration_pending.html', {
+        'page_title': _('Registration Pending Approval')
+    })
 
 
 @method_decorator(login_required, name='dispatch')
@@ -351,3 +388,100 @@ def get_client_ip(request):
     else:
         ip = request.META.get('REMOTE_ADDR')
     return ip
+
+
+@login_required
+def change_password(request):
+    """View for users to change their password."""
+    if request.method == 'POST':
+        form = UserPasswordChangeForm(request.user, request.POST)
+        if form.is_valid():
+            user = form.save()
+            # Update session to prevent logout
+            from django.contrib.auth import update_session_auth_hash
+            update_session_auth_hash(request, user)
+            messages.success(
+                request,
+                _('Password changed successfully.')
+            )
+            return redirect('authentication:profile')
+    else:
+        form = UserPasswordChangeForm(request.user)
+
+    return render(request, 'authentication/change_password.html', {
+        'form': form,
+        'page_title': _('Change Password')
+    })
+
+
+@login_required
+def pending_approvals(request):
+    """View for superadmin to see and manage pending user registrations."""
+    if not request.user.is_superuser:
+        messages.error(request, _('You do not have permission to access this page.'))
+        return redirect('dashboard:home')
+
+    # Get all pending registrations
+    pending_users = CompanyUser.objects.filter(
+        is_approved=False,
+        is_active=False
+    ).order_by('-date_joined')
+
+    return render(request, 'authentication/pending_approvals.html', {
+        'pending_users': pending_users,
+        'page_title': _('Pending User Approvals')
+    })
+
+
+@login_required
+def approve_user(request, user_id):
+    """Approve a pending user registration."""
+    if not request.user.is_superuser:
+        messages.error(request, _('You do not have permission to perform this action.'))
+        return redirect('dashboard:home')
+
+    try:
+        user = CompanyUser.objects.get(id=user_id, is_approved=False)
+        user.is_approved = True
+        user.is_active = True
+        user.approved_by = request.user
+        user.approved_at = timezone.now()
+        user.save()
+
+        messages.success(
+            request,
+            _('User {} ({}) has been approved and can now login.').format(
+                user.get_full_name(),
+                user.email
+            )
+        )
+    except CompanyUser.DoesNotExist:
+        messages.error(request, _('User not found or already approved.'))
+
+    return redirect('authentication:pending_approvals')
+
+
+@login_required
+def reject_user(request, user_id):
+    """Reject and delete a pending user registration."""
+    if not request.user.is_superuser:
+        messages.error(request, _('You do not have permission to perform this action.'))
+        return redirect('dashboard:home')
+
+    try:
+        user = CompanyUser.objects.get(id=user_id, is_approved=False)
+        user_email = user.email
+        user_name = user.get_full_name()
+        user.delete()
+
+        messages.success(
+            request,
+            _('Registration for {} ({}) has been rejected and deleted.').format(
+                user_name,
+                user_email
+            )
+        )
+    except CompanyUser.DoesNotExist:
+        messages.error(request, _('User not found or already approved.'))
+
+    return redirect('authentication:pending_approvals')

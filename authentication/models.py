@@ -118,6 +118,29 @@ class CompanyUser(AbstractUser):
         help_text=_('Last time user logged in via SSO')
     )
 
+    # Registration and approval fields
+    is_approved = models.BooleanField(
+        _('Is Approved'),
+        default=False,
+        help_text=_('Whether user registration has been approved by superadmin')
+    )
+
+    approved_by = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='approved_users',
+        verbose_name=_('Approved By')
+    )
+
+    approved_at = models.DateTimeField(
+        _('Approved At'),
+        null=True,
+        blank=True,
+        help_text=_('When user was approved')
+    )
+
     # Audit fields
     created_by = models.ForeignKey(
         'self',
@@ -181,7 +204,7 @@ class UserSession(models.Model):
     user = models.ForeignKey(
         CompanyUser,
         on_delete=models.CASCADE,
-        related_name='sso_sessions'
+        related_name='auth_user_sessions'  # Changed from 'sso_sessions' to avoid clash
     )
 
     session_key = models.CharField(

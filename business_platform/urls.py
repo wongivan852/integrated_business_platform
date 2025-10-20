@@ -20,6 +20,12 @@ urlpatterns = [
     # Main Dashboard
     path('dashboard/', include('apps.dashboard.urls')),
 
+    # Admin Panel - User and App Access Management
+    path('admin-panel/', include('admin_panel.urls')),
+
+    # SSO API
+    path('api/sso/', include('sso.urls')),
+
     # External App Proxies/Links
     # These will redirect or proxy to the actual applications
     # path('expense-claims/', proxy_view('http://localhost:8001')),

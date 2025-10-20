@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}App Status Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2><i class="fas fa-chart-line"></i> App Status Dashboard</h2>
+            <p class="text-muted">Monitor development lifecycle and function-level progress</p>
+        </div>
+        <div class="col-auto">
+            <a href="{% url 'admin_panel:function_status_board' %}" class="btn btn-primary">
+                <i class="fas fa-columns"></i> Function Board
+            </a>
+            <a href="{% url 'admin_panel:timeline_view' %}" class="btn btn-secondary">
+                <i class="fas fa-calendar-alt"></i> Timeline
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-success">
+                <div class="card-body">
+                    <h6 class="text-muted">In Production</h6>
+                    <h2 class="text-success">{{ apps_in_production }}/{{ total_apps }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-primary">
+                <div class="card-body">
+                    <h6 class="text-muted">Soft Launch</h6>
+                    <h2 class="text-primary">{{ apps_in_softlaunch }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-warning">
+                <div class="card-body">
+                    <h6 class="text-muted">UAT</h6>
+                    <h2 class="text-warning">{{ apps_in_uat }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-info">
+                <div class="card-body">
+                    <h6 class="text-muted">Developing</h6>
+                    <h2 class="text-info">{{ apps_developing }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Function Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">Total Functions</h6>
+                    <h3>{{ total_functions }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">In Production</h6>
+                    <h3 class="text-success">{{ functions_in_production }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">Developing</h6>
+                    <h3 class="text-info">{{ functions_developing }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">Blocked</h6>
+                    <h3 class="text-danger">{{ functions_blocked }}</h3>
+                    {% if functions_blocked > 0 %}
+                    <a href="{% url 'admin_panel:blocked_functions_report' %}" class="btn btn-sm btn-danger mt-2">
+                        View Blocked
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Apps List -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">Applications</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Application</th>
+                                    <th>Status</th>
+                                    <th>Priority</th>
+                                    <th>Progress</th>
+                                    <th>Functions</th>
+                                    <th>Version</th>
+                                    <th>Target Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for app in apps %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ app.app_name }}</strong><br>
+                                        <small class="text-muted">{{ app.app_code }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ app.get_status_color }}">
+                                            {{ app.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ app.get_priority_color }}">
+                                            {{ app.get_priority_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="width: 100px;">
+                                            <div class="progress-bar bg-{{ app.get_status_color }}"
+                                                 style="width: {{ app.completion_percentage }}%">
+                                                {{ app.completion_percentage }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success">{{ app.functions_complete }}</span> /
+                                        <span class="badge bg-secondary">{{ app.functions_total }}</span>
+                                    </td>
+                                    <td><small>{{ app.version }}</small></td>
+                                    <td>
+                                        {% if app.target_launch_date %}
+                                            <small>{{ app.target_launch_date|date:"Y-m-d" }}</small>
+                                        {% else %}
+                                            <small class="text-muted">Not set</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'admin_panel:app_status_detail' app.app_code %}"
+                                           class="btn btn-sm btn-primary">
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="8" class="text-center text-muted py-4">
+                                        No apps found. <a href="#" onclick="alert('Add apps via Django admin or management command')">Add apps</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Changes -->
+    {% if recent_changes %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Recent Status Changes</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>App</th>
+                                    <th>Change</th>
+                                    <th>Changed By</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for change in recent_changes %}
+                                <tr>
+                                    <td><small>{{ change.created_at|date:"Y-m-d H:i" }}</small></td>
+                                    <td>{{ change.app.app_name }}</td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ change.old_status }}</span>
+                                        <i class="fas fa-arrow-right"></i>
+                                        <span class="badge bg-success">{{ change.new_status }}</span>
+                                    </td>
+                                    <td><small>{{ change.changed_by.email }}</small></td>
+                                    <td><small>{{ change.notes|truncatewords:10 }}</small></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

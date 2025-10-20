@@ -22,9 +22,14 @@
                         <i class="fas fa-user"></i> {{ user.get_display_name }}
                     </a>
                     <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="{% url 'authentication:profile' %}">Profile</a></li>
+                        <li><a class="dropdown-item" href="{% url 'authentication:profile' %}"><i class="fas fa-user-circle"></i> Profile</a></li>
+                        <li><a class="dropdown-item" href="{% url 'authentication:change_password' %}"><i class="fas fa-key"></i> Change Password</a></li>
+                        {% if user.is_superuser %}
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="{% url 'authentication:logout' %}">Logout</a></li>
+                        <li><a class="dropdown-item" href="{% url 'authentication:pending_approvals' %}"><i class="fas fa-user-clock"></i> Pending Approvals</a></li>
+                        {% endif %}
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{% url 'authentication:logout' %}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
                     </ul>
                 </div>
             </div>

@@ -1,29 +1,22 @@
 """SSO serializers for user data and permissions."""
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from authentication.models import UserProfile
 
 User = get_user_model()
 
 
 class UserPermissionsSerializer(serializers.Serializer):
     """Serialize user permissions for SSO token."""
-
-    can_access_leave_system = serializers.BooleanField()
-    can_access_quotation_system = serializers.BooleanField()
-    can_access_expense_system = serializers.BooleanField()
-    can_access_crm_system = serializers.BooleanField()
-    can_access_asset_management = serializers.BooleanField()
-    can_access_stripe_dashboard = serializers.BooleanField()
+    # Permissions are now stored in UserAppAccess model
+    # and included in JWT token dynamically
 
 
 class SSOUserSerializer(serializers.ModelSerializer):
     """Serialize user data for SSO token."""
 
     permissions = serializers.SerializerMethodField()
+    roles = serializers.SerializerMethodField()
     full_name = serializers.CharField(source='get_full_name', read_only=True)
-    company_name = serializers.CharField(source='company.name', read_only=True, allow_null=True)
-    department_name = serializers.CharField(source='department.name', read_only=True, allow_null=True)
 
     class Meta:
         model = User
@@ -35,38 +28,59 @@ class SSOUserSerializer(serializers.ModelSerializer):
             'last_name',
             'full_name',
             'employee_id',
-            'job_title',
+            'region',
+            'department',
             'is_staff',
             'is_superuser',
             'is_active',
-            'company_name',
-            'department_name',
             'permissions',
+            'roles',
         ]
         read_only_fields = fields
 
     def get_permissions(self, obj):
-        """Get user permissions from UserProfile."""
-        try:
-            profile = obj.userprofile
-            return {
-                'can_access_leave_system': profile.can_access_leave_system,
-                'can_access_quotation_system': profile.can_access_quotation_system,
-                'can_access_expense_system': profile.can_access_expense_system,
-                'can_access_crm_system': profile.can_access_crm_system,
-                'can_access_asset_management': profile.can_access_asset_management,
-                'can_access_stripe_dashboard': profile.can_access_stripe_dashboard,
-            }
-        except UserProfile.DoesNotExist:
-            # Return default permissions if profile doesn't exist
-            return {
-                'can_access_leave_system': True,
-                'can_access_quotation_system': False,
-                'can_access_expense_system': True,
-                'can_access_crm_system': False,
-                'can_access_asset_management': False,
-                'can_access_stripe_dashboard': False,
-            }
+        """Get user permissions from UserAppAccess model."""
+        from core.models import UserAppAccess
+        from apps.app_integrations.registry import INTEGRATED_APPS
+
+        if obj.is_superuser:
+            # Superuser has access to all apps
+            return {app_key: True for app_key in INTEGRATED_APPS.keys()}
+
+        # Get user's app access from database
+        user_accesses = UserAppAccess.objects.filter(
+            user=obj,
+            is_active=True
+        ).values('app_code', 'role')
+
+        access_dict = {access['app_code']: access['role'] for access in user_accesses}
+
+        return {
+            app_key: access_dict.get(app_key, 'none') != 'none'
+            for app_key in INTEGRATED_APPS.keys()
+        }
+
+    def get_roles(self, obj):
+        """Get user roles per app from UserAppAccess model."""
+        from core.models import UserAppAccess
+        from apps.app_integrations.registry import INTEGRATED_APPS
+
+        if obj.is_superuser:
+            # Superuser has admin role for all apps
+            return {app_key: 'admin' for app_key in INTEGRATED_APPS.keys()}
+
+        # Get user's app access from database
+        user_accesses = UserAppAccess.objects.filter(
+            user=obj,
+            is_active=True
+        ).values('app_code', 'role')
+
+        access_dict = {access['app_code']: access['role'] for access in user_accesses}
+
+        return {
+            app_key: access_dict.get(app_key, 'none')
+            for app_key in INTEGRATED_APPS.keys()
+        }
 
 
 class TokenSerializer(serializers.Serializer):
