@@ -1,0 +1,566 @@
+{% extends 'project_management/base.html' %}
+{% load static %}
+
+{% block page_title %}{{ task.title }}{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item">
+    <a href="{% url 'project_management:project_detail' project.pk %}">{{ project.name }}</a>
+</li>
+<li class="breadcrumb-item">
+    <a href="{% url 'project_management:project_kanban' project.pk %}">Tasks</a>
+</li>
+<li class="breadcrumb-item active" aria-current="page">{{ task.task_code }}</li>
+{% endblock %}
+
+{% block page_heading %}
+    <i class="fas fa-tasks"></i> {{ task.title }}
+{% endblock %}
+
+{% block page_subtitle %}
+<div class="d-flex align-items-center gap-2">
+    <span class="badge bg-secondary">{{ task.task_code }}</span>
+    <span class="status-badge {{ task.status }}">{{ task.get_status_display }}</span>
+    <span class="priority-badge {{ task.priority }}">{{ task.get_priority_display }}</span>
+</div>
+{% endblock %}
+
+{% block header_actions %}
+{% if can_edit %}
+<div class="btn-group me-2">
+    <a href="{% url 'project_management:task_edit' project.pk task.pk %}" class="btn btn-outline-light">
+        <i class="fas fa-edit"></i> Edit
+    </a>
+    <a href="{% url 'project_management:task_delete' project.pk task.pk %}" class="btn btn-outline-danger">
+        <i class="fas fa-trash"></i> Delete
+    </a>
+</div>
+{% endif %}
+<a href="{% url 'project_management:project_kanban' project.pk %}" class="btn btn-outline-light">
+    <i class="fas fa-arrow-left"></i> Back to Board
+</a>
+{% endblock %}
+
+{% block page_content %}
+<div class="row">
+    <!-- Main Content -->
+    <div class="col-lg-8">
+        <!-- Description Card -->
+        <div class="card project-card mb-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-align-left"></i> Description
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if task.description %}
+                <div class="task-description">
+                    {{ task.description|linebreaks }}
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">
+                    <i class="fas fa-info-circle"></i> No description provided
+                </p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Activity Timeline -->
+        <div class="card project-card mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-history"></i> Activity Timeline
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if activities %}
+                <div class="activity-timeline">
+                    {% for activity in activities %}
+                    <div class="activity-item">
+                        <div class="activity-icon">
+                            {% if activity.action == 'created' %}
+                            <i class="fas fa-plus-circle text-success"></i>
+                            {% elif activity.action == 'updated' %}
+                            <i class="fas fa-edit text-primary"></i>
+                            {% elif activity.action == 'moved' %}
+                            <i class="fas fa-arrows-alt text-info"></i>
+                            {% elif activity.action == 'commented' %}
+                            <i class="fas fa-comment text-warning"></i>
+                            {% elif activity.action == 'status_changed' %}
+                            <i class="fas fa-exchange-alt text-secondary"></i>
+                            {% else %}
+                            <i class="fas fa-circle text-muted"></i>
+                            {% endif %}
+                        </div>
+                        <div class="activity-content">
+                            <div class="activity-header">
+                                <strong>{{ activity.user.get_full_name|default:activity.user.email }}</strong>
+                                <span class="text-muted">{{ activity.action }}</span>
+                                {% if activity.action == 'moved' and activity.details %}
+                                <span class="text-muted">
+                                    from <strong>{{ activity.details.from_column }}</strong>
+                                    to <strong>{{ activity.details.to_column }}</strong>
+                                </span>
+                                {% endif %}
+                            </div>
+                            <div class="activity-time text-muted small">
+                                <i class="far fa-clock"></i> {{ activity.created_at|date:"M d, Y g:i A" }}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">
+                    <i class="fas fa-info-circle"></i> No activity recorded yet
+                </p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Comments Section -->
+        <div class="card project-card mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-comments"></i> Comments
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if comments %}
+                <div class="comments-list mb-4">
+                    {% for comment in comments %}
+                    <div class="comment-item">
+                        <div class="comment-avatar">
+                            {{ comment.user.get_full_name.0|default:comment.user.email.0|upper }}
+                        </div>
+                        <div class="comment-content">
+                            <div class="comment-header">
+                                <strong>{{ comment.user.get_full_name|default:comment.user.email }}</strong>
+                                <span class="text-muted small">{{ comment.created_at|date:"M d, Y g:i A" }}</span>
+                            </div>
+                            <div class="comment-text">
+                                {{ comment.comment|linebreaks }}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if can_edit %}
+                <form method="post" action="#" id="commentForm">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="commentText" class="form-label">Add a comment</label>
+                        <textarea class="form-control" id="commentText" name="comment" rows="3"
+                                  placeholder="Write your comment here..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane"></i> Post Comment
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+        <!-- Task Details Card -->
+        <div class="card project-card mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle"></i> Details
+                </h5>
+            </div>
+            <div class="card-body">
+                <!-- Status -->
+                <div class="detail-item mb-3">
+                    <label class="detail-label">Status</label>
+                    <div>
+                        <span class="status-badge {{ task.status }}">
+                            {{ task.get_status_display }}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Priority -->
+                <div class="detail-item mb-3">
+                    <label class="detail-label">Priority</label>
+                    <div>
+                        <span class="priority-badge {{ task.priority }}">
+                            {{ task.get_priority_display }}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Kanban Column -->
+                {% if task.kanban_column %}
+                <div class="detail-item mb-3">
+                    <label class="detail-label">Column</label>
+                    <div>
+                        <span class="badge" style="background-color: {{ task.kanban_column.color }};">
+                            {{ task.kanban_column.name }}
+                        </span>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Assigned To -->
+                <div class="detail-item mb-3">
+                    <label class="detail-label">Assigned To</label>
+                    {% if task.assigned_to.all %}
+                    <div class="assigned-users">
+                        {% for user in task.assigned_to.all %}
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="assignee-avatar me-2">
+                                {{ user.get_full_name.0|default:user.email.0|upper }}
+                            </div>
+                            <span>{{ user.get_full_name|default:user.email }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0">Unassigned</p>
+                    {% endif %}
+                </div>
+
+                <!-- Due Date -->
+                <div class="detail-item mb-3">
+                    <label class="detail-label">Due Date</label>
+                    <div>
+                        {% if task.due_date %}
+                        <i class="far fa-calendar-alt"></i> {{ task.due_date|date:"M d, Y" }}
+                        {% if task.is_overdue %}
+                        <span class="badge bg-danger ms-2">Overdue</span>
+                        {% endif %}
+                        {% else %}
+                        <span class="text-muted">Not set</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Estimated Hours -->
+                {% if task.estimated_hours %}
+                <div class="detail-item mb-3">
+                    <label class="detail-label">Estimated Hours</label>
+                    <div>
+                        <i class="far fa-clock"></i> {{ task.estimated_hours }}h
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Created By -->
+                <div class="detail-item mb-3">
+                    <label class="detail-label">Created By</label>
+                    <div>
+                        {{ task.created_by.get_full_name|default:task.created_by.email }}
+                    </div>
+                </div>
+
+                <!-- Created At -->
+                <div class="detail-item mb-3">
+                    <label class="detail-label">Created</label>
+                    <div>
+                        {{ task.created_at|date:"M d, Y g:i A" }}
+                    </div>
+                </div>
+
+                <!-- Updated At -->
+                <div class="detail-item mb-0">
+                    <label class="detail-label">Last Updated</label>
+                    <div>
+                        {{ task.updated_at|date:"M d, Y g:i A" }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Labels Card -->
+        {% if task.labels.all %}
+        <div class="card project-card mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-tags"></i> Labels
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex flex-wrap gap-2">
+                    {% for label in task.labels.all %}
+                    <span class="badge" style="background-color: {{ label.color }};">
+                        {{ label.name }}
+                    </span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Parent Task -->
+        {% if task.parent_task %}
+        <div class="card project-card mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-sitemap"></i> Parent Task
+                </h5>
+            </div>
+            <div class="card-body">
+                <a href="{% url 'project_management:task_detail' project.pk task.parent_task.pk %}"
+                   class="text-decoration-none">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-level-up-alt me-2"></i>
+                        <div>
+                            <div class="fw-bold">{{ task.parent_task.title }}</div>
+                            <small class="text-muted">{{ task.parent_task.task_code }}</small>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Subtasks -->
+        {% if subtasks %}
+        <div class="card project-card mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-list"></i> Subtasks ({{ subtasks|length }})
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="subtasks-list">
+                    {% for subtask in subtasks %}
+                    <a href="{% url 'project_management:task_detail' project.pk subtask.pk %}"
+                       class="subtask-item text-decoration-none">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-level-down-alt me-2 text-muted"></i>
+                            <div class="flex-grow-1">
+                                <div>{{ subtask.title }}</div>
+                                <small class="text-muted">{{ subtask.task_code }}</small>
+                            </div>
+                            <span class="status-badge {{ subtask.status }} ms-2">
+                                {{ subtask.get_status_display }}
+                            </span>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Quick Actions -->
+        {% if can_edit %}
+        <div class="card project-card mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-bolt"></i> Quick Actions
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-sm btn-outline-primary" onclick="changeStatus()">
+                        <i class="fas fa-exchange-alt"></i> Change Status
+                    </button>
+                    <button class="btn btn-sm btn-outline-warning" onclick="changePriority()">
+                        <i class="fas fa-flag"></i> Change Priority
+                    </button>
+                    <button class="btn btn-sm btn-outline-info" onclick="assignTask()">
+                        <i class="fas fa-user-plus"></i> Assign User
+                    </button>
+                    <a href="{% url 'project_management:task_edit' project.pk task.pk %}"
+                       class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-edit"></i> Full Edit
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block page_js %}
+<style>
+    /* Activity Timeline Styles */
+    .activity-timeline {
+        position: relative;
+        padding-left: 2rem;
+    }
+
+    .activity-item {
+        position: relative;
+        padding-bottom: 2rem;
+    }
+
+    .activity-item:last-child {
+        padding-bottom: 0;
+    }
+
+    .activity-item::before {
+        content: '';
+        position: absolute;
+        left: -1.5rem;
+        top: 1.5rem;
+        bottom: -0.5rem;
+        width: 2px;
+        background: #dee2e6;
+    }
+
+    .activity-item:last-child::before {
+        display: none;
+    }
+
+    .activity-icon {
+        position: absolute;
+        left: -2rem;
+        top: 0;
+        width: 2rem;
+        height: 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: white;
+        border-radius: 50%;
+        font-size: 1rem;
+    }
+
+    .activity-content {
+        margin-left: 0.5rem;
+    }
+
+    .activity-header {
+        margin-bottom: 0.25rem;
+    }
+
+    .activity-time {
+        font-size: 0.875rem;
+    }
+
+    /* Comments Styles */
+    .comments-list {
+        max-height: 500px;
+        overflow-y: auto;
+    }
+
+    .comment-item {
+        display: flex;
+        gap: 1rem;
+        padding: 1rem;
+        background: #f8f9fa;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
+
+    .comment-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .comment-avatar {
+        width: 40px;
+        height: 40px;
+        background: #6c757d;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        flex-shrink: 0;
+    }
+
+    .comment-content {
+        flex: 1;
+    }
+
+    .comment-header {
+        display: flex;
+        justify-content: between;
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .comment-text {
+        color: #495057;
+    }
+
+    /* Detail Items */
+    .detail-item {
+        padding-bottom: 0.75rem;
+    }
+
+    .detail-label {
+        display: block;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #6c757d;
+        margin-bottom: 0.25rem;
+    }
+
+    .assigned-users .assignee-avatar {
+        width: 32px;
+        height: 32px;
+        background: #6c757d;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 0.875rem;
+    }
+
+    /* Subtasks */
+    .subtask-item {
+        display: block;
+        padding: 0.75rem;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        margin-bottom: 0.5rem;
+        transition: all 0.2s;
+    }
+
+    .subtask-item:hover {
+        background: #f8f9fa;
+        border-color: #adb5bd;
+    }
+
+    .subtask-item:last-child {
+        margin-bottom: 0;
+    }
+
+    /* Task Description */
+    .task-description {
+        font-size: 1rem;
+        line-height: 1.6;
+        color: #495057;
+    }
+</style>
+
+<script>
+    // Quick action functions (simplified - would need full API implementation)
+    function changeStatus() {
+        alert('Status change functionality - would show a modal with status options');
+    }
+
+    function changePriority() {
+        alert('Priority change functionality - would show a modal with priority options');
+    }
+
+    function assignTask() {
+        alert('Assign task functionality - would show a modal with user list');
+    }
+
+    // Comment form submission
+    const commentForm = document.getElementById('commentForm');
+    if (commentForm) {
+        commentForm.addEventListener('submit', function(event) {
+            const commentText = document.getElementById('commentText').value.trim();
+            if (!commentText) {
+                event.preventDefault();
+                alert('Please enter a comment');
+            }
+        });
+    }
+</script>
+{% endblock %}

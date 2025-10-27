@@ -1,0 +1,458 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Damage Report - {{ report.equipment.equipment_name }} - Krystal Platform{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Breadcrumb Navigation -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard:home' %}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'event_management:event_list' %}">Events</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'event_management:event_detail' report.equipment.event.pk %}">{{ report.equipment.event.event_number }}</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'event_management:damage_report_list' report.equipment.event.pk %}">Damage Reports</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Report Detail</li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="fas fa-exclamation-triangle text-warning"></i> Damage Report Details</h2>
+            <p class="text-muted mb-0">{{ report.equipment.equipment_name }} - {{ report.equipment.event.event_number }}</p>
+        </div>
+        <div>
+            <a href="{% url 'event_management:damage_report_edit' report.pk %}" class="btn btn-warning me-2">
+                <i class="fas fa-edit"></i> Edit Report
+            </a>
+            <a href="{% url 'event_management:damage_report_list' report.equipment.event.pk %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Reports
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <!-- Damage Summary Cards -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h6 class="text-muted small mb-2">Damage Type</h6>
+                            <span class="badge bg-secondary" style="font-size: 1rem;">{{ report.get_damage_type_display }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h6 class="text-muted small mb-2">Severity</h6>
+                            {% if report.severity == 'minor' %}
+                                <span class="badge bg-info" style="font-size: 1rem;">Minor</span>
+                            {% elif report.severity == 'moderate' %}
+                                <span class="badge bg-warning" style="font-size: 1rem;">Moderate</span>
+                            {% elif report.severity == 'severe' %}
+                                <span class="badge bg-danger" style="font-size: 1rem;">Severe</span>
+                            {% elif report.severity == 'total_loss' %}
+                                <span class="badge bg-dark" style="font-size: 1rem;">Total Loss</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h6 class="text-muted small mb-2">Total Cost</h6>
+                            <h5 class="text-danger mb-0">¥{{ report.total_cost|floatformat:2 }}</h5>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h6 class="text-muted small mb-2">Photos</h6>
+                            <h5 class="mb-0">
+                                <i class="fas fa-camera text-primary"></i> {{ report.photos.count }}
+                            </h5>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Damage Details Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> Damage Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="text-muted small">Discovered Date</label>
+                            <p class="mb-0"><strong>{{ report.discovered_date|date:"F d, Y g:i A" }}</strong></p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="text-muted small">Discovered By</label>
+                            <p class="mb-0">
+                                {% if report.discovered_by %}
+                                    <strong>{{ report.discovered_by.get_full_name }}</strong>
+                                {% else %}
+                                    <span class="text-muted">Not specified</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+
+                    {% if report.location %}
+                    <div class="mb-3">
+                        <label class="text-muted small">Location</label>
+                        <p class="mb-0">{{ report.location }}</p>
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-0">
+                        <label class="text-muted small">Description</label>
+                        <p class="mb-0" style="white-space: pre-wrap;">{{ report.description }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cause Analysis Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-search"></i> Cause Analysis</h5>
+                </div>
+                <div class="card-body">
+                    {% if report.suspected_cause %}
+                    <div class="mb-3">
+                        <label class="text-muted small">Suspected Cause</label>
+                        <p class="mb-0" style="white-space: pre-wrap;">{{ report.suspected_cause }}</p>
+                    </div>
+                    {% endif %}
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="text-muted small">Preventable?</label>
+                            <p class="mb-0">
+                                {% if report.preventable %}
+                                    <span class="badge bg-warning"><i class="fas fa-exclamation-triangle"></i> Yes - Preventable</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">No - Unavoidable</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        {% if report.responsible_party %}
+                        <div class="col-md-6">
+                            <label class="text-muted small">Responsible Party</label>
+                            <p class="mb-0">{{ report.responsible_party }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    {% if report.prevention_notes %}
+                    <div class="mb-0">
+                        <label class="text-muted small">Prevention Notes</label>
+                        <div class="alert alert-info mb-0">
+                            <i class="fas fa-lightbulb"></i> {{ report.prevention_notes }}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Financial Impact Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-dollar-sign"></i> Financial Impact</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="text-center p-3 bg-light rounded">
+                                <label class="text-muted small">Estimated Repair</label>
+                                <h4 class="text-primary mb-0">¥{{ report.estimated_repair_cost|floatformat:2 }}</h4>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center p-3 bg-light rounded">
+                                <label class="text-muted small">Actual Repair</label>
+                                <h4 class="{% if report.actual_repair_cost %}text-danger{% else %}text-muted{% endif %} mb-0">
+                                    {% if report.actual_repair_cost %}
+                                        ¥{{ report.actual_repair_cost|floatformat:2 }}
+                                    {% else %}
+                                        Pending
+                                    {% endif %}
+                                </h4>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center p-3 bg-light rounded">
+                                <label class="text-muted small">Replacement Cost</label>
+                                <h4 class="{% if report.replacement_cost %}text-warning{% else %}text-muted{% endif %} mb-0">
+                                    {% if report.replacement_cost %}
+                                        ¥{{ report.replacement_cost|floatformat:2 }}
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                </h4>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Photo Gallery Card -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-images"></i> Photo Gallery</h5>
+                    <a href="{% url 'event_management:damage_photo_upload' report.pk %}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-camera"></i> Add Photos
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if report.photos.exists %}
+                    <div class="row g-3">
+                        {% for photo in report.photos.all %}
+                        <div class="col-md-4">
+                            <div class="photo-item">
+                                <a href="{{ photo.photo.url }}" data-lightbox="damage-gallery" data-title="{{ photo.caption }}">
+                                    <img src="{{ photo.photo.url }}" alt="{{ photo.caption }}" class="img-fluid rounded shadow-sm">
+                                </a>
+                                <div class="photo-caption mt-2">
+                                    {% if photo.caption %}
+                                        <p class="small mb-1"><strong>{{ photo.caption }}</strong></p>
+                                    {% endif %}
+                                    <p class="small text-muted mb-0">
+                                        Uploaded {{ photo.uploaded_at|date:"M d, Y" }}
+                                        {% if photo.uploaded_by %}by {{ photo.uploaded_by.get_full_name }}{% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-camera fa-3x text-muted mb-3"></i>
+                        <p class="text-muted mb-0">No photos have been uploaded yet.</p>
+                        <a href="{% url 'event_management:damage_photo_upload' report.pk %}" class="btn btn-primary mt-3">
+                            <i class="fas fa-camera"></i> Upload Photos
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Internal Notes Card -->
+            {% if report.internal_notes %}
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-sticky-note"></i> Internal Notes</h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0" style="white-space: pre-wrap;">{{ report.internal_notes }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Equipment Information Card -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0"><i class="fas fa-box"></i> Equipment Information</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="text-muted small">Equipment Name</label>
+                        <p class="mb-0"><strong>{{ report.equipment.equipment_name }}</strong></p>
+                    </div>
+
+                    {% if report.equipment.equipment_serial %}
+                    <div class="mb-3">
+                        <label class="text-muted small">Serial Number</label>
+                        <p class="mb-0"><code>{{ report.equipment.equipment_serial }}</code></p>
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label class="text-muted small">Current Status</label>
+                        <p class="mb-0">
+                            <span class="badge bg-{{ report.equipment.status }}">{{ report.equipment.get_status_display }}</span>
+                        </p>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="text-muted small">Event</label>
+                        <p class="mb-0">
+                            <a href="{% url 'event_management:event_detail' report.equipment.event.pk %}">
+                                {{ report.equipment.event.event_number }}
+                            </a>
+                        </p>
+                    </div>
+
+                    <div class="mb-0">
+                        <label class="text-muted small">Customer</label>
+                        <p class="mb-0">{{ report.equipment.event.customer_company }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Repair Status Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-tools"></i> Repair Status</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="text-muted small">Repair Required</label>
+                        <p class="mb-0">
+                            {% if report.repair_required %}
+                                <span class="badge bg-warning"><i class="fas fa-tools"></i> Yes</span>
+                            {% else %}
+                                <span class="badge bg-secondary">No</span>
+                            {% endif %}
+                        </p>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="text-muted small">Repair Status</label>
+                        <p class="mb-0">
+                            {% if report.repair_completed %}
+                                <span class="badge bg-success"><i class="fas fa-check"></i> Completed</span>
+                            {% elif report.repair_required %}
+                                <span class="badge bg-warning"><i class="fas fa-clock"></i> Pending</span>
+                            {% else %}
+                                <span class="badge bg-secondary">N/A</span>
+                            {% endif %}
+                        </p>
+                    </div>
+
+                    {% if report.repair_completion_date %}
+                    <div class="mb-0">
+                        <label class="text-muted small">Completion Date</label>
+                        <p class="mb-0">{{ report.repair_completion_date|date:"F d, Y" }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Insurance Information Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-shield-alt"></i> Insurance Information</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="text-muted small">Claim Filed</label>
+                        <p class="mb-0">
+                            {% if report.insurance_claim_filed %}
+                                <span class="badge bg-info"><i class="fas fa-check"></i> Yes</span>
+                            {% else %}
+                                <span class="badge bg-secondary">No</span>
+                            {% endif %}
+                        </p>
+                    </div>
+
+                    {% if report.insurance_claim_number %}
+                    <div class="mb-0">
+                        <label class="text-muted small">Claim Number</label>
+                        <p class="mb-0"><code>{{ report.insurance_claim_number }}</code></p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Quick Actions Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-bolt"></i> Quick Actions</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'event_management:damage_report_edit' report.pk %}" class="btn btn-warning">
+                            <i class="fas fa-edit"></i> Edit Report
+                        </a>
+                        <a href="{% url 'event_management:damage_photo_upload' report.pk %}" class="btn btn-primary">
+                            <i class="fas fa-camera"></i> Add Photos
+                        </a>
+                        <a href="{% url 'event_management:equipment_inventory' report.equipment.event.pk %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-boxes"></i> View Inventory
+                        </a>
+                        <button type="button" class="btn btn-outline-danger" onclick="printReport()">
+                            <i class="fas fa-print"></i> Print Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Lightbox for Image Gallery -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.4/css/lightbox.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.4/js/lightbox.min.js"></script>
+
+<script>
+    function printReport() {
+        window.print();
+    }
+
+    // Configure Lightbox
+    lightbox.option({
+        'resizeDuration': 200,
+        'wrapAround': true,
+        'albumLabel': 'Photo %1 of %2'
+    });
+</script>
+
+<style>
+    .photo-item {
+        transition: transform 0.2s;
+    }
+    .photo-item:hover {
+        transform: translateY(-5px);
+    }
+    .photo-item img {
+        width: 100%;
+        height: 200px;
+        object-fit: cover;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .photo-item img:hover {
+        box-shadow: 0 5px 15px rgba(0,0,0,0.3) !important;
+    }
+    .photo-caption {
+        padding: 0 5px;
+    }
+    .card {
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .badge {
+        padding: 6px 12px;
+        font-size: 0.85rem;
+    }
+
+    /* Print styles */
+    @media print {
+        .breadcrumb, .btn, .card-header h6 i, nav, .sidebar {
+            display: none !important;
+        }
+        .card {
+            page-break-inside: avoid;
+            box-shadow: none;
+            border: 1px solid #dee2e6;
+        }
+        .col-lg-4 {
+            display: none;
+        }
+        .col-lg-8 {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}

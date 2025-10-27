@@ -1,0 +1,187 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Events List - Krystal Platform{% endblock %}
+
+{% block extra_css %}
+<style>
+    .filter-card {
+        background-color: #f8f9fa;
+        border-radius: 8px;
+    }
+    .event-card {
+        transition: all 0.3s;
+        border-left: 4px solid #dee2e6;
+    }
+    .event-card:hover {
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        border-left-color: #0d6efd;
+    }
+    .status-planned { border-left-color: #6c757d; }
+    .status-confirmed { border-left-color: #0dcaf0; }
+    .status-in_progress { border-left-color: #ffc107; }
+    .status-completed { border-left-color: #198754; }
+    .status-cancelled { border-left-color: #dc3545; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <h2><i class="fas fa-list"></i> All Events</h2>
+            <div>
+                <a href="{% url 'event_management:dashboard' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-dashboard"></i> Dashboard
+                </a>
+                <a href="{% url 'event_management:event_create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Create Event
+                </a>
+            </div>
+        </div>
+        <hr>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card filter-card">
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-4">
+                        <label for="search" class="form-label">Search</label>
+                        <input type="text" class="form-control" id="search" name="search"
+                               placeholder="Event number, customer, contact..."
+                               value="{{ search_query }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="event_type" class="form-label">Event Type</label>
+                        <select class="form-select" id="event_type" name="event_type">
+                            <option value="">All Types</option>
+                            {% for value, label in event_type_choices %}
+                                <option value="{{ value }}" {% if event_type == value %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="status" class="form-label">Status</label>
+                        <select class="form-select" id="status" name="status">
+                            <option value="">All Statuses</option>
+                            {% for value, label in status_choices %}
+                                <option value="{{ value }}" {% if status == value %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-search"></i> Filter
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Events List -->
+<div class="row">
+    <div class="col-md-12">
+        {% if events %}
+            <div class="mb-3 text-muted">
+                <small>Found {{ events|length }} event(s)</small>
+            </div>
+            {% for event in events %}
+            <div class="card event-card status-{{ event.status }} mb-3">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h5 class="card-title">
+                                <a href="{% url 'event_management:event_detail' event.pk %}"
+                                   class="text-decoration-none">
+                                    {{ event.event_number }}
+                                </a>
+                            </h5>
+                            <h6 class="card-subtitle mb-2 text-muted">
+                                <i class="fas fa-building"></i> {{ event.customer_company }}
+                            </h6>
+                            <p class="card-text mb-2">
+                                <i class="fas fa-user"></i> Contact: {{ event.contact_person }}
+                                {% if event.contact_phone %}
+                                    <span class="text-muted">| <i class="fas fa-phone"></i> {{ event.contact_phone }}</span>
+                                {% endif %}
+                            </p>
+                            <p class="card-text">
+                                <i class="fas fa-map-marker-alt"></i>
+                                {{ event.delivery_address|truncatewords:10 }}
+                            </p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="mb-2">
+                                {% if event.status == 'planned' %}
+                                    <span class="badge bg-secondary">Planned</span>
+                                {% elif event.status == 'confirmed' %}
+                                    <span class="badge bg-info">Confirmed</span>
+                                {% elif event.status == 'in_progress' %}
+                                    <span class="badge bg-warning text-dark">In Progress</span>
+                                {% elif event.status == 'completed' %}
+                                    <span class="badge bg-success">Completed</span>
+                                {% elif event.status == 'cancelled' %}
+                                    <span class="badge bg-danger">Cancelled</span>
+                                {% endif %}
+                                <span class="badge bg-light text-dark">{{ event.get_event_type_display }}</span>
+                            </div>
+                            <div class="text-muted mb-2">
+                                <small>
+                                    <i class="fas fa-calendar"></i>
+                                    {{ event.planned_start_date|date:"M d, Y" }}
+                                </small>
+                            </div>
+                            <div class="text-muted mb-2">
+                                <small>
+                                    <i class="fas fa-user-tie"></i>
+                                    {{ event.sales_responsible.get_display_name }}
+                                </small>
+                            </div>
+                            <div class="mb-2">
+                                <small class="text-muted">
+                                    <i class="fas fa-dollar-sign"></i>
+                                    Estimated: ¥{{ event.estimated_total_cost|floatformat:2 }}
+                                </small>
+                            </div>
+                            <div>
+                                <a href="{% url 'event_management:event_detail' event.pk %}"
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye"></i> View Details
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-calendar-times fa-4x text-muted mb-3"></i>
+                    <h5 class="text-muted">No events found</h5>
+                    <p class="text-muted">
+                        {% if search_query or event_type or status %}
+                            Try adjusting your filters or search query.
+                        {% else %}
+                            Get started by creating your first event.
+                        {% endif %}
+                    </p>
+                    <a href="{% url 'event_management:event_create' %}" class="btn btn-primary mt-3">
+                        <i class="fas fa-plus"></i> Create New Event
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

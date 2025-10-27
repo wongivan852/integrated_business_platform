@@ -1,0 +1,397 @@
+{% extends 'project_management/base.html' %}
+{% load static %}
+
+{% block page_title %}{{ action }} Task{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item">
+    <a href="{% url 'project_management:project_detail' project.pk %}">{{ project.name }}</a>
+</li>
+<li class="breadcrumb-item">
+    <a href="{% url 'project_management:project_kanban' project.pk %}">Tasks</a>
+</li>
+{% if task %}
+<li class="breadcrumb-item">
+    <a href="{% url 'project_management:task_detail' project.pk task.pk %}">{{ task.task_code }}</a>
+</li>
+<li class="breadcrumb-item active" aria-current="page">Edit</li>
+{% else %}
+<li class="breadcrumb-item active" aria-current="page">Create Task</li>
+{% endif %}
+{% endblock %}
+
+{% block page_heading %}
+    <i class="fas fa-{% if task %}edit{% else %}plus{% endif %}"></i> {{ action }} Task
+{% endblock %}
+
+{% block page_subtitle %}
+<p class="pm-subtitle">
+    {% if task %}
+    Update task details and settings for {{ task.task_code }}
+    {% else %}
+    Create a new task in {{ project.name }}
+    {% endif %}
+</p>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% if task %}{% url 'project_management:task_detail' project.pk task.pk %}{% else %}{% url 'project_management:project_kanban' project.pk %}{% endif %}"
+   class="btn btn-outline-light">
+    <i class="fas fa-times"></i> Cancel
+</a>
+{% endblock %}
+
+{% block page_content %}
+<div class="row">
+    <div class="col-lg-10 mx-auto">
+        <div class="card project-card">
+            <div class="card-body p-4">
+                <form method="post" id="taskForm">
+                    {% csrf_token %}
+
+                    <!-- Display form errors -->
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="fas fa-exclamation-circle"></i>
+                        {{ form.non_field_errors }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                    {% endif %}
+
+                    <!-- Basic Information Section -->
+                    <div class="mb-4">
+                        <h5 class="border-bottom pb-2 mb-3">
+                            <i class="fas fa-info-circle text-primary"></i> Basic Information
+                        </h5>
+
+                        <!-- Task Title -->
+                        <div class="mb-3">
+                            <label for="{{ form.title.id_for_label }}" class="form-label">
+                                <i class="fas fa-heading"></i> Task Title <span class="text-danger">*</span>
+                            </label>
+                            {{ form.title }}
+                            {% if form.title.errors %}
+                            <div class="text-danger small mt-1">
+                                {{ form.title.errors }}
+                            </div>
+                            {% endif %}
+                            {% if form.title.help_text %}
+                            <div class="form-text">{{ form.title.help_text }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Task Code (read-only for edit, auto-generated for create) -->
+                        {% if task %}
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="fas fa-hashtag"></i> Task Code
+                            </label>
+                            <input type="text" class="form-control" value="{{ task.task_code }}" disabled>
+                            <div class="form-text">Task code cannot be changed after creation</div>
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info mb-3">
+                            <i class="fas fa-info-circle"></i>
+                            Task code will be automatically generated based on the project code
+                        </div>
+                        {% endif %}
+
+                        <!-- Description -->
+                        <div class="mb-3">
+                            <label for="{{ form.description.id_for_label }}" class="form-label">
+                                <i class="fas fa-align-left"></i> Description
+                            </label>
+                            {{ form.description }}
+                            {% if form.description.errors %}
+                            <div class="text-danger small mt-1">
+                                {{ form.description.errors }}
+                            </div>
+                            {% endif %}
+                            {% if form.description.help_text %}
+                            <div class="form-text">{{ form.description.help_text }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Status & Priority Section -->
+                    <div class="mb-4">
+                        <h5 class="border-bottom pb-2 mb-3">
+                            <i class="fas fa-sliders-h text-warning"></i> Status & Priority
+                        </h5>
+
+                        <div class="row">
+                            <!-- Status -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.status.id_for_label }}" class="form-label">
+                                    <i class="fas fa-traffic-light"></i> Status <span class="text-danger">*</span>
+                                </label>
+                                {{ form.status }}
+                                {% if form.status.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.status.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Priority -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.priority.id_for_label }}" class="form-label">
+                                    <i class="fas fa-flag"></i> Priority <span class="text-danger">*</span>
+                                </label>
+                                {{ form.priority }}
+                                {% if form.priority.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.priority.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Assignment & Timeline Section -->
+                    <div class="mb-4">
+                        <h5 class="border-bottom pb-2 mb-3">
+                            <i class="fas fa-calendar-alt text-success"></i> Assignment & Timeline
+                        </h5>
+
+                        <!-- Assigned To -->
+                        <div class="mb-3">
+                            <label for="{{ form.assigned_to.id_for_label }}" class="form-label">
+                                <i class="fas fa-users"></i> Assigned To
+                            </label>
+                            {{ form.assigned_to }}
+                            {% if form.assigned_to.errors %}
+                            <div class="text-danger small mt-1">
+                                {{ form.assigned_to.errors }}
+                            </div>
+                            {% endif %}
+                            {% if form.assigned_to.help_text %}
+                            <div class="form-text">{{ form.assigned_to.help_text }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="row">
+                            <!-- Due Date -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.due_date.id_for_label }}" class="form-label">
+                                    <i class="fas fa-calendar-check"></i> Due Date
+                                </label>
+                                {{ form.due_date }}
+                                {% if form.due_date.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.due_date.errors }}
+                                </div>
+                                {% endif %}
+                                {% if form.due_date.help_text %}
+                                <div class="form-text">{{ form.due_date.help_text }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Estimated Hours -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.estimated_hours.id_for_label }}" class="form-label">
+                                    <i class="fas fa-clock"></i> Estimated Hours
+                                </label>
+                                <div class="input-group">
+                                    {{ form.estimated_hours }}
+                                    <span class="input-group-text">hours</span>
+                                </div>
+                                {% if form.estimated_hours.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.estimated_hours.errors }}
+                                </div>
+                                {% endif %}
+                                {% if form.estimated_hours.help_text %}
+                                <div class="form-text">{{ form.estimated_hours.help_text }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Kanban Position Section -->
+                    <div class="mb-4">
+                        <h5 class="border-bottom pb-2 mb-3">
+                            <i class="fas fa-columns text-info"></i> Kanban Board Position
+                        </h5>
+
+                        <div class="row">
+                            <!-- Kanban Column -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.kanban_column.id_for_label }}" class="form-label">
+                                    <i class="fas fa-th-list"></i> Column
+                                </label>
+                                {{ form.kanban_column }}
+                                {% if form.kanban_column.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.kanban_column.errors }}
+                                </div>
+                                {% endif %}
+                                {% if form.kanban_column.help_text %}
+                                <div class="form-text">{{ form.kanban_column.help_text }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Kanban Position -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.kanban_position.id_for_label }}" class="form-label">
+                                    <i class="fas fa-sort"></i> Position
+                                </label>
+                                {{ form.kanban_position }}
+                                {% if form.kanban_position.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.kanban_position.errors }}
+                                </div>
+                                {% endif %}
+                                {% if form.kanban_position.help_text %}
+                                <div class="form-text">{{ form.kanban_position.help_text }}</div>
+                                {% else %}
+                                <div class="form-text">Lower numbers appear first in the column</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Task Hierarchy Section -->
+                    <div class="mb-4">
+                        <h5 class="border-bottom pb-2 mb-3">
+                            <i class="fas fa-sitemap text-secondary"></i> Task Hierarchy
+                        </h5>
+
+                        <!-- Parent Task -->
+                        <div class="mb-3">
+                            <label for="{{ form.parent_task.id_for_label }}" class="form-label">
+                                <i class="fas fa-level-up-alt"></i> Parent Task
+                            </label>
+                            {{ form.parent_task }}
+                            {% if form.parent_task.errors %}
+                            <div class="text-danger small mt-1">
+                                {{ form.parent_task.errors }}
+                            </div>
+                            {% endif %}
+                            {% if form.parent_task.help_text %}
+                            <div class="form-text">{{ form.parent_task.help_text }}</div>
+                            {% else %}
+                            <div class="form-text">Select a parent task to create a subtask relationship</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Labels Section -->
+                    {% if form.labels %}
+                    <div class="mb-4">
+                        <h5 class="border-bottom pb-2 mb-3">
+                            <i class="fas fa-tags text-purple"></i> Labels
+                        </h5>
+
+                        <div class="mb-3">
+                            <label for="{{ form.labels.id_for_label }}" class="form-label">
+                                <i class="fas fa-tag"></i> Task Labels
+                            </label>
+                            {{ form.labels }}
+                            {% if form.labels.errors %}
+                            <div class="text-danger small mt-1">
+                                {{ form.labels.errors }}
+                            </div>
+                            {% endif %}
+                            {% if form.labels.help_text %}
+                            <div class="form-text">{{ form.labels.help_text }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Form Actions -->
+                    <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+                        <a href="{% if task %}{% url 'project_management:task_detail' project.pk task.pk %}{% else %}{% url 'project_management:project_kanban' project.pk %}{% endif %}"
+                           class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <div>
+                            {% if not task %}
+                            <button type="submit" name="save_and_add" class="btn btn-outline-primary">
+                                <i class="fas fa-plus"></i> Save & Add Another
+                            </button>
+                            {% endif %}
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> {{ action }} Task
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Help Card -->
+        <div class="card project-card mt-4">
+            <div class="card-body">
+                <h6 class="card-title">
+                    <i class="fas fa-lightbulb text-warning"></i> Tips
+                </h6>
+                <ul class="mb-0 small">
+                    <li>Use clear, action-oriented titles (e.g., "Implement user login" instead of "Login")</li>
+                    <li>Set realistic due dates and estimated hours for better project planning</li>
+                    <li>Assign tasks to team members to clarify responsibilities</li>
+                    <li>Use parent tasks to break down large features into smaller subtasks</li>
+                    <li>The Kanban column can be changed later by dragging the task on the board</li>
+                    {% if not task %}
+                    <li>Task code will be automatically generated (e.g., {{ project.project_code }}-T001)</li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block page_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const dueDateInput = document.getElementById('{{ form.due_date.id_for_label }}');
+        const today = new Date().toISOString().split('T')[0];
+
+        // Warn if due date is in the past
+        if (dueDateInput) {
+            dueDateInput.addEventListener('change', function() {
+                if (this.value && this.value < today) {
+                    if (!confirm('The due date you selected is in the past. Do you want to continue?')) {
+                        this.value = '';
+                    }
+                }
+            });
+        }
+
+        // Form validation
+        const form = document.getElementById('taskForm');
+        form.addEventListener('submit', function(event) {
+            const titleInput = document.getElementById('{{ form.title.id_for_label }}');
+
+            if (!titleInput.value.trim()) {
+                event.preventDefault();
+                alert('Task title is required');
+                titleInput.focus();
+                return false;
+            }
+
+            // Check estimated hours is positive if provided
+            const estimatedHoursInput = document.getElementById('{{ form.estimated_hours.id_for_label }}');
+            if (estimatedHoursInput && estimatedHoursInput.value) {
+                const hours = parseFloat(estimatedHoursInput.value);
+                if (hours < 0) {
+                    event.preventDefault();
+                    alert('Estimated hours cannot be negative');
+                    estimatedHoursInput.focus();
+                    return false;
+                }
+            }
+        });
+
+        // Auto-focus on title for new tasks
+        {% if not task %}
+        const titleInput = document.getElementById('{{ form.title.id_for_label }}');
+        if (titleInput) {
+            titleInput.focus();
+        }
+        {% endif %}
+    });
+</script>
+{% endblock %}

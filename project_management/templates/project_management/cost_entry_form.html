@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+
+{% block title %}Add Cost - {{ project.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'project_management:project_list' %}">Projects</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'project_management:project_detail' project.pk %}">{{ project.name }}</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'project_management:project_costs' project.pk %}">Costs</a></li>
+            <li class="breadcrumb-item active">Add Cost Entry</li>
+        </ol>
+    </nav>
+
+    <div class="card">
+        <div class="card-header">
+            <h4><i class="fas fa-plus"></i> Add Cost Entry</h4>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Date *</label>
+                        <input type="date" class="form-control" name="date" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Category *</label>
+                        <select class="form-control" name="category" required>
+                            <option value="labor">Labor</option>
+                            <option value="materials">Materials</option>
+                            <option value="equipment">Equipment</option>
+                            <option value="subcontractor">Subcontractor</option>
+                            <option value="travel">Travel</option>
+                            <option value="software">Software/Licenses</option>
+                            <option value="overhead">Overhead</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Amount *</label>
+                    <input type="number" class="form-control" name="amount" step="0.01" min="0" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Description *</label>
+                    <textarea class="form-control" name="description" rows="3" required></textarea>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Vendor</label>
+                        <input type="text" class="form-control" name="vendor">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Invoice Number</label>
+                        <input type="text" class="form-control" name="invoice_number">
+                    </div>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Save Cost Entry
+                    </button>
+                    <a href="{% url 'project_management:project_costs' project.pk %}" class="btn btn-secondary">
+                        Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

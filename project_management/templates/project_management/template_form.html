@@ -1,0 +1,239 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if is_edit %}Edit{% else %}Create{% endif %} Template{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'project_management:template_list' %}">Templates</a></li>
+            {% if is_edit %}
+            <li class="breadcrumb-item"><a href="{% url 'project_management:template_detail' template.id %}">{{ template.name }}</a></li>
+            <li class="breadcrumb-item active">Edit</li>
+            {% else %}
+            <li class="breadcrumb-item active">Create New Template</li>
+            {% endif %}
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-layer-group"></i>
+                        {% if is_edit %}Edit Template{% else %}Create New Template{% endif %}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+
+                        <!-- Template Name -->
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Template Name *</label>
+                            <input type="text" class="form-control" id="name" name="name"
+                                   value="{% if is_edit %}{{ template.name }}{% endif %}"
+                                   placeholder="e.g., Website Development Project"
+                                   required>
+                            <small class="form-text text-muted">
+                                Choose a descriptive name that clearly identifies the purpose of this template.
+                            </small>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" name="description"
+                                      rows="4"
+                                      placeholder="Describe what this template is for and when to use it...">{% if is_edit %}{{ template.description }}{% endif %}</textarea>
+                            <small class="form-text text-muted">
+                                Help others understand what type of projects this template is suitable for.
+                            </small>
+                        </div>
+
+                        <!-- Category and Duration -->
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="category" class="form-label">Category *</label>
+                                <select class="form-control" id="category" name="category" required>
+                                    {% for value, label in categories %}
+                                    <option value="{{ value }}"
+                                            {% if is_edit and template.category == value %}selected{% endif %}>
+                                        {{ label }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="default_duration_days" class="form-label">Default Duration (Days) *</label>
+                                <input type="number" class="form-control" id="default_duration_days"
+                                       name="default_duration_days"
+                                       value="{% if is_edit %}{{ template.default_duration_days }}{% else %}30{% endif %}"
+                                       min="1" required>
+                                <small class="form-text text-muted">
+                                    Typical project length when using this template.
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- Estimated Budget -->
+                        <div class="mb-3">
+                            <label for="estimated_budget" class="form-label">Estimated Budget</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="estimated_budget"
+                                       name="estimated_budget"
+                                       value="{% if is_edit and template.estimated_budget %}{{ template.estimated_budget }}{% endif %}"
+                                       min="0" step="0.01"
+                                       placeholder="0.00">
+                            </div>
+                            <small class="form-text text-muted">
+                                Optional: Typical budget for projects created from this template.
+                            </small>
+                        </div>
+
+                        <!-- Visibility -->
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="is_public"
+                                       name="is_public"
+                                       {% if is_edit and template.is_public %}checked{% endif %}>
+                                <label class="form-check-label" for="is_public">
+                                    <strong>Make this template public</strong>
+                                </label>
+                            </div>
+                            <small class="form-text text-muted">
+                                Public templates can be viewed and used by all users. Private templates are only visible to you.
+                            </small>
+                        </div>
+
+                        <!-- Help Section -->
+                        <div class="alert alert-info">
+                            <h6><i class="fas fa-lightbulb"></i> Tips for Creating Great Templates</h6>
+                            <ul class="mb-0">
+                                <li>Use clear, descriptive names for your template</li>
+                                <li>Include comprehensive task lists after creating the template</li>
+                                <li>Set realistic duration and budget estimates</li>
+                                <li>Make templates public to share with your team</li>
+                                <li>Define task dependencies to maintain proper workflow</li>
+                            </ul>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="d-flex justify-content-between">
+                            <a href="{% if is_edit %}{% url 'project_management:template_detail' template.id %}{% else %}{% url 'project_management:template_list' %}{% endif %}"
+                               class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i>
+                                {% if is_edit %}Update Template{% else %}Create Template{% endif %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- What Happens Next -->
+            {% if not is_edit %}
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-question-circle"></i> What Happens Next?</h6>
+                </div>
+                <div class="card-body">
+                    <ol class="mb-0">
+                        <li class="mb-2">
+                            <strong>Template Created</strong> - Your template will be saved with the basic information
+                        </li>
+                        <li class="mb-2">
+                            <strong>Add Tasks</strong> - You'll be able to add tasks to define the project structure
+                        </li>
+                        <li class="mb-2">
+                            <strong>Define Dependencies</strong> - Set up task relationships and order
+                        </li>
+                        <li class="mb-0">
+                            <strong>Use Template</strong> - Create new projects instantly using this template
+                        </li>
+                    </ol>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+    .form-label {
+        font-weight: 600;
+        color: #495057;
+    }
+
+    .form-control:focus {
+        border-color: #80bdff;
+        box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+    }
+
+    .form-check-input:checked {
+        background-color: #007bff;
+        border-color: #007bff;
+    }
+
+    .alert-info h6 {
+        margin-bottom: 10px;
+    }
+
+    .alert-info ul {
+        padding-left: 20px;
+    }
+
+    .alert-info li {
+        margin-bottom: 5px;
+    }
+</style>
+
+<script>
+    // Form validation
+    document.querySelector('form').addEventListener('submit', function(e) {
+        const name = document.getElementById('name').value.trim();
+        const category = document.getElementById('category').value;
+        const duration = document.getElementById('default_duration_days').value;
+
+        if (!name) {
+            e.preventDefault();
+            alert('Please enter a template name');
+            document.getElementById('name').focus();
+            return false;
+        }
+
+        if (!category) {
+            e.preventDefault();
+            alert('Please select a category');
+            document.getElementById('category').focus();
+            return false;
+        }
+
+        if (duration < 1) {
+            e.preventDefault();
+            alert('Duration must be at least 1 day');
+            document.getElementById('default_duration_days').focus();
+            return false;
+        }
+
+        return true;
+    });
+
+    // Character counter for description
+    const descriptionField = document.getElementById('description');
+    if (descriptionField) {
+        descriptionField.addEventListener('input', function() {
+            const length = this.value.length;
+            const maxLength = 1000; // Recommended max
+            if (length > maxLength * 0.9) {
+                console.log(`Description length: ${length} characters`);
+            }
+        });
+    }
+</script>
+{% endblock %}

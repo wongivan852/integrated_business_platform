@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Costs - {{ project.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'project_management:project_list' %}">Projects</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'project_management:project_detail' project.pk %}">{{ project.name }}</a></li>
+            <li class="breadcrumb-item active">Costs</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="fas fa-dollar-sign"></i> Project Costs</h2>
+            <p class="text-muted">Track and manage project expenses</p>
+        </div>
+        <div>
+            <a href="{% url 'project_management:evm_dashboard' project.pk %}" class="btn btn-outline-primary">
+                <i class="fas fa-chart-line"></i> EVM Dashboard
+            </a>
+            {% if user_role in 'owner,manager' %}
+            <a href="{% url 'project_management:cost_entry_form' project.pk %}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Add Cost Entry
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Budget Summary -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h3 class="text-primary">${{ budget|floatformat:0 }}</h3>
+                    <p class="text-muted mb-0">Total Budget</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h3 class="text-warning">${{ total_costs|floatformat:0 }}</h3>
+                    <p class="text-muted mb-0">Actual Costs</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    {% if budget_remaining >= 0 %}
+                    <h3 class="text-success">${{ budget_remaining|floatformat:0 }}</h3>
+                    {% else %}
+                    <h3 class="text-danger">${{ budget_remaining|floatformat:0 }}</h3>
+                    {% endif %}
+                    <p class="text-muted mb-0">Remaining</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    {% if budget_percentage <= 100 %}
+                    <h3 class="text-success">{{ budget_percentage|floatformat:1 }}%</h3>
+                    {% else %}
+                    <h3 class="text-danger">{{ budget_percentage|floatformat:1 }}%</h3>
+                    {% endif %}
+                    <p class="text-muted mb-0">Budget Used</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cost Breakdown -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5><i class="fas fa-chart-pie"></i> Cost by Category</h5>
+        </div>
+        <div class="card-body">
+            {% for category in cost_summary %}
+            <div class="mb-3">
+                <div class="d-flex justify-content-between">
+                    <span>{{ category.category|title }}</span>
+                    <strong>${{ category.total|floatformat:0 }}</strong>
+                </div>
+                <div class="progress mt-1">
+                    <div class="progress-bar" style="width: {% widthratio category.total total_costs 100 %}%"></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Cost Entries -->
+    <div class="card">
+        <div class="card-header">
+            <h5><i class="fas fa-list"></i> Cost Entries ({{ costs.count }})</h5>
+        </div>
+        <div class="card-body">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Category</th>
+                        <th>Description</th>
+                        <th>Vendor</th>
+                        <th>Invoice #</th>
+                        <th class="text-end">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cost in costs %}
+                    <tr>
+                        <td>{{ cost.date }}</td>
+                        <td><span class="badge bg-secondary">{{ cost.get_category_display }}</span></td>
+                        <td>{{ cost.description|truncatewords:10 }}</td>
+                        <td>{{ cost.vendor|default:"-" }}</td>
+                        <td>{{ cost.invoice_number|default:"-" }}</td>
+                        <td class="text-end"><strong>${{ cost.amount|floatformat:2 }}</strong></td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted">No cost entries yet</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

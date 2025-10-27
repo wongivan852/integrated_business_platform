@@ -1,0 +1,335 @@
+{% extends 'project_management/base.html' %}
+{% load static %}
+
+{% block page_title %}{{ action }} Project{% endblock %}
+
+{% block breadcrumb_items %}
+{% if project %}
+<li class="breadcrumb-item">
+    <a href="{% url 'project_management:project_detail' project.pk %}">{{ project.name }}</a>
+</li>
+<li class="breadcrumb-item active" aria-current="page">Edit</li>
+{% else %}
+<li class="breadcrumb-item active" aria-current="page">Create Project</li>
+{% endif %}
+{% endblock %}
+
+{% block page_heading %}
+    <i class="fas fa-{% if project %}edit{% else %}plus{% endif %}"></i> {{ action }} Project
+{% endblock %}
+
+{% block page_subtitle %}
+<p class="pm-subtitle">
+    {% if project %}
+    Update project details and settings
+    {% else %}
+    Create a new project with Gantt chart and Kanban board
+    {% endif %}
+</p>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% if project %}{% url 'project_management:project_detail' project.pk %}{% else %}{% url 'project_management:project_list' %}{% endif %}"
+   class="btn btn-outline-light">
+    <i class="fas fa-times"></i> Cancel
+</a>
+{% endblock %}
+
+{% block page_content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card project-card">
+            <div class="card-body p-4">
+                <form method="post" id="projectForm">
+                    {% csrf_token %}
+
+                    <!-- Display form errors -->
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="fas fa-exclamation-circle"></i>
+                        {{ form.non_field_errors }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                    {% endif %}
+
+                    <!-- Basic Information Section -->
+                    <div class="mb-4">
+                        <h5 class="border-bottom pb-2 mb-3">
+                            <i class="fas fa-info-circle text-primary"></i> Basic Information
+                        </h5>
+
+                        <!-- Project Name -->
+                        <div class="mb-3">
+                            <label for="{{ form.name.id_for_label }}" class="form-label">
+                                <i class="fas fa-tag"></i> Project Name <span class="text-danger">*</span>
+                            </label>
+                            {{ form.name }}
+                            {% if form.name.errors %}
+                            <div class="text-danger small mt-1">
+                                {{ form.name.errors }}
+                            </div>
+                            {% endif %}
+                            {% if form.name.help_text %}
+                            <div class="form-text">{{ form.name.help_text }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Project Code -->
+                        <div class="mb-3">
+                            <label for="{{ form.project_code.id_for_label }}" class="form-label">
+                                <i class="fas fa-hashtag"></i> Project Code <span class="text-danger">*</span>
+                            </label>
+                            {{ form.project_code }}
+                            {% if form.project_code.errors %}
+                            <div class="text-danger small mt-1">
+                                {{ form.project_code.errors }}
+                            </div>
+                            {% endif %}
+                            {% if form.project_code.help_text %}
+                            <div class="form-text">{{ form.project_code.help_text }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Description -->
+                        <div class="mb-3">
+                            <label for="{{ form.description.id_for_label }}" class="form-label">
+                                <i class="fas fa-align-left"></i> Description
+                            </label>
+                            {{ form.description }}
+                            {% if form.description.errors %}
+                            <div class="text-danger small mt-1">
+                                {{ form.description.errors }}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Timeline Section -->
+                    <div class="mb-4">
+                        <h5 class="border-bottom pb-2 mb-3">
+                            <i class="fas fa-calendar-alt text-success"></i> Timeline
+                        </h5>
+
+                        <div class="row">
+                            <!-- Start Date -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.start_date.id_for_label }}" class="form-label">
+                                    <i class="fas fa-calendar"></i> Start Date <span class="text-danger">*</span>
+                                </label>
+                                {{ form.start_date }}
+                                {% if form.start_date.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.start_date.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- End Date -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.end_date.id_for_label }}" class="form-label">
+                                    <i class="fas fa-calendar-check"></i> End Date <span class="text-danger">*</span>
+                                </label>
+                                {{ form.end_date }}
+                                {% if form.end_date.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.end_date.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Duration Display -->
+                        <div class="alert alert-info small mb-0" id="durationDisplay" style="display: none;">
+                            <i class="fas fa-info-circle"></i>
+                            Project duration: <strong id="durationDays">-</strong> days
+                        </div>
+                    </div>
+
+                    <!-- Status & Priority Section -->
+                    <div class="mb-4">
+                        <h5 class="border-bottom pb-2 mb-3">
+                            <i class="fas fa-sliders-h text-warning"></i> Status & Priority
+                        </h5>
+
+                        <div class="row">
+                            <!-- Status -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.status.id_for_label }}" class="form-label">
+                                    <i class="fas fa-traffic-light"></i> Status <span class="text-danger">*</span>
+                                </label>
+                                {{ form.status }}
+                                {% if form.status.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.status.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Priority -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.priority.id_for_label }}" class="form-label">
+                                    <i class="fas fa-flag"></i> Priority <span class="text-danger">*</span>
+                                </label>
+                                {{ form.priority }}
+                                {% if form.priority.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.priority.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Budget & View Section -->
+                    <div class="mb-4">
+                        <h5 class="border-bottom pb-2 mb-3">
+                            <i class="fas fa-cog text-secondary"></i> Settings
+                        </h5>
+
+                        <div class="row">
+                            <!-- Budget -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.budget.id_for_label }}" class="form-label">
+                                    <i class="fas fa-dollar-sign"></i> Budget
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    {{ form.budget }}
+                                </div>
+                                {% if form.budget.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.budget.errors }}
+                                </div>
+                                {% endif %}
+                                {% if form.budget.help_text %}
+                                <div class="form-text">{{ form.budget.help_text }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Default View -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.default_view.id_for_label }}" class="form-label">
+                                    <i class="fas fa-eye"></i> Default View <span class="text-danger">*</span>
+                                </label>
+                                {{ form.default_view }}
+                                {% if form.default_view.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.default_view.errors }}
+                                </div>
+                                {% endif %}
+                                {% if form.default_view.help_text %}
+                                <div class="form-text">{{ form.default_view.help_text }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Form Actions -->
+                    <div class="d-flex justify-content-end gap-2 pt-3 border-top">
+                        <a href="{% if project %}{% url 'project_management:project_detail' project.pk %}{% else %}{% url 'project_management:project_list' %}{% endif %}"
+                           class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> {{ action }} Project
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Help Card -->
+        <div class="card project-card mt-4">
+            <div class="card-body">
+                <h6 class="card-title">
+                    <i class="fas fa-lightbulb text-warning"></i> Tips
+                </h6>
+                <ul class="mb-0 small">
+                    <li>Use a unique project code for easy identification (e.g., PROJ-2025-001)</li>
+                    <li>Choose "Kanban" for agile workflows or "Gantt" for timeline-based projects</li>
+                    <li>You can switch between views at any time</li>
+                    <li>Budget tracking is optional but recommended for financial oversight</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block page_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const startDateInput = document.getElementById('{{ form.start_date.id_for_label }}');
+        const endDateInput = document.getElementById('{{ form.end_date.id_for_label }}');
+        const durationDisplay = document.getElementById('durationDisplay');
+        const durationDays = document.getElementById('durationDays');
+
+        // Calculate and display duration
+        function updateDuration() {
+            const startDate = new Date(startDateInput.value);
+            const endDate = new Date(endDateInput.value);
+
+            if (startDate && endDate && !isNaN(startDate) && !isNaN(endDate)) {
+                const diffTime = Math.abs(endDate - startDate);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                durationDays.textContent = diffDays;
+                durationDisplay.style.display = 'block';
+
+                // Warn if end date is before start date
+                if (endDate < startDate) {
+                    durationDisplay.classList.remove('alert-info');
+                    durationDisplay.classList.add('alert-danger');
+                    durationDays.textContent = 'Error: End date must be after start date';
+                } else {
+                    durationDisplay.classList.remove('alert-danger');
+                    durationDisplay.classList.add('alert-info');
+                }
+            } else {
+                durationDisplay.style.display = 'none';
+            }
+        }
+
+        // Add event listeners
+        if (startDateInput && endDateInput) {
+            startDateInput.addEventListener('change', updateDuration);
+            endDateInput.addEventListener('change', updateDuration);
+
+            // Initial calculation if dates are pre-filled
+            if (startDateInput.value && endDateInput.value) {
+                updateDuration();
+            }
+        }
+
+        // Form validation
+        const form = document.getElementById('projectForm');
+        form.addEventListener('submit', function(event) {
+            const startDate = new Date(startDateInput.value);
+            const endDate = new Date(endDateInput.value);
+
+            if (endDate < startDate) {
+                event.preventDefault();
+                alert('End date must be after start date');
+                endDateInput.focus();
+            }
+        });
+
+        // Auto-generate project code suggestion
+        const nameInput = document.getElementById('{{ form.name.id_for_label }}');
+        const codeInput = document.getElementById('{{ form.project_code.id_for_label }}');
+
+        {% if not project %}
+        // Only suggest code for new projects
+        nameInput.addEventListener('blur', function() {
+            if (!codeInput.value && nameInput.value) {
+                const year = new Date().getFullYear();
+                const prefix = nameInput.value.substring(0, 4).toUpperCase().replace(/[^A-Z]/g, '');
+                const randomNum = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+                const suggestion = `${prefix}-${year}-${randomNum}`;
+                codeInput.value = suggestion;
+            }
+        });
+        {% endif %}
+    });
+</script>
+{% endblock %}

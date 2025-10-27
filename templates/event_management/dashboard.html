@@ -1,0 +1,237 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Event Management Dashboard - Krystal Platform{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card {
+        border-radius: 10px;
+        transition: transform 0.2s;
+    }
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    .stat-icon {
+        font-size: 2.5rem;
+        opacity: 0.8;
+    }
+    .event-item {
+        border-left: 4px solid #dee2e6;
+        transition: border-color 0.2s;
+    }
+    .event-item:hover {
+        border-left-color: #0d6efd;
+        background-color: #f8f9fa;
+    }
+    .status-badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <h2><i class="fas fa-calendar-alt"></i> Event Management Dashboard</h2>
+            <a href="{% url 'event_management:event_create' %}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Create New Event
+            </a>
+        </div>
+        <hr>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card stat-card text-white bg-primary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-subtitle mb-2">Total Events</h6>
+                        <h2 class="card-title mb-0">{{ total_events }}</h2>
+                    </div>
+                    <i class="fas fa-calendar-check stat-icon"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card text-white bg-info">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-subtitle mb-2">Upcoming</h6>
+                        <h2 class="card-title mb-0">{{ upcoming_events }}</h2>
+                    </div>
+                    <i class="fas fa-clock stat-icon"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card text-white bg-warning">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-subtitle mb-2">In Progress</h6>
+                        <h2 class="card-title mb-0">{{ in_progress_events }}</h2>
+                    </div>
+                    <i class="fas fa-spinner stat-icon"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card text-white bg-success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-subtitle mb-2">Completed</h6>
+                        <h2 class="card-title mb-0">{{ completed_events }}</h2>
+                    </div>
+                    <i class="fas fa-check-circle stat-icon"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Recent Events -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fas fa-list"></i> Recent Events</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_events %}
+                    {% for event in recent_events %}
+                    <div class="event-item p-3 mb-3 border rounded">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="mb-1">
+                                    <a href="{% url 'event_management:event_detail' event.pk %}" class="text-decoration-none">
+                                        {{ event.event_number }}
+                                    </a>
+                                </h6>
+                                <p class="mb-1 text-muted">
+                                    <i class="fas fa-building"></i> {{ event.customer_company }}
+                                </p>
+                                <small class="text-muted">
+                                    <i class="fas fa-calendar"></i>
+                                    {{ event.planned_start_date|date:"M d, Y" }} -
+                                    {{ event.planned_end_date|date:"M d, Y" }}
+                                </small>
+                            </div>
+                            <div>
+                                {% if event.status == 'planned' %}
+                                    <span class="badge bg-secondary status-badge">Planned</span>
+                                {% elif event.status == 'confirmed' %}
+                                    <span class="badge bg-info status-badge">Confirmed</span>
+                                {% elif event.status == 'in_progress' %}
+                                    <span class="badge bg-warning text-dark status-badge">In Progress</span>
+                                {% elif event.status == 'completed' %}
+                                    <span class="badge bg-success status-badge">Completed</span>
+                                {% elif event.status == 'cancelled' %}
+                                    <span class="badge bg-danger status-badge">Cancelled</span>
+                                {% endif %}
+                                <br>
+                                <span class="badge bg-light text-dark status-badge mt-1">
+                                    {{ event.get_event_type_display }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    <a href="{% url 'event_management:event_list' %}" class="btn btn-outline-primary w-100">
+                        <i class="fas fa-list"></i> View All Events
+                    </a>
+                {% else %}
+                    <p class="text-muted text-center py-4">No recent events found.</p>
+                    <a href="{% url 'event_management:event_create' %}" class="btn btn-primary w-100">
+                        <i class="fas fa-plus"></i> Create Your First Event
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-md-4">
+        <!-- Pending Approvals -->
+        <div class="card mb-3">
+            <div class="card-header bg-warning text-dark">
+                <h6 class="mb-0"><i class="fas fa-clipboard-check"></i> Pending Approvals</h6>
+            </div>
+            <div class="card-body">
+                {% if pending_approvals %}
+                    <div class="list-group list-group-flush">
+                        {% for approval in pending_approvals %}
+                        <a href="{% url 'event_management:approval_review' approval.pk %}"
+                           class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <small><strong>{{ approval.event.event_number }}</strong></small>
+                                <small class="text-muted">{{ approval.get_approval_role_display }}</small>
+                            </div>
+                            <small class="text-muted">{{ approval.event.customer_company }}</small>
+                        </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center mb-0">No pending approvals</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Upcoming Reminders -->
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h6 class="mb-0"><i class="fas fa-bell"></i> Upcoming Reminders</h6>
+            </div>
+            <div class="card-body">
+                {% if upcoming_reminders %}
+                    <div class="list-group list-group-flush">
+                        {% for reminder in upcoming_reminders %}
+                        <div class="list-group-item">
+                            <div class="d-flex w-100 justify-content-between">
+                                <small><strong>{{ reminder.get_reminder_type_display }}</strong></small>
+                                <small class="text-muted">{{ reminder.send_datetime|date:"M d" }}</small>
+                            </div>
+                            <small class="text-muted">{{ reminder.event.event_number }}</small>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center mb-0">No upcoming reminders</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5>Quick Actions</h5>
+                <div class="btn-group mt-3" role="group">
+                    <a href="{% url 'event_management:event_list' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-list"></i> All Events
+                    </a>
+                    <a href="{% url 'event_management:event_create' %}" class="btn btn-outline-success">
+                        <i class="fas fa-plus"></i> New Event
+                    </a>
+                    <a href="{% url 'admin:event_management_event_changelist' %}" class="btn btn-outline-info">
+                        <i class="fas fa-cog"></i> Admin Panel
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

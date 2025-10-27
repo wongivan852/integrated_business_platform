@@ -1,0 +1,347 @@
+{% extends 'base.html' %}
+
+{% block title %}Portfolio Analytics{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2><i class="fas fa-briefcase"></i> Portfolio Analytics</h2>
+            <p class="text-muted">Comprehensive overview of all your projects</p>
+        </div>
+        <div class="col-md-4">
+            <form method="get" class="row g-2">
+                <div class="col-auto">
+                    <select name="status" class="form-select" onchange="this.form.submit()">
+                        <option value="">All Projects</option>
+                        {% for value, label in status_choices %}
+                        <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Portfolio Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-gradient-primary text-white">
+                <div class="card-body">
+                    <h6 class="text-white-50">Total Projects</h6>
+                    <h2 class="mb-0">{{ portfolio_data.total_projects }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-gradient-success text-white">
+                <div class="card-body">
+                    <h6 class="text-white-50">Completion Rate</h6>
+                    <h2 class="mb-0">{{ portfolio_data.completion_rate }}%</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-gradient-info text-white">
+                <div class="card-body">
+                    <h6 class="text-white-50">Total Budget</h6>
+                    <h2 class="mb-0">${{ portfolio_data.total_budget|floatformat:0 }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-gradient-warning text-white">
+                <div class="card-body">
+                    <h6 class="text-white-50">Avg Health Score</h6>
+                    <h2 class="mb-0">{{ portfolio_data.avg_health_score }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left Column -->
+        <div class="col-lg-8">
+            <!-- Project Health Scores -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-heartbeat"></i> Project Health Dashboard</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Project</th>
+                                    <th>Health Score</th>
+                                    <th>Status</th>
+                                    <th>Progress</th>
+                                    <th>End Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in project_health %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'project_management:project_detail' item.project.id %}">
+                                            {{ item.project.name }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="progress flex-grow-1" style="height: 20px; width: 100px;">
+                                                <div class="progress-bar {% if item.health_score >= 80 %}bg-success{% elif item.health_score >= 60 %}bg-warning{% else %}bg-danger{% endif %}"
+                                                     style="width: {{ item.health_score }}%;">
+                                                    {{ item.health_score }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-{{ item.project.status }}">
+                                            {{ item.project.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="height: 20px; width: 100px;">
+                                            <div class="progress-bar bg-primary"
+                                                 style="width: {{ item.project.progress_percentage }}%;">
+                                                {{ item.project.progress_percentage }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>{{ item.project.end_date|date:"M d, Y" }}</td>
+                                    <td>
+                                        <a href="{% url 'project_management:project_analytics' item.project.id %}"
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-chart-bar"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">No projects found</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Budget Utilization -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-dollar-sign"></i> Budget Utilization</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Project</th>
+                                    <th class="text-end">Budget</th>
+                                    <th class="text-end">Actual Cost</th>
+                                    <th>Utilization</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in budget_data %}
+                                <tr>
+                                    <td>{{ item.project.name }}</td>
+                                    <td class="text-end">${{ item.budget|floatformat:0 }}</td>
+                                    <td class="text-end">${{ item.actual_cost|floatformat:0 }}</td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="progress flex-grow-1 me-2" style="height: 20px;">
+                                                <div class="progress-bar {% if item.utilization > 90 %}bg-danger{% elif item.utilization > 75 %}bg-warning{% else %}bg-success{% endif %}"
+                                                     style="width: {{ item.utilization }}%;">
+                                                    {{ item.utilization }}%
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">No budget data available</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Timeline Overview -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-calendar-alt"></i> Project Timeline</h5>
+                </div>
+                <div class="card-body">
+                    {% if timeline_projects %}
+                    <div class="timeline">
+                        {% for project in timeline_projects %}
+                        <div class="timeline-item mb-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">
+                                        <a href="{% url 'project_management:project_detail' project.id %}">
+                                            {{ project.name }}
+                                        </a>
+                                    </h6>
+                                    <small class="text-muted">
+                                        {{ project.start_date|date:"M d" }} - {{ project.end_date|date:"M d, Y" }}
+                                    </small>
+                                </div>
+                                <span class="badge badge-{{ project.status }}">{{ project.get_status_display }}</span>
+                            </div>
+                            <div class="progress mt-2" style="height: 8px;">
+                                <div class="progress-bar bg-primary" style="width: {{ project.progress_percentage }}%;"></div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center">No upcoming projects</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="col-lg-4">
+            <!-- Resource Allocation -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-users"></i> Resource Allocation</h6>
+                </div>
+                <div class="card-body p-0">
+                    {% if resource_allocation %}
+                    <div class="list-group list-group-flush">
+                        {% for resource in resource_allocation %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1">{{ resource.member.get_full_name }}</h6>
+                                    <small class="text-muted">
+                                        {{ resource.projects|length }} project{% if resource.projects|length != 1 %}s{% endif %}
+                                    </small>
+                                </div>
+                                <span class="badge bg-primary">{{ resource.total_tasks }} tasks</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <p class="text-muted mb-0">No resources allocated</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Portfolio Health Summary -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-heartbeat"></i> Portfolio Health</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Average Health</span>
+                            <strong>{{ portfolio_data.avg_health_score }}/100</strong>
+                        </div>
+                        <div class="progress" style="height: 25px;">
+                            <div class="progress-bar {% if portfolio_data.avg_health_score >= 80 %}bg-success{% elif portfolio_data.avg_health_score >= 60 %}bg-warning{% else %}bg-danger{% endif %}"
+                                 style="width: {{ portfolio_data.avg_health_score }}%;">
+                                {{ portfolio_data.avg_health_score }}%
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <dl class="row mb-0 small">
+                        <dt class="col-sm-7">Total Tasks:</dt>
+                        <dd class="col-sm-5 text-end">{{ portfolio_data.total_tasks }}</dd>
+
+                        <dt class="col-sm-7">Completed:</dt>
+                        <dd class="col-sm-5 text-end">{{ portfolio_data.completed_tasks }}</dd>
+
+                        <dt class="col-sm-7">At-Risk Projects:</dt>
+                        <dd class="col-sm-5 text-end">
+                            <span class="badge bg-danger">{{ portfolio_data.at_risk_count }}</span>
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+
+            <!-- Budget Summary -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-dollar-sign"></i> Budget Summary</h6>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0 small">
+                        <dt class="col-sm-6">Total Budget:</dt>
+                        <dd class="col-sm-6 text-end">${{ portfolio_data.total_budget|floatformat:0 }}</dd>
+
+                        <dt class="col-sm-6">Total Cost:</dt>
+                        <dd class="col-sm-6 text-end">${{ portfolio_data.total_cost|floatformat:0 }}</dd>
+
+                        <dt class="col-sm-6">Variance:</dt>
+                        <dd class="col-sm-6 text-end">
+                            <span class="{% if portfolio_data.budget_variance >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                ${{ portfolio_data.budget_variance|floatformat:0 }}
+                            </span>
+                        </dd>
+                    </dl>
+
+                    <div class="progress mt-3" style="height: 25px;">
+                        {% widthratio portfolio_data.total_cost 1 portfolio_data.total_budget as cost_percent %}
+                        <div class="progress-bar {% if cost_percent > 90 %}bg-danger{% elif cost_percent > 75 %}bg-warning{% else %}bg-success{% endif %}"
+                             style="width: {{ cost_percent }}%;">
+                            {{ cost_percent }}% Used
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .bg-gradient-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .bg-gradient-success {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    }
+
+    .bg-gradient-info {
+        background: linear-gradient(135deg, #2196F3 0%, #00BCD4 100%);
+    }
+
+    .bg-gradient-warning {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+
+    .text-white-50 {
+        color: rgba(255, 255, 255, 0.5) !important;
+    }
+
+    .badge-planning { background-color: #6c757d; }
+    .badge-active { background-color: #28a745; }
+    .badge-on_hold { background-color: #ffc107; color: #000; }
+    .badge-completed { background-color: #007bff; }
+    .badge-cancelled { background-color: #dc3545; }
+
+    .timeline-item {
+        border-left: 3px solid #007bff;
+        padding-left: 15px;
+    }
+</style>
+{% endblock %}

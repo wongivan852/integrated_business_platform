@@ -43,6 +43,8 @@ LOCAL_APPS = [
     'sso',  # Single Sign-On system
     'admin_panel',  # Admin panel for user and app access management
     'attendance_integration.apps.AttendanceIntegrationConfig',  # Attendance system integration
+    'event_management',  # Event/Visit log and reminder system
+    'project_management',  # Project Management with Gantt & Kanban
     # App integrations (in apps/ directory)
     'apps.app_integrations',
 ]
@@ -304,3 +306,49 @@ if not DEBUG:
 ATTENDANCE_INTEGRATION_ENABLED = config('ATTENDANCE_INTEGRATION_ENABLED', default=True, cast=bool)
 ATTENDANCE_API_URL = config('ATTENDANCE_API_URL', default='http://localhost:8007')
 ATTENDANCE_DEFAULT_PASSWORD = config('ATTENDANCE_DEFAULT_PASSWORD', default='krystal2025')
+
+# ============================================================================
+# CELERY CONFIGURATION
+# ============================================================================
+CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://localhost:6379/0')
+CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'Asia/Hong_Kong'
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
+
+# ============================================================================
+# EMAIL CONFIGURATION
+# ============================================================================
+EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@krystal-platform.com')
+ADMIN_EMAIL = config('ADMIN_EMAIL', default='admin@krystal-platform.com')
+
+# ============================================================================
+# EVENT MANAGEMENT REMINDERS
+# ============================================================================
+# Reminder notification channels
+EVENT_REMINDER_ENABLE_EMAIL = config('EVENT_REMINDER_ENABLE_EMAIL', default=True, cast=bool)
+EVENT_REMINDER_ENABLE_SMS = config('EVENT_REMINDER_ENABLE_SMS', default=False, cast=bool)
+EVENT_REMINDER_ENABLE_WECHAT = config('EVENT_REMINDER_ENABLE_WECHAT', default=False, cast=bool)
+
+# Reminder timing defaults (days before event)
+EVENT_REMINDER_DEFAULT_DAYS_BEFORE = [7, 3, 1]  # 1 week, 3 days, 1 day before
+EVENT_REMINDER_CHECK_INTERVAL_MINUTES = 5  # Check every 5 minutes
+
+# SMS Configuration (optional - for future implementation)
+SMS_PROVIDER = config('SMS_PROVIDER', default='')  # e.g., 'twilio', 'aliyun'
+SMS_API_KEY = config('SMS_API_KEY', default='')
+SMS_API_SECRET = config('SMS_API_SECRET', default='')
+
+# WeChat Configuration (optional - for future implementation)
+WECHAT_APP_ID = config('WECHAT_APP_ID', default='')
+WECHAT_APP_SECRET = config('WECHAT_APP_SECRET', default='')
+WECHAT_TEMPLATE_ID_REMINDER = config('WECHAT_TEMPLATE_ID_REMINDER', default='')

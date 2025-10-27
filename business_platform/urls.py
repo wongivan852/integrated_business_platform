@@ -26,6 +26,12 @@ urlpatterns = [
     # SSO API
     path('api/sso/', include('sso.urls')),
 
+    # Event Management - Event/Visit Log and Reminder System
+    path('events/', include('event_management.urls')),
+
+    # Project Management - Gantt Chart and Kanban Board
+    path('projects/', include('project_management.urls')),
+
     # External App Proxies/Links
     # These will redirect or proxy to the actual applications
     # path('expense-claims/', proxy_view('http://localhost:8001')),

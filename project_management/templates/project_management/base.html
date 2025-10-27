@@ -1,0 +1,264 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{% block page_title %}Project Management{% endblock %} - Krystal Platform{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Project Management Custom Styles */
+    .pm-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem 0;
+        margin: -1.5rem -15px 2rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .pm-breadcrumb {
+        background: transparent;
+        padding: 0;
+        margin-bottom: 1rem;
+    }
+
+    .pm-breadcrumb .breadcrumb-item {
+        color: rgba(255, 255, 255, 0.8);
+    }
+
+    .pm-breadcrumb .breadcrumb-item.active {
+        color: white;
+    }
+
+    .pm-breadcrumb .breadcrumb-item a {
+        color: white;
+        text-decoration: none;
+    }
+
+    .pm-breadcrumb .breadcrumb-item a:hover {
+        text-decoration: underline;
+    }
+
+    .pm-title {
+        font-size: 2rem;
+        font-weight: 700;
+        margin: 0;
+    }
+
+    .pm-subtitle {
+        font-size: 1rem;
+        opacity: 0.9;
+        margin-top: 0.5rem;
+    }
+
+    .view-switcher {
+        background: white;
+        border-radius: 8px;
+        padding: 0.5rem;
+        display: inline-flex;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .view-switcher .btn {
+        border-radius: 6px;
+        padding: 0.5rem 1rem;
+        margin: 0 0.25rem;
+        border: none;
+        background: transparent;
+        color: #666;
+        transition: all 0.2s;
+    }
+
+    .view-switcher .btn:hover {
+        background: #f8f9fa;
+        color: #333;
+    }
+
+    .view-switcher .btn.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+    }
+
+    .project-card {
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s;
+        margin-bottom: 1.5rem;
+    }
+
+    .project-card:hover {
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+        transform: translateY(-2px);
+    }
+
+    .status-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        display: inline-block;
+    }
+
+    .status-badge.planning { background: #6c757d; color: white; }
+    .status-badge.active { background: #198754; color: white; }
+    .status-badge.on-hold { background: #ffc107; color: #000; }
+    .status-badge.completed { background: #0dcaf0; color: white; }
+    .status-badge.cancelled { background: #dc3545; color: white; }
+
+    .priority-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        display: inline-block;
+    }
+
+    .priority-badge.low { background: #e9ecef; color: #495057; }
+    .priority-badge.medium { background: #fff3cd; color: #856404; }
+    .priority-badge.high { background: #f8d7da; color: #721c24; }
+    .priority-badge.critical { background: #dc3545; color: white; }
+
+    .progress-bar-container {
+        width: 100%;
+        height: 8px;
+        background: #e9ecef;
+        border-radius: 4px;
+        overflow: hidden;
+        margin: 0.5rem 0;
+    }
+
+    .progress-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        transition: width 0.3s;
+        border-radius: 4px;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        margin-bottom: 1.5rem;
+    }
+
+    .stat-card .stat-icon {
+        font-size: 2.5rem;
+        opacity: 0.2;
+        position: absolute;
+        right: 1rem;
+        top: 1rem;
+    }
+
+    .stat-card .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #667eea;
+    }
+
+    .stat-card .stat-label {
+        color: #666;
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .action-buttons .btn {
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+
+    .action-buttons .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+    }
+
+    .action-buttons .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+</style>
+{% block page_css %}{% endblock %}
+{% endblock %}
+
+{% block content %}
+<div class="pm-header">
+    <div class="container">
+        <!-- Breadcrumb Navigation -->
+        <nav aria-label="breadcrumb" class="pm-breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item">
+                    <a href="{% url 'dashboard:main' %}">
+                        <i class="fas fa-home"></i> Dashboard
+                    </a>
+                </li>
+                <li class="breadcrumb-item">
+                    <a href="{% url 'project_management:project_list' %}">
+                        <i class="fas fa-tasks"></i> Project Management
+                    </a>
+                </li>
+                {% block breadcrumb_items %}{% endblock %}
+            </ol>
+        </nav>
+
+        <!-- Page Title & Actions -->
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="pm-title">
+                    {% block page_icon %}<i class="fas fa-tasks"></i>{% endblock %}
+                    {% block page_heading %}Project Management{% endblock %}
+                </h1>
+                {% block page_subtitle %}
+                <p class="pm-subtitle">Manage projects with Gantt charts and Kanban boards</p>
+                {% endblock %}
+            </div>
+            <div class="action-buttons">
+                {% block header_actions %}{% endblock %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    {% block page_content %}
+    <!-- Page-specific content goes here -->
+    {% endblock %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Project Management Common JavaScript
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+
+        // Auto-dismiss alerts after 5 seconds
+        setTimeout(function() {
+            var alerts = document.querySelectorAll('.alert:not(.alert-permanent)');
+            alerts.forEach(function(alert) {
+                var bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            });
+        }, 5000);
+    });
+
+    // Format dates
+    function formatDate(dateString) {
+        const options = { year: 'numeric', month: 'short', day: 'numeric' };
+        return new Date(dateString).toLocaleDateString(undefined, options);
+    }
+
+    // Calculate days difference
+    function daysDifference(date1, date2) {
+        const oneDay = 24 * 60 * 60 * 1000;
+        return Math.round(Math.abs((new Date(date1) - new Date(date2)) / oneDay));
+    }
+</script>
+{% block page_js %}{% endblock %}
+{% endblock %}

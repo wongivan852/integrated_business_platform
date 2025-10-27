@@ -1,0 +1,412 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ project.name }} - Analytics{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Header -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'project_management:project_list' %}">Projects</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'project_management:project_detail' project.id %}">{{ project.name }}</a></li>
+            <li class="breadcrumb-item active">Analytics</li>
+        </ol>
+    </nav>
+
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2><i class="fas fa-chart-bar"></i> Project Analytics</h2>
+            <p class="text-muted">{{ project.name }}</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{% url 'project_management:project_detail' project.id %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Project
+            </a>
+        </div>
+    </div>
+
+    <!-- Health Score Banner -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card {% if health_score >= 80 %}bg-success{% elif health_score >= 60 %}bg-warning{% else %}bg-danger{% endif %} text-white">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h4 class="mb-0">
+                                <i class="fas fa-heartbeat"></i> Overall Health Score: {{ health_score }}/100
+                            </h4>
+                            <p class="mb-0 mt-2">
+                                {% if health_score >= 80 %}
+                                <i class="fas fa-check-circle"></i> Excellent: Project is healthy and on track
+                                {% elif health_score >= 60 %}
+                                <i class="fas fa-exclamation-triangle"></i> Needs Attention: Some areas require monitoring
+                                {% else %}
+                                <i class="fas fa-exclamation-circle"></i> At Risk: Immediate action required
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <h1 class="display-3 mb-0">{{ health_score }}</h1>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h6 class="text-muted">Progress</h6>
+                    <h2 class="text-primary">{{ project.progress_percentage }}%</h2>
+                    <div class="progress" style="height: 10px;">
+                        <div class="progress-bar bg-primary" style="width: {{ project.progress_percentage }}%;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h6 class="text-muted">Tasks Completed</h6>
+                    <h2 class="text-success">{{ task_stats.completed }}/{{ task_stats.total }}</h2>
+                    <small class="text-muted">{{ task_stats.overdue }} overdue</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h6 class="text-muted">Budget Status</h6>
+                    <h2 class="{% if cost_breakdown.variance >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ cost_breakdown.variance_percent }}%
+                    </h2>
+                    <small class="text-muted">${{ cost_breakdown.variance|floatformat:0 }} variance</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h6 class="text-muted">Days Remaining</h6>
+                    <h2 class="text-info">{{ snapshot.days_remaining }}</h2>
+                    <small class="text-muted">Until {{ project.end_date|date:"M d, Y" }}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left Column - Charts -->
+        <div class="col-lg-8">
+            <!-- Progress Trend Chart -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-line"></i> Progress Trend (Last 30 Days)</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="progressChart" height="80"></canvas>
+                </div>
+            </div>
+
+            <!-- Burndown Chart -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-fire"></i> Burndown Chart</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="burndownChart" height="80"></canvas>
+                </div>
+            </div>
+
+            <!-- Task Status Distribution -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-pie"></i> Task Status Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <canvas id="statusChart" height="200"></canvas>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <tbody>
+                                        {% for status in status_distribution %}
+                                        <tr>
+                                            <td><strong>{{ status.status|title }}</strong></td>
+                                            <td class="text-end">{{ status.count }}</td>
+                                            <td class="text-end">
+                                                {% widthratio status.count 1 task_stats.total as percent %}
+                                                <span class="badge bg-secondary">{{ percent }}%</span>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Team Performance -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-users"></i> Team Performance</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Team Member</th>
+                                    <th class="text-center">Total Tasks</th>
+                                    <th class="text-center">Completed</th>
+                                    <th>Completion Rate</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for member in team_performance %}
+                                <tr>
+                                    <td>{{ member.member.get_full_name }}</td>
+                                    <td class="text-center">{{ member.total_tasks }}</td>
+                                    <td class="text-center">{{ member.completed_tasks }}</td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="progress flex-grow-1 me-2" style="height: 20px;">
+                                                <div class="progress-bar {% if member.completion_rate >= 80 %}bg-success{% elif member.completion_rate >= 50 %}bg-warning{% else %}bg-danger{% endif %}"
+                                                     style="width: {{ member.completion_rate }}%;">
+                                                    {{ member.completion_rate }}%
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">No team members assigned</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column - Details -->
+        <div class="col-lg-4">
+            <!-- Project Info -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-info-circle"></i> Project Details</h6>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0 small">
+                        <dt class="col-sm-6">Status:</dt>
+                        <dd class="col-sm-6">
+                            <span class="badge badge-{{ project.status }}">{{ project.get_status_display }}</span>
+                        </dd>
+
+                        <dt class="col-sm-6">Start Date:</dt>
+                        <dd class="col-sm-6">{{ project.start_date|date:"M d, Y" }}</dd>
+
+                        <dt class="col-sm-6">End Date:</dt>
+                        <dd class="col-sm-6">{{ project.end_date|date:"M d, Y" }}</dd>
+
+                        <dt class="col-sm-6">Duration:</dt>
+                        <dd class="col-sm-6">{{ project.end_date|timesince:project.start_date }}</dd>
+
+                        <dt class="col-sm-6">Owner:</dt>
+                        <dd class="col-sm-6">{{ project.owner.get_full_name }}</dd>
+
+                        <dt class="col-sm-6">Team Size:</dt>
+                        <dd class="col-sm-6">{{ snapshot.team_size }} members</dd>
+                    </dl>
+                </div>
+            </div>
+
+            <!-- Predictions -->
+            {% if predicted_completion %}
+            <div class="card mb-4 {% if predicted_completion > project.end_date %}border-danger{% else %}border-success{% endif %}">
+                <div class="card-header {% if predicted_completion > project.end_date %}bg-danger text-white{% else %}bg-success text-white{% endif %}">
+                    <h6 class="mb-0"><i class="fas fa-crystal-ball"></i> Completion Forecast</h6>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0 small">
+                        <dt class="col-sm-6">Predicted:</dt>
+                        <dd class="col-sm-6">{{ predicted_completion|date:"M d, Y" }}</dd>
+
+                        <dt class="col-sm-6">Planned:</dt>
+                        <dd class="col-sm-6">{{ project.end_date|date:"M d, Y" }}</dd>
+
+                        <dt class="col-sm-6">Variance:</dt>
+                        <dd class="col-sm-6">
+                            {% if predicted_completion > project.end_date %}
+                            <span class="text-danger">
+                                {{ predicted_completion|timesince:project.end_date }} late
+                            </span>
+                            {% else %}
+                            <span class="text-success">On track</span>
+                            {% endif %}
+                        </dd>
+
+                        <dt class="col-sm-6">Velocity:</dt>
+                        <dd class="col-sm-6">{{ snapshot.velocity }} tasks/week</dd>
+                    </dl>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Cost Summary -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-dollar-sign"></i> Cost Summary</h6>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0 small">
+                        <dt class="col-sm-6">Budget:</dt>
+                        <dd class="col-sm-6">${{ cost_breakdown.budget|floatformat:2 }}</dd>
+
+                        <dt class="col-sm-6">Actual Cost:</dt>
+                        <dd class="col-sm-6">${{ cost_breakdown.total_cost|floatformat:2 }}</dd>
+
+                        <dt class="col-sm-6">Variance:</dt>
+                        <dd class="col-sm-6">
+                            <span class="{% if cost_breakdown.variance >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                ${{ cost_breakdown.variance|floatformat:2 }}
+                                ({{ cost_breakdown.variance_percent }}%)
+                            </span>
+                        </dd>
+                    </dl>
+
+                    <div class="progress mt-3" style="height: 25px;">
+                        {% widthratio cost_breakdown.total_cost 1 cost_breakdown.budget as cost_percent %}
+                        <div class="progress-bar {% if cost_percent > 90 %}bg-danger{% elif cost_percent > 75 %}bg-warning{% else %}bg-success{% endif %}"
+                             style="width: {{ cost_percent }}%;">
+                            {{ cost_percent }}% Used
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Export Options -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-download"></i> Export Analytics</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-primary" onclick="window.print()">
+                            <i class="fas fa-print"></i> Print Report
+                        </button>
+                        <a href="#" class="btn btn-outline-success">
+                            <i class="fas fa-file-excel"></i> Export to Excel
+                        </a>
+                        <a href="#" class="btn btn-outline-danger">
+                            <i class="fas fa-file-pdf"></i> Export to PDF
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+    // Parse trend data
+    const trends = {{ trends|safe }};
+
+    // Progress Trend Chart
+    new Chart(document.getElementById('progressChart'), {
+        type: 'line',
+        data: {
+            labels: trends.dates,
+            datasets: [{
+                label: 'Progress %',
+                data: trends.progress,
+                borderColor: '#007bff',
+                backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+
+    // Burndown Chart
+    const burndown = {{ burndown|safe }};
+    new Chart(document.getElementById('burndownChart'), {
+        type: 'line',
+        data: {
+            labels: burndown.dates,
+            datasets: [
+                {
+                    label: 'Ideal',
+                    data: burndown.ideal,
+                    borderColor: '#28a745',
+                    borderDash: [5, 5],
+                    fill: false
+                },
+                {
+                    label: 'Actual',
+                    data: burndown.actual,
+                    borderColor: '#dc3545',
+                    backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                    fill: true
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // Status Distribution Pie Chart
+    new Chart(document.getElementById('statusChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['To Do', 'In Progress', 'Done'],
+            datasets: [{
+                data: [{{ task_stats.todo }}, {{ task_stats.in_progress }}, {{ task_stats.completed }}],
+                backgroundColor: ['#ffc107', '#17a2b8', '#28a745']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+</script>
+
+<style>
+    .badge-planning { background-color: #6c757d; }
+    .badge-active { background-color: #28a745; }
+    .badge-on_hold { background-color: #ffc107; color: #000; }
+    .badge-completed { background-color: #007bff; }
+    .badge-cancelled { background-color: #dc3545; }
+</style>
+{% endblock %}

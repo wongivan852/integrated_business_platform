@@ -1,0 +1,540 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ resource.user.get_full_name|default:resource.user.email }} - Resources{% endblock %}
+
+{% block extra_css %}
+<style>
+    .profile-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 40px;
+        border-radius: 8px;
+        margin-bottom: 30px;
+    }
+
+    .profile-avatar {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 48px;
+        font-weight: bold;
+        color: #667eea;
+        border: 4px solid rgba(255,255,255,0.3);
+    }
+
+    .info-card {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+
+    .info-card h5 {
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #007bff;
+    }
+
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .info-row:last-child {
+        border-bottom: none;
+    }
+
+    .info-label {
+        font-weight: 600;
+        color: #6c757d;
+    }
+
+    .info-value {
+        text-align: right;
+    }
+
+    .skill-badge {
+        display: inline-block;
+        background-color: #e7f3ff;
+        color: #0066cc;
+        padding: 6px 15px;
+        border-radius: 15px;
+        font-size: 13px;
+        margin: 5px;
+        font-weight: 500;
+    }
+
+    .skill-badge i {
+        margin-right: 5px;
+    }
+
+    .utilization-gauge {
+        text-align: center;
+        padding: 20px;
+    }
+
+    .gauge-value {
+        font-size: 48px;
+        font-weight: bold;
+    }
+
+    .gauge-label {
+        color: #6c757d;
+        font-size: 14px;
+    }
+
+    .assignment-card {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 15px;
+        transition: box-shadow 0.3s ease;
+    }
+
+    .assignment-card:hover {
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .assignment-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 10px;
+    }
+
+    .progress-bar-custom {
+        height: 25px;
+        border-radius: 5px;
+        background-color: #e9ecef;
+        overflow: hidden;
+        margin: 10px 0;
+    }
+
+    .progress-fill {
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: bold;
+        color: white;
+    }
+
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin-top: 20px;
+    }
+
+    .forecast-item {
+        padding: 15px;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        margin-bottom: 10px;
+        background: white;
+    }
+
+    .forecast-week {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 5px;
+    }
+
+    .forecast-bar {
+        height: 20px;
+        background-color: #e9ecef;
+        border-radius: 4px;
+        overflow: hidden;
+        margin: 5px 0;
+    }
+
+    .tab-content {
+        padding-top: 20px;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 40px;
+        color: #6c757d;
+    }
+
+    .empty-state i {
+        font-size: 48px;
+        opacity: 0.3;
+        margin-bottom: 15px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'project_management:resource_list' %}">Resources</a></li>
+            <li class="breadcrumb-item active">{{ resource.user.get_full_name|default:resource.user.email }}</li>
+        </ol>
+    </nav>
+
+    <!-- Profile Header -->
+    <div class="profile-header">
+        <div class="d-flex align-items-center">
+            <div class="profile-avatar me-4">
+                {{ resource.user.first_name|first|upper|default:"U" }}{{ resource.user.last_name|first|upper|default:"" }}
+            </div>
+            <div>
+                <h2 class="mb-2">{{ resource.user.get_full_name|default:resource.user.email }}</h2>
+                <h5 class="mb-2">{{ resource.job_title }}</h5>
+                <p class="mb-0"><i class="fas fa-building"></i> {{ resource.department }}</p>
+                <p class="mb-0"><i class="fas fa-envelope"></i> {{ resource.user.email }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left Column - Info Cards -->
+        <div class="col-md-4">
+            <!-- Current Utilization -->
+            <div class="info-card">
+                <h5><i class="fas fa-tachometer-alt"></i> Current Week Utilization</h5>
+                <div class="utilization-gauge">
+                    {% if current_utilization < 70 %}
+                    <div class="gauge-value text-success">{{ current_utilization|floatformat:1 }}%</div>
+                    <div class="gauge-label">Available</div>
+                    {% elif current_utilization <= 100 %}
+                    <div class="gauge-value text-warning">{{ current_utilization|floatformat:1 }}%</div>
+                    <div class="gauge-label">Busy</div>
+                    {% else %}
+                    <div class="gauge-value text-danger">{{ current_utilization|floatformat:1 }}%</div>
+                    <div class="gauge-label">Over-Allocated</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Capacity Info -->
+            <div class="info-card">
+                <h5><i class="fas fa-info-circle"></i> Capacity Information</h5>
+                <div class="info-row">
+                    <span class="info-label">Working Hours/Day</span>
+                    <span class="info-value">{{ resource.working_hours_per_day }} hours</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Availability</span>
+                    <span class="info-value">{{ resource.availability_percentage }}%</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Available Hours/Day</span>
+                    <span class="info-value text-primary font-weight-bold">{{ resource.available_hours_per_day|floatformat:1 }} hours</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Hourly Rate</span>
+                    <span class="info-value">${{ resource.hourly_rate|floatformat:2 }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Start Date</span>
+                    <span class="info-value">{{ resource.start_date }}</span>
+                </div>
+                {% if resource.end_date %}
+                <div class="info-row">
+                    <span class="info-label">End Date</span>
+                    <span class="info-value text-danger">{{ resource.end_date }}</span>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Skills -->
+            <div class="info-card">
+                <h5><i class="fas fa-tools"></i> Skills</h5>
+                {% if resource.skills.all %}
+                <div class="text-center">
+                    {% for skill in resource.skills.all %}
+                    <span class="skill-badge">
+                        <i class="fas fa-check-circle"></i> {{ skill.name }}
+                    </span>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted text-center">No skills specified</p>
+                {% endif %}
+            </div>
+
+            <!-- Forecast -->
+            <div class="info-card">
+                <h5><i class="fas fa-calendar-alt"></i> Next 4 Weeks Forecast</h5>
+                {% for week in forecast_data %}
+                <div class="forecast-item">
+                    <div class="forecast-week">Week of {{ week.week }}</div>
+                    <div class="forecast-bar">
+                        {% if week.utilization < 70 %}
+                        <div class="progress-fill" style="width: {{ week.utilization }}%; background-color: #28a745;">
+                            {{ week.utilization|floatformat:0 }}%
+                        </div>
+                        {% elif week.utilization <= 100 %}
+                        <div class="progress-fill" style="width: {{ week.utilization }}%; background-color: #ffc107;">
+                            {{ week.utilization|floatformat:0 }}%
+                        </div>
+                        {% else %}
+                        <div class="progress-fill" style="width: 100%; background-color: #dc3545;">
+                            {{ week.utilization|floatformat:0 }}%
+                        </div>
+                        {% endif %}
+                    </div>
+                    <small class="text-muted">{{ week.hours|floatformat:1 }} hours allocated</small>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Right Column - Charts and Assignments -->
+        <div class="col-md-8">
+            <!-- Utilization Chart -->
+            <div class="info-card">
+                <h5><i class="fas fa-chart-line"></i> Utilization Trend (Last 12 Weeks)</h5>
+                <div class="chart-container">
+                    <canvas id="utilizationChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Tabs for Assignments -->
+            <div class="info-card">
+                <ul class="nav nav-tabs" id="assignmentTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="current-tab" data-bs-toggle="tab" data-bs-target="#current" type="button">
+                            <i class="fas fa-tasks"></i> Current Assignments ({{ current_assignments.count }})
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="past-tab" data-bs-toggle="tab" data-bs-target="#past" type="button">
+                            <i class="fas fa-history"></i> Past Assignments ({{ past_assignments.count }})
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content" id="assignmentTabContent">
+                    <!-- Current Assignments -->
+                    <div class="tab-pane fade show active" id="current" role="tabpanel">
+                        {% if current_assignments %}
+                        {% for assignment in current_assignments %}
+                        <div class="assignment-card">
+                            <div class="assignment-header">
+                                <div>
+                                    <h6 class="mb-1">
+                                        <a href="{% url 'project_management:task_detail' assignment.task.id %}">
+                                            {{ assignment.task.task_code }}: {{ assignment.task.title }}
+                                        </a>
+                                    </h6>
+                                    <small class="text-muted">
+                                        <a href="{% url 'project_management:project_detail' assignment.task.project.id %}">
+                                            {{ assignment.task.project.name }}
+                                        </a>
+                                    </small>
+                                </div>
+                                <span class="badge bg-primary">{{ assignment.allocation_percentage }}% Allocated</span>
+                            </div>
+
+                            <div class="row mt-2">
+                                <div class="col-6">
+                                    <small class="text-muted">
+                                        <i class="fas fa-calendar"></i> {{ assignment.start_date }} to {{ assignment.end_date }}
+                                    </small>
+                                </div>
+                                <div class="col-6 text-end">
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock"></i> {{ assignment.assigned_hours|floatformat:1 }}h allocated
+                                    </small>
+                                </div>
+                            </div>
+
+                            {% if assignment.task.progress > 0 %}
+                            <div class="progress-bar-custom">
+                                <div class="progress-fill" style="width: {{ assignment.task.progress }}%; background-color: #007bff;">
+                                    {{ assignment.task.progress }}% Complete
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <div class="mt-2">
+                                <small>
+                                    <span class="badge bg-secondary">{{ assignment.task.get_status_display }}</span>
+                                    <span class="badge bg-{{ assignment.task.priority }}">{{ assignment.task.get_priority_display }}</span>
+                                </small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        {% else %}
+                        <div class="empty-state">
+                            <i class="fas fa-inbox"></i>
+                            <p>No current assignments</p>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Past Assignments -->
+                    <div class="tab-pane fade" id="past" role="tabpanel">
+                        {% if past_assignments %}
+                        {% for assignment in past_assignments %}
+                        <div class="assignment-card">
+                            <div class="assignment-header">
+                                <div>
+                                    <h6 class="mb-1">
+                                        <a href="{% url 'project_management:task_detail' assignment.task.id %}">
+                                            {{ assignment.task.task_code }}: {{ assignment.task.title }}
+                                        </a>
+                                    </h6>
+                                    <small class="text-muted">
+                                        <a href="{% url 'project_management:project_detail' assignment.task.project.id %}">
+                                            {{ assignment.task.project.name }}
+                                        </a>
+                                    </small>
+                                </div>
+                                <span class="badge bg-success">Completed</span>
+                            </div>
+
+                            <div class="row mt-2">
+                                <div class="col-6">
+                                    <small class="text-muted">
+                                        <i class="fas fa-calendar"></i> {{ assignment.start_date }} to {{ assignment.end_date }}
+                                    </small>
+                                </div>
+                                <div class="col-6 text-end">
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock"></i> {{ assignment.actual_hours|floatformat:1 }}h / {{ assignment.assigned_hours|floatformat:1 }}h
+                                        {% if assignment.actual_hours > assignment.assigned_hours %}
+                                        <span class="text-danger">(+{{ assignment.actual_hours|floatformat:1|add:"-"|add:assignment.assigned_hours|floatformat:1 }}h)</span>
+                                        {% endif %}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        {% else %}
+                        <div class="empty-state">
+                            <i class="fas fa-inbox"></i>
+                            <p>No past assignments</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+    // Utilization Chart
+    const utilizationData = {{ utilization_data|safe }};
+
+    const ctx = document.getElementById('utilizationChart').getContext('2d');
+    const chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: utilizationData.map(d => d.week),
+            datasets: [{
+                label: 'Utilization %',
+                data: utilizationData.map(d => d.utilization),
+                borderColor: '#007bff',
+                backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                fill: true,
+                tension: 0.4,
+                pointRadius: 4,
+                pointBackgroundColor: '#007bff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'Utilization: ' + context.parsed.y.toFixed(1) + '%';
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 120,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    },
+                    grid: {
+                        color: function(context) {
+                            if (context.tick.value === 70) {
+                                return '#ffc107'; // Warning line at 70%
+                            } else if (context.tick.value === 100) {
+                                return '#dc3545'; // Danger line at 100%
+                            }
+                            return '#e9ecef';
+                        },
+                        lineWidth: function(context) {
+                            if (context.tick.value === 70 || context.tick.value === 100) {
+                                return 2;
+                            }
+                            return 1;
+                        }
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+
+    // Add reference lines
+    const referencePlugin = {
+        id: 'referenceLines',
+        afterDraw: function(chart) {
+            const ctx = chart.ctx;
+            const yAxis = chart.scales.y;
+            const xAxis = chart.scales.x;
+
+            // 70% line
+            const y70 = yAxis.getPixelForValue(70);
+            ctx.save();
+            ctx.strokeStyle = '#ffc107';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(xAxis.left, y70);
+            ctx.lineTo(xAxis.right, y70);
+            ctx.stroke();
+            ctx.restore();
+
+            // 100% line
+            const y100 = yAxis.getPixelForValue(100);
+            ctx.save();
+            ctx.strokeStyle = '#dc3545';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(xAxis.left, y100);
+            ctx.lineTo(xAxis.right, y100);
+            ctx.stroke();
+            ctx.restore();
+        }
+    };
+
+    Chart.register(referencePlugin);
+</script>
+{% endblock %}

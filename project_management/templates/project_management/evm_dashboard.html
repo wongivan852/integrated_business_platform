@@ -1,0 +1,602 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}EVM Dashboard - {{ project.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .evm-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 8px;
+        margin-bottom: 30px;
+    }
+
+    .metric-card {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 25px;
+        margin-bottom: 20px;
+        text-align: center;
+        transition: transform 0.3s, box-shadow 0.3s;
+    }
+
+    .metric-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+    }
+
+    .metric-value {
+        font-size: 36px;
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
+
+    .metric-label {
+        font-size: 14px;
+        color: #6c757d;
+        text-transform: uppercase;
+        font-weight: 600;
+    }
+
+    .metric-detail {
+        font-size: 12px;
+        color: #6c757d;
+        margin-top: 10px;
+    }
+
+    .performance-badge {
+        padding: 6px 15px;
+        border-radius: 15px;
+        font-size: 13px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .badge-healthy {
+        background-color: #d4edda;
+        color: #155724;
+    }
+
+    .badge-at-risk {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+
+    .badge-critical {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+
+    .chart-container {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 25px;
+        margin-bottom: 30px;
+    }
+
+    .chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #007bff;
+    }
+
+    .chart-title {
+        font-size: 20px;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .chart-canvas {
+        position: relative;
+        height: 400px;
+    }
+
+    .cost-breakdown {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 25px;
+        margin-bottom: 30px;
+    }
+
+    .category-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .category-item:last-child {
+        border-bottom: none;
+    }
+
+    .category-name {
+        font-weight: 600;
+        font-size: 15px;
+    }
+
+    .category-amount {
+        font-size: 18px;
+        font-weight: bold;
+        color: #007bff;
+    }
+
+    .category-bar {
+        height: 8px;
+        background-color: #e9ecef;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-top: 5px;
+    }
+
+    .category-bar-fill {
+        height: 100%;
+        background-color: #007bff;
+        transition: width 0.5s ease;
+    }
+
+    .variance-card {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+
+    .variance-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .variance-row:last-child {
+        border-bottom: none;
+    }
+
+    .variance-label {
+        font-weight: 600;
+        color: #6c757d;
+    }
+
+    .variance-value {
+        font-weight: bold;
+        font-size: 18px;
+    }
+
+    .performance-status {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 25px;
+        margin-bottom: 30px;
+        text-align: center;
+    }
+
+    .status-icon {
+        font-size: 64px;
+        margin-bottom: 15px;
+    }
+
+    .status-title {
+        font-size: 24px;
+        font-weight: 600;
+        margin-bottom: 10px;
+    }
+
+    .status-description {
+        color: #6c757d;
+        font-size: 14px;
+    }
+
+    .forecast-section {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 25px;
+    }
+
+    .forecast-item {
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 6px;
+        margin-bottom: 10px;
+    }
+
+    .forecast-label {
+        font-size: 12px;
+        color: #6c757d;
+        text-transform: uppercase;
+        margin-bottom: 5px;
+    }
+
+    .forecast-value {
+        font-size: 24px;
+        font-weight: bold;
+    }
+
+    .snapshot-info {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'project_management:project_list' %}">Projects</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'project_management:project_detail' project.pk %}">{{ project.name }}</a></li>
+            <li class="breadcrumb-item active">EVM Dashboard</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="evm-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2><i class="fas fa-chart-line"></i> Earned Value Management Dashboard</h2>
+                <p class="mb-0">{{ project.name }}</p>
+                {% if latest_snapshot %}
+                <small>Last updated: {{ latest_snapshot.snapshot_date|date:"M d, Y" }}</small>
+                {% endif %}
+            </div>
+            <div>
+                <a href="{% url 'project_management:project_costs' project.pk %}" class="btn btn-light">
+                    <i class="fas fa-dollar-sign"></i> Costs
+                </a>
+                <a href="{% url 'project_management:evm_report' project.pk %}" class="btn btn-light">
+                    <i class="fas fa-file-alt"></i> Report
+                </a>
+                <button class="btn btn-light" onclick="createSnapshot()">
+                    <i class="fas fa-camera"></i> Create Snapshot
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Performance Status -->
+    {% if latest_snapshot %}
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="performance-status">
+                {% if performance_status == 'healthy' %}
+                <div class="status-icon text-success"><i class="fas fa-check-circle"></i></div>
+                <div class="status-title text-success">Project Health: Excellent</div>
+                <div class="status-description">Project is on budget and on schedule</div>
+                {% elif performance_status == 'at_risk' %}
+                <div class="status-icon text-warning"><i class="fas fa-exclamation-triangle"></i></div>
+                <div class="status-title text-warning">Project Health: At Risk</div>
+                <div class="status-description">Project has minor variances that need attention</div>
+                {% else %}
+                <div class="status-icon text-danger"><i class="fas fa-times-circle"></i></div>
+                <div class="status-title text-danger">Project Health: Critical</div>
+                <div class="status-description">Project has significant cost or schedule issues</div>
+                {% endif %}
+                <div class="mt-3">
+                    <span class="performance-badge badge-{% if performance_status == 'healthy' %}healthy{% elif performance_status == 'at_risk' %}at-risk{% else %}critical{% endif %}">
+                        {{ performance_status|upper }}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="metric-card">
+                <div class="metric-value text-primary">${{ latest_snapshot.budget_at_completion|floatformat:0 }}</div>
+                <div class="metric-label">Budget (BAC)</div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="metric-card">
+                <div class="metric-value text-info">${{ latest_snapshot.planned_value|floatformat:0 }}</div>
+                <div class="metric-label">Planned Value (PV)</div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="metric-card">
+                <div class="metric-value text-success">${{ latest_snapshot.earned_value|floatformat:0 }}</div>
+                <div class="metric-label">Earned Value (EV)</div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="metric-card">
+                <div class="metric-value text-warning">${{ latest_snapshot.actual_cost|floatformat:0 }}</div>
+                <div class="metric-label">Actual Cost (AC)</div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="metric-card">
+                {% if latest_snapshot.cost_performance_index >= 1.0 %}
+                <div class="metric-value text-success">{{ latest_snapshot.cost_performance_index|floatformat:2 }}</div>
+                {% else %}
+                <div class="metric-value text-danger">{{ latest_snapshot.cost_performance_index|floatformat:2 }}</div>
+                {% endif %}
+                <div class="metric-label">CPI</div>
+                <div class="metric-detail">
+                    {% if latest_snapshot.is_under_budget %}
+                    Under Budget
+                    {% else %}
+                    Over Budget
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="metric-card">
+                {% if latest_snapshot.schedule_performance_index >= 1.0 %}
+                <div class="metric-value text-success">{{ latest_snapshot.schedule_performance_index|floatformat:2 }}</div>
+                {% else %}
+                <div class="metric-value text-danger">{{ latest_snapshot.schedule_performance_index|floatformat:2 }}</div>
+                {% endif %}
+                <div class="metric-label">SPI</div>
+                <div class="metric-detail">
+                    {% if latest_snapshot.is_ahead_of_schedule %}
+                    Ahead of Schedule
+                    {% else %}
+                    Behind Schedule
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- S-Curve Chart -->
+    <div class="chart-container">
+        <div class="chart-header">
+            <h5 class="chart-title"><i class="fas fa-chart-area"></i> S-Curve (Cumulative Progress)</h5>
+        </div>
+        <div class="chart-canvas">
+            <canvas id="sCurveChart"></canvas>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left Column: Variances -->
+        <div class="col-md-6">
+            <div class="variance-card">
+                <h5 class="mb-3"><i class="fas fa-exchange-alt"></i> Variances</h5>
+                <div class="variance-row">
+                    <span class="variance-label">Cost Variance (CV)</span>
+                    {% if latest_snapshot.cost_variance >= 0 %}
+                    <span class="variance-value text-success">
+                        +${{ latest_snapshot.cost_variance|floatformat:0 }}
+                    </span>
+                    {% else %}
+                    <span class="variance-value text-danger">
+                        -${{ latest_snapshot.cost_variance|abs|floatformat:0 }}
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="variance-row">
+                    <span class="variance-label">Schedule Variance (SV)</span>
+                    {% if latest_snapshot.schedule_variance >= 0 %}
+                    <span class="variance-value text-success">
+                        +${{ latest_snapshot.schedule_variance|floatformat:0 }}
+                    </span>
+                    {% else %}
+                    <span class="variance-value text-danger">
+                        -${{ latest_snapshot.schedule_variance|abs|floatformat:0 }}
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="variance-row">
+                    <span class="variance-label">Variance at Completion (VAC)</span>
+                    {% if latest_snapshot.variance_at_completion >= 0 %}
+                    <span class="variance-value text-success">
+                        +${{ latest_snapshot.variance_at_completion|floatformat:0 }}
+                    </span>
+                    {% else %}
+                    <span class="variance-value text-danger">
+                        -${{ latest_snapshot.variance_at_completion|abs|floatformat:0 }}
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Cost Breakdown -->
+            <div class="cost-breakdown">
+                <h5 class="mb-3"><i class="fas fa-pie-chart"></i> Cost Breakdown by Category</h5>
+                {% if cost_by_category %}
+                {% for category in cost_by_category %}
+                <div class="category-item">
+                    <div style="flex-grow: 1;">
+                        <div class="category-name">{{ category.category|title }}</div>
+                        <div class="category-bar">
+                            <div class="category-bar-fill" style="width: {% widthratio category.total total_actual_cost 100 %}%"></div>
+                        </div>
+                    </div>
+                    <div class="category-amount ms-3">${{ category.total|floatformat:0 }}</div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p class="text-muted text-center">No cost entries yet</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Right Column: Forecasts -->
+        <div class="col-md-6">
+            <div class="forecast-section">
+                <h5 class="mb-3"><i class="fas fa-crystal-ball"></i> Forecasts</h5>
+                <div class="forecast-item">
+                    <div class="forecast-label">Estimate at Completion (EAC)</div>
+                    <div class="forecast-value text-primary">
+                        ${{ latest_snapshot.estimate_at_completion|floatformat:0 }}
+                    </div>
+                    <small class="text-muted">
+                        Projected final cost based on current CPI
+                    </small>
+                </div>
+                <div class="forecast-item">
+                    <div class="forecast-label">Estimate to Complete (ETC)</div>
+                    <div class="forecast-value text-info">
+                        ${{ latest_snapshot.estimate_to_complete|floatformat:0 }}
+                    </div>
+                    <small class="text-muted">
+                        Additional cost needed to complete project
+                    </small>
+                </div>
+                <div class="forecast-item">
+                    <div class="forecast-label">Budget Remaining</div>
+                    {% with remaining=latest_snapshot.budget_at_completion|add:latest_snapshot.actual_cost|floatformat:0 %}
+                    <div class="forecast-value {% if remaining >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        ${{ remaining }}
+                    </div>
+                    {% endwith %}
+                    <small class="text-muted">
+                        Original budget minus actual cost
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- No Snapshot Yet -->
+    <div class="text-center py-5">
+        <i class="fas fa-chart-line" style="font-size: 64px; color: #dee2e6;"></i>
+        <h3 class="mt-3">No EVM Data Yet</h3>
+        <p class="text-muted">Create a snapshot to start tracking earned value metrics</p>
+        <button class="btn btn-primary" onclick="createSnapshot()">
+            <i class="fas fa-camera"></i> Create First Snapshot
+        </button>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+    const csrftoken = '{{ csrf_token }}';
+    const projectId = {{ project.pk }};
+
+    {% if latest_snapshot %}
+    // S-Curve Chart Data
+    const chartData = {{ chart_data|safe }};
+
+    const ctx = document.getElementById('sCurveChart').getContext('2d');
+    const sCurve = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: chartData.dates,
+            datasets: [
+                {
+                    label: 'Planned Value (PV)',
+                    data: chartData.pv,
+                    borderColor: '#17a2b8',
+                    backgroundColor: 'rgba(23, 162, 184, 0.1)',
+                    fill: false,
+                    tension: 0.4,
+                    pointRadius: 4
+                },
+                {
+                    label: 'Earned Value (EV)',
+                    data: chartData.ev,
+                    borderColor: '#28a745',
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    fill: false,
+                    tension: 0.4,
+                    pointRadius: 4
+                },
+                {
+                    label: 'Actual Cost (AC)',
+                    data: chartData.ac,
+                    borderColor: '#ffc107',
+                    backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                    fill: false,
+                    tension: 0.4,
+                    pointRadius: 4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            label += '$' + context.parsed.y.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                            return label;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                        }
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            },
+            interaction: {
+                mode: 'nearest',
+                axis: 'x',
+                intersect: false
+            }
+        }
+    });
+    {% endif %}
+
+    // Create EVM Snapshot
+    async function createSnapshot() {
+        if (!confirm('Create a new EVM snapshot for today?')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/projects/${projectId}/api/evm/snapshot/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                }
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                alert('EVM snapshot created successfully!');
+                location.reload();
+            } else {
+                alert('Error: ' + result.error);
+            }
+        } catch (error) {
+            alert('An error occurred: ' + error.message);
+        }
+    }
+</script>
+{% endblock %}

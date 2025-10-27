@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thank You - Feedback Submitted</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .thank-you-card {
+            max-width: 600px;
+            background: white;
+            border-radius: 20px;
+            padding: 60px 40px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+        }
+        .success-icon {
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 30px;
+            animation: scaleIn 0.5s ease-out;
+        }
+        .success-icon i {
+            font-size: 50px;
+            color: white;
+        }
+        @keyframes scaleIn {
+            from {
+                transform: scale(0);
+            }
+            to {
+                transform: scale(1);
+            }
+        }
+        h1 {
+            color: #2d3748;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+        .thank-you-message {
+            color: #4a5568;
+            font-size: 1.1rem;
+            line-height: 1.8;
+            margin-bottom: 30px;
+        }
+        .feedback-summary {
+            background: #f7fafc;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 30px;
+            text-align: left;
+        }
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .summary-item:last-child {
+            border-bottom: none;
+        }
+        .summary-label {
+            font-weight: 600;
+            color: #2d3748;
+        }
+        .summary-value {
+            color: #4a5568;
+        }
+        .rating-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        .rating-excellent {
+            background: #48bb78;
+            color: white;
+        }
+        .rating-good {
+            background: #4299e1;
+            color: white;
+        }
+        .rating-neutral {
+            background: #ed8936;
+            color: white;
+        }
+        .rating-poor {
+            background: #f56565;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="thank-you-card">
+        <div class="success-icon">
+            <i class="fas fa-check"></i>
+        </div>
+
+        <h1>Thank You!</h1>
+
+        <p class="thank-you-message">
+            Your feedback has been successfully submitted. We truly appreciate you taking the time to share your thoughts with us. Your input helps us continuously improve our services.
+        </p>
+
+        <div class="feedback-summary">
+            <h5 class="mb-3"><i class="fas fa-clipboard-check"></i> Feedback Summary</h5>
+
+            <div class="summary-item">
+                <span class="summary-label">Event:</span>
+                <span class="summary-value">{{ event.event_number }}</span>
+            </div>
+
+            <div class="summary-item">
+                <span class="summary-label">Company:</span>
+                <span class="summary-value">{{ event.customer_company }}</span>
+            </div>
+
+            <div class="summary-item">
+                <span class="summary-label">Submitted:</span>
+                <span class="summary-value">{{ feedback.submitted_at|date:"F d, Y g:i A" }}</span>
+            </div>
+
+            <div class="summary-item">
+                <span class="summary-label">Overall Rating:</span>
+                <span class="summary-value">
+                    {% if feedback.average_rating >= 4 %}
+                        <span class="rating-badge rating-excellent">
+                            {{ feedback.average_rating|floatformat:1 }}/5.0 - Excellent
+                        </span>
+                    {% elif feedback.average_rating >= 3 %}
+                        <span class="rating-badge rating-neutral">
+                            {{ feedback.average_rating|floatformat:1 }}/5.0 - Good
+                        </span>
+                    {% else %}
+                        <span class="rating-badge rating-poor">
+                            {{ feedback.average_rating|floatformat:1 }}/5.0
+                        </span>
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+
+        <div style="margin-top: 40px;">
+            <p class="text-muted small">
+                <i class="fas fa-lock"></i> Your feedback is confidential and will be used solely for improving our services.
+            </p>
+            <p class="text-muted small mt-3">
+                If you have any urgent concerns, please contact us directly at:<br>
+                <strong>support@krystal-platform.com</strong>
+            </p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

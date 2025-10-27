@@ -1,0 +1,375 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Upload Damage Photos - Krystal Platform{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Breadcrumb Navigation -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard:home' %}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'event_management:event_list' %}">Events</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'event_management:event_detail' report.equipment.event.pk %}">{{ report.equipment.event.event_number }}</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'event_management:damage_report_list' report.equipment.event.pk %}">Damage Reports</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'event_management:damage_report_detail' report.pk %}">Report Detail</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Upload Photos</li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="fas fa-camera"></i> Upload Damage Photos</h2>
+            <p class="text-muted mb-0">{{ report.equipment.equipment_name }} - {{ report.get_damage_type_display }}</p>
+        </div>
+        <div>
+            <a href="{% url 'event_management:damage_report_detail' report.pk %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Report
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Upload Form -->
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-upload"></i> Upload New Photos</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data" id="photoUploadForm">
+                        {% csrf_token %}
+
+                        <!-- File Upload Area -->
+                        <div class="mb-4">
+                            <label for="{{ form.photo.id_for_label }}" class="form-label">
+                                <strong>Select Photos *</strong>
+                            </label>
+                            <div class="upload-area" id="uploadArea">
+                                <div class="upload-placeholder" id="uploadPlaceholder">
+                                    <i class="fas fa-cloud-upload-alt fa-3x text-primary mb-3"></i>
+                                    <h5>Drag & Drop Photos Here</h5>
+                                    <p class="text-muted">or click to browse</p>
+                                    {{ form.photo }}
+                                </div>
+                                <div id="previewContainer" class="preview-container" style="display: none;"></div>
+                            </div>
+                            {% if form.photo.errors %}
+                                <div class="invalid-feedback d-block">{{ form.photo.errors }}</div>
+                            {% endif %}
+                            <small class="form-text text-muted">
+                                Supported formats: JPG, PNG, GIF. Maximum file size: 5MB per photo.
+                            </small>
+                        </div>
+
+                        <!-- Caption -->
+                        <div class="mb-4">
+                            <label for="{{ form.caption.id_for_label }}" class="form-label">
+                                <strong>Photo Caption</strong>
+                            </label>
+                            {{ form.caption }}
+                            {% if form.caption.errors %}
+                                <div class="invalid-feedback d-block">{{ form.caption.errors }}</div>
+                            {% endif %}
+                            <small class="form-text text-muted">
+                                Brief description of what the photo shows (e.g., "Front panel damage", "Broken screen")
+                            </small>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+                            <a href="{% url 'event_management:damage_report_detail' report.pk %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary btn-lg" id="uploadButton">
+                                <i class="fas fa-upload"></i> Upload Photo
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Upload Instructions -->
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h6><i class="fas fa-info-circle"></i> Photo Guidelines</h6>
+                    <ul class="mb-0 small">
+                        <li>Take clear, well-lit photos showing the damage from multiple angles</li>
+                        <li>Include photos of serial numbers or identifying marks if visible</li>
+                        <li>For severe damage, include wide shots showing the context</li>
+                        <li>Add descriptive captions to each photo for easy reference</li>
+                        <li>Upload multiple photos to document all aspects of the damage</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Damage Report Summary -->
+            <div class="card mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <h6 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Damage Summary</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="text-muted small">Damage Type</label>
+                        <p class="mb-0">
+                            <span class="badge bg-secondary">{{ report.get_damage_type_display }}</span>
+                        </p>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="text-muted small">Severity</label>
+                        <p class="mb-0">
+                            {% if report.severity == 'minor' %}
+                                <span class="badge bg-info">Minor</span>
+                            {% elif report.severity == 'moderate' %}
+                                <span class="badge bg-warning">Moderate</span>
+                            {% elif report.severity == 'severe' %}
+                                <span class="badge bg-danger">Severe</span>
+                            {% elif report.severity == 'total_loss' %}
+                                <span class="badge bg-dark">Total Loss</span>
+                            {% endif %}
+                        </p>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="text-muted small">Equipment</label>
+                        <p class="mb-0"><strong>{{ report.equipment.equipment_name }}</strong></p>
+                    </div>
+
+                    <div class="mb-0">
+                        <label class="text-muted small">Total Cost</label>
+                        <p class="mb-0"><strong class="text-danger">¥{{ report.total_cost|floatformat:2 }}</strong></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Existing Photos -->
+            {% if report.photos.exists %}
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-images"></i> Existing Photos ({{ report.photos.count }})</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-2">
+                        {% for photo in report.photos.all %}
+                        <div class="col-6">
+                            <div class="existing-photo">
+                                <img src="{{ photo.photo.url }}" alt="{{ photo.caption }}" class="img-fluid rounded">
+                                <small class="d-block mt-1 text-muted text-truncate">{{ photo.caption|default:"No caption" }}</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="card">
+                <div class="card-body text-center py-4">
+                    <i class="fas fa-camera fa-2x text-muted mb-2"></i>
+                    <p class="text-muted mb-0 small">No photos uploaded yet</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const fileInput = document.getElementById('{{ form.photo.id_for_label }}');
+        const uploadArea = document.getElementById('uploadArea');
+        const uploadPlaceholder = document.getElementById('uploadPlaceholder');
+        const previewContainer = document.getElementById('previewContainer');
+        const form = document.getElementById('photoUploadForm');
+
+        // File input change handler
+        fileInput.addEventListener('change', function(e) {
+            handleFiles(e.target.files);
+        });
+
+        // Drag and drop handlers
+        uploadArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            uploadArea.classList.add('drag-over');
+        });
+
+        uploadArea.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('drag-over');
+        });
+
+        uploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('drag-over');
+
+            const files = e.dataTransfer.files;
+            fileInput.files = files;
+            handleFiles(files);
+        });
+
+        // Click to upload
+        uploadPlaceholder.addEventListener('click', function() {
+            fileInput.click();
+        });
+
+        // Handle file preview
+        function handleFiles(files) {
+            if (files.length === 0) return;
+
+            const file = files[0];
+
+            // Validate file type
+            if (!file.type.match('image.*')) {
+                alert('Please select an image file (JPG, PNG, GIF)');
+                return;
+            }
+
+            // Validate file size (5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                alert('File size must be less than 5MB');
+                return;
+            }
+
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewContainer.innerHTML = `
+                    <div class="preview-image-wrapper">
+                        <img src="${e.target.result}" alt="Preview" class="preview-image">
+                        <div class="preview-info">
+                            <p class="mb-0"><strong>${file.name}</strong></p>
+                            <p class="mb-0 small text-muted">${formatFileSize(file.size)}</p>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-danger preview-remove" onclick="removePreview()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                `;
+                uploadPlaceholder.style.display = 'none';
+                previewContainer.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Format file size
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        // Form validation
+        form.addEventListener('submit', function(e) {
+            if (!fileInput.files || fileInput.files.length === 0) {
+                e.preventDefault();
+                alert('Please select a photo to upload');
+                return false;
+            }
+        });
+    });
+
+    // Remove preview (called from button)
+    function removePreview() {
+        const fileInput = document.getElementById('{{ form.photo.id_for_label }}');
+        const uploadPlaceholder = document.getElementById('uploadPlaceholder');
+        const previewContainer = document.getElementById('previewContainer');
+
+        fileInput.value = '';
+        uploadPlaceholder.style.display = 'block';
+        previewContainer.style.display = 'none';
+        previewContainer.innerHTML = '';
+    }
+</script>
+
+<style>
+    .upload-area {
+        border: 3px dashed #dee2e6;
+        border-radius: 12px;
+        padding: 40px;
+        text-align: center;
+        transition: all 0.3s;
+        cursor: pointer;
+        background-color: #f8f9fa;
+    }
+
+    .upload-area.drag-over {
+        border-color: #0d6efd;
+        background-color: #e7f1ff;
+    }
+
+    .upload-placeholder i {
+        color: #0d6efd;
+    }
+
+    .upload-area input[type="file"] {
+        display: none;
+    }
+
+    .preview-container {
+        padding: 20px;
+    }
+
+    .preview-image-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        padding: 20px;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .preview-image {
+        width: 150px;
+        height: 150px;
+        object-fit: cover;
+        border-radius: 8px;
+    }
+
+    .preview-info {
+        flex: 1;
+    }
+
+    .preview-remove {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+    }
+
+    .existing-photo img {
+        width: 100%;
+        height: 100px;
+        object-fit: cover;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .existing-photo img:hover {
+        transform: scale(1.05);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    .card {
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    @media (max-width: 768px) {
+        .upload-area {
+            padding: 20px;
+        }
+
+        .preview-image-wrapper {
+            flex-direction: column;
+            text-align: center;
+        }
+    }
+</style>
+{% endblock %}

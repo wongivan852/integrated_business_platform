@@ -1,0 +1,492 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{% if report %}Edit{% else %}Create{% endif %} Damage Report - Krystal Platform{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Breadcrumb Navigation -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard:home' %}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'event_management:event_list' %}">Events</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'event_management:event_detail' equipment.event.pk %}">{{ equipment.event.event_number }}</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'event_management:damage_report_list' equipment.event.pk %}">Damage Reports</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{% if report %}Edit{% else %}Create{% endif %} Report</li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>
+                <i class="fas fa-exclamation-triangle text-warning"></i>
+                {% if report %}Edit Damage Report{% else %}Create Damage Report{% endif %}
+            </h2>
+            <p class="text-muted mb-0">{{ equipment.equipment_name }}</p>
+        </div>
+        <div>
+            <a href="{% url 'event_management:damage_report_list' equipment.event.pk %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Reports
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Equipment Information Sidebar -->
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0"><i class="fas fa-box"></i> Equipment Information</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="text-muted small">Equipment Name</label>
+                        <p class="mb-0"><strong>{{ equipment.equipment_name }}</strong></p>
+                    </div>
+
+                    {% if equipment.equipment_serial %}
+                    <div class="mb-3">
+                        <label class="text-muted small">Serial Number</label>
+                        <p class="mb-0"><code>{{ equipment.equipment_serial }}</code></p>
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label class="text-muted small">Current Status</label>
+                        <p class="mb-0">
+                            <span class="badge bg-{{ equipment.status }}">{{ equipment.get_status_display }}</span>
+                        </p>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="text-muted small">Event</label>
+                        <p class="mb-0">{{ equipment.event.event_number }}</p>
+                    </div>
+
+                    <div class="mb-0">
+                        <label class="text-muted small">Customer</label>
+                        <p class="mb-0">{{ equipment.event.customer_company }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Tips -->
+            <div class="card bg-light">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-lightbulb"></i> Tips</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="small mb-0">
+                        <li>Be as detailed as possible in the description</li>
+                        <li>Include suspected cause if known</li>
+                        <li>Upload photos for visual documentation</li>
+                        <li>Estimate costs accurately for budgeting</li>
+                        <li>Mark preventable if applicable for future improvements</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Damage Report Form -->
+        <div class="col-md-8">
+            <form method="post" id="damageReportForm">
+                {% csrf_token %}
+
+                <!-- Damage Details Section -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-clipboard-list"></i> Damage Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Damage Type -->
+                        <div class="mb-3">
+                            <label for="{{ form.damage_type.id_for_label }}" class="form-label">
+                                <strong>Damage Type *</strong>
+                            </label>
+                            {{ form.damage_type }}
+                            {% if form.damage_type.errors %}
+                                <div class="invalid-feedback d-block">{{ form.damage_type.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Severity -->
+                        <div class="mb-3">
+                            <label for="{{ form.severity.id_for_label }}" class="form-label">
+                                <strong>Severity Level *</strong>
+                            </label>
+                            {{ form.severity }}
+                            {% if form.severity.errors %}
+                                <div class="invalid-feedback d-block">{{ form.severity.errors }}</div>
+                            {% endif %}
+                            <small class="form-text text-muted">
+                                <strong>Minor:</strong> Cosmetic only | <strong>Moderate:</strong> Affects functionality |
+                                <strong>Severe:</strong> Unusable | <strong>Total Loss:</strong> Beyond repair
+                            </small>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="mb-3">
+                            <label for="{{ form.description.id_for_label }}" class="form-label">
+                                <strong>Detailed Description *</strong>
+                            </label>
+                            {{ form.description }}
+                            {% if form.description.errors %}
+                                <div class="invalid-feedback d-block">{{ form.description.errors }}</div>
+                            {% endif %}
+                            <small class="form-text text-muted">
+                                Describe the damage in detail: what happened, extent of damage, affected parts, etc.
+                            </small>
+                        </div>
+
+                        <!-- Location -->
+                        <div class="mb-3">
+                            <label for="{{ form.location.id_for_label }}" class="form-label">
+                                <strong>Location Where Damage Occurred</strong>
+                            </label>
+                            {{ form.location }}
+                            {% if form.location.errors %}
+                                <div class="invalid-feedback d-block">{{ form.location.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cause Analysis Section -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-search"></i> Cause Analysis</h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Suspected Cause -->
+                        <div class="mb-3">
+                            <label for="{{ form.suspected_cause.id_for_label }}" class="form-label">
+                                <strong>Suspected Cause</strong>
+                            </label>
+                            {{ form.suspected_cause }}
+                            {% if form.suspected_cause.errors %}
+                                <div class="invalid-feedback d-block">{{ form.suspected_cause.errors }}</div>
+                            {% endif %}
+                            <small class="form-text text-muted">
+                                What caused the damage? (e.g., mishandling, accident, environmental factors)
+                            </small>
+                        </div>
+
+                        <!-- Preventable -->
+                        <div class="mb-3">
+                            <div class="form-check">
+                                {{ form.preventable }}
+                                <label class="form-check-label" for="{{ form.preventable.id_for_label }}">
+                                    <strong>This damage was preventable</strong>
+                                </label>
+                            </div>
+                            {% if form.preventable.errors %}
+                                <div class="invalid-feedback d-block">{{ form.preventable.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Prevention Notes -->
+                        <div class="mb-3">
+                            <label for="{{ form.prevention_notes.id_for_label }}" class="form-label">
+                                <strong>Prevention Notes</strong>
+                            </label>
+                            {{ form.prevention_notes }}
+                            {% if form.prevention_notes.errors %}
+                                <div class="invalid-feedback d-block">{{ form.prevention_notes.errors }}</div>
+                            {% endif %}
+                            <small class="form-text text-muted">
+                                How could this damage have been prevented? What processes should be changed?
+                            </small>
+                        </div>
+
+                        <!-- Responsible Party -->
+                        <div class="mb-3">
+                            <label for="{{ form.responsible_party.id_for_label }}" class="form-label">
+                                <strong>Responsible Party</strong>
+                            </label>
+                            {{ form.responsible_party }}
+                            {% if form.responsible_party.errors %}
+                                <div class="invalid-feedback d-block">{{ form.responsible_party.errors }}</div>
+                            {% endif %}
+                            <small class="form-text text-muted">
+                                Who is responsible for the damage? (staff member, customer, vendor, unknown)
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Financial Impact Section -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-dollar-sign"></i> Financial Impact</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <!-- Estimated Repair Cost -->
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="{{ form.estimated_repair_cost.id_for_label }}" class="form-label">
+                                        <strong>Estimated Repair Cost</strong>
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">¥</span>
+                                        {{ form.estimated_repair_cost }}
+                                    </div>
+                                    {% if form.estimated_repair_cost.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.estimated_repair_cost.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Actual Repair Cost -->
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="{{ form.actual_repair_cost.id_for_label }}" class="form-label">
+                                        <strong>Actual Repair Cost</strong>
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">¥</span>
+                                        {{ form.actual_repair_cost }}
+                                    </div>
+                                    {% if form.actual_repair_cost.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.actual_repair_cost.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Replacement Cost -->
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="{{ form.replacement_cost.id_for_label }}" class="form-label">
+                                        <strong>Replacement Cost</strong>
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">¥</span>
+                                        {{ form.replacement_cost }}
+                                    </div>
+                                    {% if form.replacement_cost.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.replacement_cost.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info mb-0">
+                            <small>
+                                <i class="fas fa-info-circle"></i>
+                                Fill in at least one cost field. Estimated cost is required for budgeting.
+                                Actual cost should be entered after repair is completed.
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Repair Status Section -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-tools"></i> Repair Status</h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Repair Required -->
+                        <div class="mb-3">
+                            <div class="form-check">
+                                {{ form.repair_required }}
+                                <label class="form-check-label" for="{{ form.repair_required.id_for_label }}">
+                                    <strong>Repair is required</strong>
+                                </label>
+                            </div>
+                            {% if form.repair_required.errors %}
+                                <div class="invalid-feedback d-block">{{ form.repair_required.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Repair Completed -->
+                        <div class="mb-3">
+                            <div class="form-check">
+                                {{ form.repair_completed }}
+                                <label class="form-check-label" for="{{ form.repair_completed.id_for_label }}">
+                                    <strong>Repair has been completed</strong>
+                                </label>
+                            </div>
+                            {% if form.repair_completed.errors %}
+                                <div class="invalid-feedback d-block">{{ form.repair_completed.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Repair Completion Date -->
+                        <div class="mb-3" id="repairDateField" style="display: none;">
+                            <label for="{{ form.repair_completion_date.id_for_label }}" class="form-label">
+                                <strong>Repair Completion Date *</strong>
+                            </label>
+                            {{ form.repair_completion_date }}
+                            {% if form.repair_completion_date.errors %}
+                                <div class="invalid-feedback d-block">{{ form.repair_completion_date.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Insurance Section -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-shield-alt"></i> Insurance Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Insurance Claim Filed -->
+                        <div class="mb-3">
+                            <div class="form-check">
+                                {{ form.insurance_claim_filed }}
+                                <label class="form-check-label" for="{{ form.insurance_claim_filed.id_for_label }}">
+                                    <strong>Insurance claim has been filed</strong>
+                                </label>
+                            </div>
+                            {% if form.insurance_claim_filed.errors %}
+                                <div class="invalid-feedback d-block">{{ form.insurance_claim_filed.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Insurance Claim Number -->
+                        <div class="mb-3" id="claimNumberField" style="display: none;">
+                            <label for="{{ form.insurance_claim_number.id_for_label }}" class="form-label">
+                                <strong>Insurance Claim Number *</strong>
+                            </label>
+                            {{ form.insurance_claim_number }}
+                            {% if form.insurance_claim_number.errors %}
+                                <div class="invalid-feedback d-block">{{ form.insurance_claim_number.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Internal Notes Section -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-sticky-note"></i> Internal Notes</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="{{ form.internal_notes.id_for_label }}" class="form-label">
+                                <strong>Internal Notes</strong>
+                            </label>
+                            {{ form.internal_notes }}
+                            {% if form.internal_notes.errors %}
+                                <div class="invalid-feedback d-block">{{ form.internal_notes.errors }}</div>
+                            {% endif %}
+                            <small class="form-text text-muted">
+                                Additional notes for internal use only (not visible to customers)
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="d-flex justify-content-between align-items-center pb-4">
+                    <a href="{% url 'event_management:damage_report_list' equipment.event.pk %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times"></i> Cancel
+                    </a>
+                    <button type="submit" class="btn btn-danger btn-lg">
+                        <i class="fas fa-save"></i> {% if report %}Update{% else %}Create{% endif %} Damage Report
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Show/hide repair completion date field
+        const repairCompletedCheckbox = document.getElementById('{{ form.repair_completed.id_for_label }}');
+        const repairDateField = document.getElementById('repairDateField');
+
+        function toggleRepairDate() {
+            if (repairCompletedCheckbox.checked) {
+                repairDateField.style.display = 'block';
+            } else {
+                repairDateField.style.display = 'none';
+            }
+        }
+
+        repairCompletedCheckbox.addEventListener('change', toggleRepairDate);
+        toggleRepairDate(); // Initial check
+
+        // Show/hide insurance claim number field
+        const insuranceFiledCheckbox = document.getElementById('{{ form.insurance_claim_filed.id_for_label }}');
+        const claimNumberField = document.getElementById('claimNumberField');
+
+        function toggleClaimNumber() {
+            if (insuranceFiledCheckbox.checked) {
+                claimNumberField.style.display = 'block';
+            } else {
+                claimNumberField.style.display = 'none';
+            }
+        }
+
+        insuranceFiledCheckbox.addEventListener('change', toggleClaimNumber);
+        toggleClaimNumber(); // Initial check
+
+        // Form validation
+        document.getElementById('damageReportForm').addEventListener('submit', function(e) {
+            let isValid = true;
+            let errorMessage = '';
+
+            // Check if at least one cost field is filled
+            const estimatedCost = document.getElementById('{{ form.estimated_repair_cost.id_for_label }}').value;
+            const actualCost = document.getElementById('{{ form.actual_repair_cost.id_for_label }}').value;
+            const replacementCost = document.getElementById('{{ form.replacement_cost.id_for_label }}').value;
+
+            if (!estimatedCost && !actualCost && !replacementCost) {
+                isValid = false;
+                errorMessage += 'Please provide at least one cost estimate.\n';
+            }
+
+            // Check repair completion date if repair is completed
+            if (repairCompletedCheckbox.checked) {
+                const repairDate = document.getElementById('{{ form.repair_completion_date.id_for_label }}').value;
+                if (!repairDate) {
+                    isValid = false;
+                    errorMessage += 'Repair completion date is required when repair is marked as completed.\n';
+                }
+            }
+
+            // Check insurance claim number if claim is filed
+            if (insuranceFiledCheckbox.checked) {
+                const claimNumber = document.getElementById('{{ form.insurance_claim_number.id_for_label }}').value;
+                if (!claimNumber) {
+                    isValid = false;
+                    errorMessage += 'Insurance claim number is required when a claim has been filed.\n';
+                }
+            }
+
+            if (!isValid) {
+                e.preventDefault();
+                alert(errorMessage);
+                return false;
+            }
+
+            // Confirm submission
+            if (!confirm('Are you sure you want to {% if report %}update{% else %}create{% endif %} this damage report?')) {
+                e.preventDefault();
+                return false;
+            }
+        });
+    });
+</script>
+
+<style>
+    .form-control, .form-select {
+        border-radius: 8px;
+    }
+    .card {
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .input-group-text {
+        background-color: #f8f9fa;
+        border-right: 0;
+    }
+    .form-control:focus + .input-group-text {
+        border-color: #86b7fe;
+    }
+</style>
+{% endblock %}

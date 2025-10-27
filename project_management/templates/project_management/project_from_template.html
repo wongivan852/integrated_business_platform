@@ -1,0 +1,353 @@
+{% extends 'base.html' %}
+
+{% block title %}Create Project from Template{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'project_management:template_list' %}">Templates</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'project_management:template_detail' template.id %}">{{ template.name }}</a></li>
+            <li class="breadcrumb-item active">Create Project</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <!-- Form -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-magic"></i> Create Project from Template
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <!-- Template Info Banner -->
+                    <div class="alert alert-info">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-layer-group fa-2x me-3"></i>
+                            <div>
+                                <h6 class="mb-1">Using Template: <strong>{{ template.name }}</strong></h6>
+                                <small class="mb-0">
+                                    {{ template.description|truncatewords:20 }}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+
+                        <!-- Project Name -->
+                        <div class="mb-3">
+                            <label for="project_name" class="form-label">Project Name *</label>
+                            <input type="text" class="form-control" id="project_name" name="project_name"
+                                   placeholder="e.g., Acme Corp Website Redesign"
+                                   required>
+                            <small class="form-text text-muted">
+                                Give your project a unique, descriptive name
+                            </small>
+                        </div>
+
+                        <!-- Project Code -->
+                        <div class="mb-3">
+                            <label for="project_code" class="form-label">Project Code</label>
+                            <input type="text" class="form-control" id="project_code" name="project_code"
+                                   placeholder="e.g., ACM-WEB-2025"
+                                   pattern="[A-Z0-9\-]+"
+                                   title="Only uppercase letters, numbers, and hyphens allowed">
+                            <small class="form-text text-muted">
+                                Optional: A short code to identify this project (will be auto-generated if left blank)
+                            </small>
+                        </div>
+
+                        <!-- Project Description -->
+                        <div class="mb-3">
+                            <label for="project_description" class="form-label">Project Description</label>
+                            <textarea class="form-control" id="project_description" name="project_description"
+                                      rows="4"
+                                      placeholder="Describe the goals and scope of this project...">{{ template.description }}</textarea>
+                            <small class="form-text text-muted">
+                                Customize the description for your specific project
+                            </small>
+                        </div>
+
+                        <!-- Start Date and Duration -->
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="start_date" class="form-label">Start Date *</label>
+                                <input type="date" class="form-control" id="start_date" name="start_date"
+                                       value="{{ today|date:'Y-m-d' }}"
+                                       required>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="duration_days" class="form-label">Duration (Days) *</label>
+                                <input type="number" class="form-control" id="duration_days" name="duration_days"
+                                       value="{{ template.default_duration_days }}"
+                                       min="1" required>
+                                <small class="form-text text-muted">
+                                    End date will be calculated automatically
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- Calculated End Date Display -->
+                        <div class="mb-3">
+                            <div class="alert alert-secondary">
+                                <strong>Calculated End Date:</strong>
+                                <span id="end_date_display">-</span>
+                            </div>
+                        </div>
+
+                        <!-- Budget -->
+                        <div class="mb-3">
+                            <label for="budget" class="form-label">Budget</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="budget" name="budget"
+                                       value="{% if template.estimated_budget %}{{ template.estimated_budget }}{% endif %}"
+                                       min="0" step="0.01"
+                                       placeholder="0.00">
+                            </div>
+                            <small class="form-text text-muted">
+                                Optional: Total budget allocated for this project
+                            </small>
+                        </div>
+
+                        <!-- Info Alert -->
+                        <div class="alert alert-info">
+                            <h6><i class="fas fa-info-circle"></i> What will be created:</h6>
+                            <ul class="mb-0">
+                                <li><strong>{{ total_tasks }} tasks</strong> will be added to the project</li>
+                                <li>Task dependencies will be preserved</li>
+                                <li>Task dates will be calculated based on your start date and duration</li>
+                                <li>You'll be able to customize tasks after creation</li>
+                            </ul>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'project_management:template_detail' template.id %}"
+                               class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Back to Template
+                            </a>
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-rocket"></i> Create Project
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar - Template Preview -->
+        <div class="col-md-4">
+            <!-- Template Summary -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-info-circle"></i> Template Overview</h6>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0 small">
+                        <dt class="col-sm-6">Category:</dt>
+                        <dd class="col-sm-6">
+                            <span class="badge badge-{{ template.category }}">
+                                {{ template.get_category_display }}
+                            </span>
+                        </dd>
+
+                        <dt class="col-sm-6">Default Duration:</dt>
+                        <dd class="col-sm-6">{{ template.default_duration_days }} days</dd>
+
+                        <dt class="col-sm-6">Total Tasks:</dt>
+                        <dd class="col-sm-6"><strong>{{ total_tasks }}</strong></dd>
+
+                        {% if template.estimated_budget %}
+                        <dt class="col-sm-6">Est. Budget:</dt>
+                        <dd class="col-sm-6">${{ template.estimated_budget|floatformat:0 }}</dd>
+                        {% endif %}
+                    </dl>
+                </div>
+            </div>
+
+            <!-- Task Preview -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-tasks"></i> Tasks Preview</h6>
+                </div>
+                <div class="card-body p-0">
+                    {% if template_tasks %}
+                    <div class="list-group list-group-flush">
+                        {% for task in template_tasks %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <span class="text-muted small">#{{ task.sequence_number }}</span>
+                                    <div class="fw-bold">{{ task.name }}</div>
+                                    <small class="text-muted">{{ task.estimated_hours }} hrs</small>
+                                </div>
+                                {% if task.is_milestone %}
+                                <i class="fas fa-flag text-danger" title="Milestone"></i>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+
+                        {% if total_tasks > 5 %}
+                        <div class="list-group-item text-center text-muted">
+                            <small>+ {{ total_tasks|add:"-5" }} more tasks...</small>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-3">
+                        <small class="text-muted">No tasks defined</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Help Card -->
+            <div class="card mt-3">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-question-circle"></i> Quick Tips</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="small mb-0 ps-3">
+                        <li class="mb-2">Choose a unique project name</li>
+                        <li class="mb-2">Set realistic start date and duration</li>
+                        <li class="mb-2">You can modify all tasks after creation</li>
+                        <li class="mb-0">Team members can be assigned later</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .form-label {
+        font-weight: 600;
+        color: #495057;
+    }
+
+    .badge-software { background-color: #007bff; }
+    .badge-construction { background-color: #fd7e14; }
+    .badge-marketing { background-color: #e83e8c; }
+    .badge-research { background-color: #6f42c1; }
+    .badge-event { background-color: #20c997; }
+    .badge-consulting { background-color: #17a2b8; }
+    .badge-design { background-color: #d63384; }
+    .badge-other { background-color: #6c757d; }
+
+    .list-group-item {
+        padding: 0.75rem 1rem;
+    }
+
+    .fw-bold {
+        font-weight: 600;
+    }
+
+    #end_date_display {
+        font-size: 1.1rem;
+        font-weight: bold;
+        color: #007bff;
+    }
+</style>
+
+<script>
+    // Calculate end date automatically
+    function calculateEndDate() {
+        const startDateInput = document.getElementById('start_date');
+        const durationInput = document.getElementById('duration_days');
+        const endDateDisplay = document.getElementById('end_date_display');
+
+        if (startDateInput.value && durationInput.value) {
+            const startDate = new Date(startDateInput.value);
+            const duration = parseInt(durationInput.value);
+
+            if (!isNaN(startDate.getTime()) && duration > 0) {
+                const endDate = new Date(startDate);
+                endDate.setDate(endDate.getDate() + duration);
+
+                const options = { year: 'numeric', month: 'long', day: 'numeric' };
+                endDateDisplay.textContent = endDate.toLocaleDateString('en-US', options);
+                endDateDisplay.style.color = '#28a745';
+            } else {
+                endDateDisplay.textContent = 'Invalid date or duration';
+                endDateDisplay.style.color = '#dc3545';
+            }
+        } else {
+            endDateDisplay.textContent = 'Please select start date and duration';
+            endDateDisplay.style.color = '#6c757d';
+        }
+    }
+
+    // Event listeners
+    document.getElementById('start_date').addEventListener('change', calculateEndDate);
+    document.getElementById('duration_days').addEventListener('input', calculateEndDate);
+
+    // Calculate on page load
+    calculateEndDate();
+
+    // Auto-generate project code from name
+    document.getElementById('project_name').addEventListener('blur', function() {
+        const codeInput = document.getElementById('project_code');
+        if (!codeInput.value) {
+            const name = this.value.trim();
+            if (name) {
+                // Generate code from first letters of each word
+                const words = name.toUpperCase().split(' ');
+                let code = words.map(word => word.charAt(0)).join('');
+
+                // Add year
+                const year = new Date().getFullYear();
+                code += '-' + year;
+
+                codeInput.value = code;
+            }
+        }
+    });
+
+    // Form validation
+    document.querySelector('form').addEventListener('submit', function(e) {
+        const projectName = document.getElementById('project_name').value.trim();
+        const startDate = document.getElementById('start_date').value;
+        const duration = document.getElementById('duration_days').value;
+
+        if (!projectName) {
+            e.preventDefault();
+            alert('Please enter a project name');
+            document.getElementById('project_name').focus();
+            return false;
+        }
+
+        if (!startDate) {
+            e.preventDefault();
+            alert('Please select a start date');
+            document.getElementById('start_date').focus();
+            return false;
+        }
+
+        if (duration < 1) {
+            e.preventDefault();
+            alert('Duration must be at least 1 day');
+            document.getElementById('duration_days').focus();
+            return false;
+        }
+
+        // Show loading state
+        const btn = this.querySelector('button[type="submit"]');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating Project...';
+
+        return true;
+    });
+
+    // Uppercase project code
+    document.getElementById('project_code').addEventListener('input', function() {
+        this.value = this.value.toUpperCase();
+    });
+</script>
+{% endblock %}

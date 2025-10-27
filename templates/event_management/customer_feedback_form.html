@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Feedback - {{ event.event_number }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px 0;
+        }
+        .feedback-container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .feedback-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .feedback-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .feedback-body {
+            padding: 40px 30px;
+        }
+        .rating-group {
+            margin-bottom: 30px;
+            padding: 25px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+        .rating-label {
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            color: #2d3748;
+        }
+        .rating-help {
+            font-size: 0.9rem;
+            color: #718096;
+            margin-bottom: 15px;
+        }
+        .rating-options {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .rating-option {
+            flex: 1;
+            text-align: center;
+        }
+        .rating-option input[type="radio"] {
+            display: none;
+        }
+        .rating-option label {
+            display: block;
+            padding: 15px 10px;
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+        .rating-option input[type="radio"]:checked + label {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        .rating-option label:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+        }
+        .nps-scale {
+            display: flex;
+            justify-content: space-between;
+            gap: 5px;
+            margin-top: 15px;
+        }
+        .nps-option {
+            flex: 1;
+            text-align: center;
+        }
+        .nps-option label {
+            display: block;
+            padding: 12px 5px;
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+        .nps-option input[type="radio"]:checked + label {
+            background: #48bb78;
+            color: white;
+            border-color: #48bb78;
+        }
+        .nps-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            font-size: 0.85rem;
+            color: #718096;
+        }
+        .form-section {
+            margin-bottom: 30px;
+        }
+        .section-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .submit-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            padding: 15px 50px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 50px;
+            color: white;
+            transition: all 0.3s;
+        }
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+        .event-info {
+            background: #edf2f7;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        .event-info-item {
+            margin-bottom: 10px;
+        }
+        .event-info-item strong {
+            color: #2d3748;
+        }
+        .progress-indicator {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f7fafc;
+            border-radius: 10px;
+        }
+        .progress-step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+        }
+        .progress-step::after {
+            content: '';
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            width: 100%;
+            height: 2px;
+            background: #e2e8f0;
+            z-index: -1;
+        }
+        .progress-step:last-child::after {
+            display: none;
+        }
+        .progress-circle {
+            width: 30px;
+            height: 30px;
+            background: #e2e8f0;
+            border-radius: 50%;
+            display: inline-block;
+            line-height: 30px;
+            font-weight: 600;
+            color: #718096;
+        }
+        .progress-step.active .progress-circle {
+            background: #667eea;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="feedback-container">
+        <div class="feedback-card">
+            <div class="feedback-header">
+                <h1><i class="fas fa-comments"></i> Customer Feedback</h1>
+                <p class="mb-0">We value your opinion! Please take a moment to share your experience.</p>
+            </div>
+
+            <div class="feedback-body">
+                <!-- Event Information -->
+                <div class="event-info">
+                    <h5 class="mb-3"><i class="fas fa-calendar-check"></i> Event Details</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="event-info-item">
+                                <strong>Event Number:</strong> {{ event.event_number }}
+                            </div>
+                            <div class="event-info-item">
+                                <strong>Event Type:</strong> {{ event.get_event_type_display }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="event-info-item">
+                                <strong>Company:</strong> {{ event.customer_company }}
+                            </div>
+                            <div class="event-info-item">
+                                <strong>Date:</strong> {{ event.planned_start_date }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Feedback Form -->
+                <form method="post" id="feedbackForm">
+                    {% csrf_token %}
+
+                    <!-- Customer Information -->
+                    <div class="form-section">
+                        <h4 class="section-title"><i class="fas fa-user"></i> Your Information</h4>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Name <span class="text-danger">*</span></label>
+                                {{ form.customer_name }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Email <span class="text-danger">*</span></label>
+                                {{ form.customer_email }}
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Position (Optional)</label>
+                            {{ form.customer_position }}
+                        </div>
+                    </div>
+
+                    <!-- Ratings -->
+                    <div class="form-section">
+                        <h4 class="section-title"><i class="fas fa-star"></i> Service Ratings</h4>
+
+                        <!-- Service Quality -->
+                        <div class="rating-group">
+                            <div class="rating-label">1. Overall Service Quality</div>
+                            <div class="rating-help">How would you rate the overall quality of our service?</div>
+                            <div class="rating-options">
+                                {% for value, label in form.service_quality_rating.field.choices %}
+                                <div class="rating-option">
+                                    <input type="radio" name="service_quality_rating" value="{{ value }}" id="sq_{{ value }}" {% if form.service_quality_rating.value == value|stringformat:"s" %}checked{% endif %}>
+                                    <label for="sq_{{ value }}">
+                                        <div>{{ value }}</div>
+                                        <small>{{ label|slice:"4:" }}</small>
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Staff Professionalism -->
+                        <div class="rating-group">
+                            <div class="rating-label">2. Staff Professionalism</div>
+                            <div class="rating-help">How professional were our staff members?</div>
+                            <div class="rating-options">
+                                {% for value, label in form.staff_professionalism_rating.field.choices %}
+                                <div class="rating-option">
+                                    <input type="radio" name="staff_professionalism_rating" value="{{ value }}" id="sp_{{ value }}" {% if form.staff_professionalism_rating.value == value|stringformat:"s" %}checked{% endif %}>
+                                    <label for="sp_{{ value }}">
+                                        <div>{{ value }}</div>
+                                        <small>{{ label|slice:"4:" }}</small>
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Timeliness -->
+                        <div class="rating-group">
+                            <div class="rating-label">3. Timeliness</div>
+                            <div class="rating-help">How satisfied were you with our punctuality and time management?</div>
+                            <div class="rating-options">
+                                {% for value, label in form.timeliness_rating.field.choices %}
+                                <div class="rating-option">
+                                    <input type="radio" name="timeliness_rating" value="{{ value }}" id="t_{{ value }}" {% if form.timeliness_rating.value == value|stringformat:"s" %}checked{% endif %}>
+                                    <label for="t_{{ value }}">
+                                        <div>{{ value }}</div>
+                                        <small>{{ label|slice:"4:" }}</small>
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Technical Expertise -->
+                        <div class="rating-group">
+                            <div class="rating-label">4. Technical Expertise</div>
+                            <div class="rating-help">How would you rate our technical knowledge and expertise?</div>
+                            <div class="rating-options">
+                                {% for value, label in form.technical_expertise_rating.field.choices %}
+                                <div class="rating-option">
+                                    <input type="radio" name="technical_expertise_rating" value="{{ value }}" id="te_{{ value }}" {% if form.technical_expertise_rating.value == value|stringformat:"s" %}checked{% endif %}>
+                                    <label for="te_{{ value }}">
+                                        <div>{{ value }}</div>
+                                        <small>{{ label|slice:"4:" }}</small>
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Communication -->
+                        <div class="rating-group">
+                            <div class="rating-label">5. Communication</div>
+                            <div class="rating-help">How clear and effective was our communication?</div>
+                            <div class="rating-options">
+                                {% for value, label in form.communication_rating.field.choices %}
+                                <div class="rating-option">
+                                    <input type="radio" name="communication_rating" value="{{ value }}" id="c_{{ value }}" {% if form.communication_rating.value == value|stringformat:"s" %}checked{% endif %}>
+                                    <label for="c_{{ value }}">
+                                        <div>{{ value }}</div>
+                                        <small>{{ label|slice:"4:" }}</small>
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Open-Ended Feedback -->
+                    <div class="form-section">
+                        <h4 class="section-title"><i class="fas fa-comment-dots"></i> Your Feedback</h4>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">What did we do well?</label>
+                            {{ form.what_did_well }}
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">What can we improve?</label>
+                            {{ form.what_can_improve }}
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Additional Comments</label>
+                            {{ form.additional_comments }}
+                        </div>
+                    </div>
+
+                    <!-- Net Promoter Score -->
+                    <div class="form-section">
+                        <h4 class="section-title"><i class="fas fa-chart-line"></i> Recommendation</h4>
+
+                        <div class="mb-4">
+                            <div class="form-check">
+                                {{ form.would_recommend }}
+                                <label class="form-check-label fw-bold" for="id_would_recommend">
+                                    Would you recommend our services to others?
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="rating-group">
+                            <div class="rating-label">How likely are you to use our services again?</div>
+                            <div class="rating-help">On a scale of 1 to 10, where 1 is "Not likely" and 10 is "Very likely"</div>
+                            <div class="nps-scale">
+                                {% for value, label in form.likelihood_to_use_again.field.choices %}
+                                <div class="nps-option">
+                                    <input type="radio" name="likelihood_to_use_again" value="{{ value }}" id="nps_{{ value }}" {% if form.likelihood_to_use_again.value == value|stringformat:"s" %}checked{% endif %}>
+                                    <label for="nps_{{ value }}">{{ value }}</label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <div class="nps-labels">
+                                <span>Not Likely</span>
+                                <span>Very Likely</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="text-center mt-5">
+                        <button type="submit" class="submit-btn">
+                            <i class="fas fa-paper-plane me-2"></i> Submit Feedback
+                        </button>
+                        <p class="mt-3 text-muted small">
+                            <i class="fas fa-lock"></i> Your feedback is confidential and helps us improve our services.
+                        </p>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="text-center mt-4">
+            <p class="text-white">
+                <small>&copy; 2025 Krystal Business Platform. All rights reserved.</small>
+            </p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Form validation
+        document.getElementById('feedbackForm').addEventListener('submit', function(e) {
+            const requiredRatings = [
+                'service_quality_rating',
+                'staff_professionalism_rating',
+                'timeliness_rating',
+                'technical_expertise_rating',
+                'communication_rating',
+                'likelihood_to_use_again'
+            ];
+
+            let isValid = true;
+            requiredRatings.forEach(function(ratingName) {
+                const checked = document.querySelector('input[name="' + ratingName + '"]:checked');
+                if (!checked) {
+                    isValid = false;
+                    alert('Please provide all ratings before submitting.');
+                    return false;
+                }
+            });
+
+            if (!isValid) {
+                e.preventDefault();
+            }
+        });
+
+        // Smooth scroll to first empty rating
+        document.querySelectorAll('.rating-options input[type="radio"]').forEach(function(radio) {
+            radio.addEventListener('change', function() {
+                // Add animation when selected
+                this.nextElementSibling.style.transition = 'all 0.3s';
+            });
+        });
+    </script>
+</body>
+</html>
