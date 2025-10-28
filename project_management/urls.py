@@ -3,7 +3,7 @@ URL configuration for Project Management app
 """
 
 from django.urls import path
-from .views import project_views, task_views, kanban_views, gantt_views, resource_views, evm_views, template_views, analytics_views
+from .views import project_views, task_views, kanban_views, gantt_views, resource_views, evm_views, template_views, analytics_views, notification_views, export_views
 
 app_name = 'project_management'
 
@@ -88,4 +88,25 @@ urlpatterns = [
     path('analytics/team/', analytics_views.team_performance, name='team_performance'),
     path('analytics/trends/', analytics_views.trend_analysis, name='trend_analysis'),
     path('analytics/predictions/', analytics_views.predictive_analytics, name='predictive_analytics'),
+
+    # Dashboard Customization URLs
+    path('analytics/customize/', analytics_views.customize_dashboard, name='customize_dashboard'),
+    path('analytics/customize/save/', analytics_views.api_save_dashboard_layout, name='api_save_dashboard_layout'),
+    path('analytics/customize/reset/', analytics_views.api_reset_dashboard_layout, name='api_reset_dashboard_layout'),
+
+    # Phase 5: Notification URLs
+    path('notifications/', notification_views.notification_list, name='notification_list'),
+    path('notifications/<int:notification_id>/mark-read/', notification_views.api_mark_as_read, name='api_mark_notification_read'),
+    path('notifications/mark-all-read/', notification_views.api_mark_all_as_read, name='api_mark_all_notifications_read'),
+    path('notifications/<int:notification_id>/delete/', notification_views.api_delete_notification, name='api_delete_notification'),
+    path('notifications/unread-count/', notification_views.api_get_unread_count, name='api_unread_count'),
+
+    # Phase 5: Export/Reporting URLs
+    path('export/projects/csv/', export_views.export_projects_csv, name='export_projects_csv'),
+    path('export/projects/excel/', export_views.export_projects_excel, name='export_projects_excel'),
+    path('<int:pk>/export/analytics/pdf/', export_views.export_project_analytics_pdf_view, name='export_project_analytics_pdf'),
+    path('<int:project_pk>/export/tasks/csv/', export_views.export_tasks_csv, name='export_tasks_csv'),
+    path('<int:project_pk>/export/tasks/excel/', export_views.export_tasks_excel_view, name='export_tasks_excel'),
+    path('export/resources/allocation/', export_views.export_resource_allocation_view, name='export_resource_allocation'),
+    path('export/portfolio/analytics/', export_views.export_portfolio_analytics_view, name='export_portfolio_analytics'),
 ]

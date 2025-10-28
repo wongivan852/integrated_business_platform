@@ -487,3 +487,111 @@ def predictive_analytics(request):
     }
 
     return render(request, 'project_management/analytics/predictive_analytics.html', context)
+
+
+# ============================================================================
+# DASHBOARD CUSTOMIZATION VIEWS
+# ============================================================================
+
+@login_required
+def customize_dashboard(request):
+    """
+    Dashboard customization page
+    Allows users to drag and drop widgets to customize their dashboard layout
+    """
+    # Get user's current widget configuration
+    user_widgets = DashboardWidget.objects.filter(
+        user=request.user
+    ).order_by('position')
+
+    context = {
+        'user_widgets': user_widgets,
+    }
+
+    return render(request, 'project_management/analytics/customize_dashboard.html', context)
+
+
+@login_required
+def api_save_dashboard_layout(request):
+    """
+    Save user's dashboard layout configuration (AJAX)
+
+    POST data:
+        widgets: List of widget configurations
+            [{widget_type, size, position, is_visible}, ...]
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POST required'}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        widgets = data.get('widgets', [])
+
+        # Delete existing widgets
+        DashboardWidget.objects.filter(user=request.user).delete()
+
+        # Create new widgets
+        for widget_data in widgets:
+            DashboardWidget.objects.create(
+                user=request.user,
+                widget_type=widget_data['widget_type'],
+                title=widget_data.get('title', widget_data['widget_type'].replace('_', ' ').title()),
+                size=widget_data['size'],
+                position=widget_data['position'],
+                is_visible=widget_data.get('is_visible', True),
+                config=widget_data.get('config', {})
+            )
+
+        return JsonResponse({
+            'success': True,
+            'message': 'Dashboard layout saved successfully'
+        })
+
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=400)
+
+
+@login_required
+def api_reset_dashboard_layout(request):
+    """
+    Reset user's dashboard to default layout (AJAX)
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POST required'}, status=405)
+
+    try:
+        # Delete all user widgets
+        DashboardWidget.objects.filter(user=request.user).delete()
+
+        # Create default widgets
+        default_widgets = [
+            {'widget_type': 'project_overview', 'title': 'Project Overview', 'size': 'medium', 'position': 0},
+            {'widget_type': 'task_progress', 'title': 'Task Progress', 'size': 'small', 'position': 1},
+            {'widget_type': 'budget_status', 'title': 'Budget Status', 'size': 'small', 'position': 2},
+            {'widget_type': 'timeline_chart', 'title': 'Timeline Chart', 'size': 'large', 'position': 3},
+            {'widget_type': 'risk_assessment', 'title': 'Risk Assessment', 'size': 'small', 'position': 4},
+        ]
+
+        for widget_data in default_widgets:
+            DashboardWidget.objects.create(
+                user=request.user,
+                widget_type=widget_data['widget_type'],
+                title=widget_data['title'],
+                size=widget_data['size'],
+                position=widget_data['position'],
+                is_visible=True
+            )
+
+        return JsonResponse({
+            'success': True,
+            'message': 'Dashboard reset to default layout'
+        })
+
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=400)

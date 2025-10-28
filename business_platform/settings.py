@@ -78,6 +78,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 # 'business_platform.context_processors.app_context',  # TODO: Create context processor
+                'project_management.context_processors.notification_count',  # Notification badge count
             ],
         },
     },

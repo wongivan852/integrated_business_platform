@@ -16,7 +16,16 @@
                 <i class="fas fa-building"></i> Krystal Business Platform
             </a>
             {% if user.is_authenticated %}
-            <div class="navbar-nav ms-auto">
+            <div class="navbar-nav ms-auto d-flex align-items-center">
+                <!-- Notification Bell -->
+                <a href="{% url 'project_management:notification_list' %}" class="nav-link position-relative me-3" title="Notifications">
+                    <i class="fas fa-bell"></i>
+                    <span id="notification-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.7rem; {% if notification_unread_count == 0 %}display: none;{% endif %}">
+                        {{ notification_unread_count }}
+                    </span>
+                </a>
+
+                <!-- User Dropdown -->
                 <div class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
                         <i class="fas fa-user"></i> {{ user.get_display_name }}

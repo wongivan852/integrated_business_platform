@@ -14,7 +14,7 @@ from .models import (
     ProjectCost, TaskCost, EVMSnapshot,
     ProjectTemplate, TemplateTask, TemplateDependency,
     # Phase 5 models
-    ProjectMetrics, DashboardWidget
+    ProjectMetrics, DashboardWidget, Notification
 )
 
 
@@ -921,3 +921,91 @@ class DashboardWidgetAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = [
+        'user', 'title', 'notification_type_badge',
+        'is_read_badge', 'project_link', 'task_link',
+        'created_at'
+    ]
+    list_filter = ['notification_type', 'is_read', 'created_at']
+    search_fields = ['title', 'message', 'user__username', 'user__email']
+    readonly_fields = ['created_at', 'read_at']
+    ordering = ['-created_at']
+    date_hierarchy = 'created_at'
+
+    fieldsets = (
+        ('Notification Information', {
+            'fields': ('user', 'notification_type', 'title', 'message')
+        }),
+        ('Related Objects', {
+            'fields': ('project', 'task', 'action_url')
+        }),
+        ('Status', {
+            'fields': ('is_read', 'read_at', 'created_at')
+        }),
+    )
+
+    def notification_type_badge(self, obj):
+        colors = {
+            'task_assigned': '#6f42c1',
+            'task_completed': '#28a745',
+            'task_overdue': '#dc3545',
+            'deadline_approaching': '#fd7e14',
+            'budget_alert': '#e83e8c',
+            'project_status_changed': '#17a2b8',
+            'comment_added': '#20c997',
+            'mention': '#ffc107',
+            'milestone_completed': '#00bcd4',
+            'resource_assigned': '#6c757d'
+        }
+        color = colors.get(obj.notification_type, '#6c757d')
+        return format_html(
+            '<span style="background-color: {}; color: white; padding: 3px 10px; '
+            'border-radius: 3px; font-size: 11px;">{}</span>',
+            color, obj.get_notification_type_display()
+        )
+    notification_type_badge.short_description = 'Type'
+
+    def is_read_badge(self, obj):
+        if obj.is_read:
+            return format_html(
+                '<span style="color: #28a745;"><i class="fas fa-check-circle"></i> Read</span>'
+            )
+        return format_html(
+            '<span style="color: #dc3545; font-weight: bold;"><i class="fas fa-circle"></i> Unread</span>'
+        )
+    is_read_badge.short_description = 'Status'
+
+    def project_link(self, obj):
+        if obj.project:
+            return format_html(
+                '<a href="/admin/project_management/project/{}/change/">{}</a>',
+                obj.project.id, obj.project.name
+            )
+        return '-'
+    project_link.short_description = 'Project'
+
+    def task_link(self, obj):
+        if obj.task:
+            return format_html(
+                '<a href="/admin/project_management/task/{}/change/">{}</a>',
+                obj.task.id, obj.task.task_code
+            )
+        return '-'
+    task_link.short_description = 'Task'
+
+    actions = ['mark_as_read', 'mark_as_unread', 'delete_selected']
+
+    def mark_as_read(self, request, queryset):
+        from django.utils import timezone
+        count = queryset.filter(is_read=False).update(is_read=True, read_at=timezone.now())
+        self.message_user(request, f'{count} notification(s) marked as read.')
+    mark_as_read.short_description = 'Mark selected as read'
+
+    def mark_as_unread(self, request, queryset):
+        count = queryset.filter(is_read=True).update(is_read=False, read_at=None)
+        self.message_user(request, f'{count} notification(s) marked as unread.')
+    mark_as_unread.short_description = 'Mark selected as unread'

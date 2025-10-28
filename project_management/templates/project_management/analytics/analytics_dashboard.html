@@ -6,8 +6,31 @@
 <div class="container-fluid mt-4">
     <div class="row mb-4">
         <div class="col-12">
-            <h2><i class="fas fa-chart-line"></i> Analytics Dashboard</h2>
-            <p class="text-muted">Portfolio overview and key performance indicators</p>
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2><i class="fas fa-chart-line"></i> Analytics Dashboard</h2>
+                    <p class="text-muted">Portfolio overview and key performance indicators</p>
+                </div>
+                <div>
+                    <a href="{% url 'project_management:customize_dashboard' %}" class="btn btn-outline-primary me-2">
+                        <i class="fas fa-sliders-h me-2"></i>Customize
+                    </a>
+                    <div class="dropdown d-inline-block">
+                        <button class="btn btn-primary dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown">
+                            <i class="fas fa-download me-2"></i>Export
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="exportDropdown">
+                            <li><a class="dropdown-item" href="{% url 'project_management:export_projects_csv' %}"><i class="fas fa-file-csv me-2"></i>Projects (CSV)</a></li>
+                            <li><a class="dropdown-item" href="{% url 'project_management:export_projects_excel' %}"><i class="fas fa-file-excel me-2"></i>Projects (Excel)</a></li>
+                            <li><a class="dropdown-item" href="{% url 'project_management:export_portfolio_analytics' %}"><i class="fas fa-file-excel me-2"></i>Portfolio Analytics (Excel)</a></li>
+                            {% if user.is_superuser %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'project_management:export_resource_allocation' %}"><i class="fas fa-users me-2"></i>Resource Allocation (Excel)</a></li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
