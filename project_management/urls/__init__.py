@@ -2,8 +2,8 @@
 URL configuration for Project Management app
 """
 
-from django.urls import path
-from .views import project_views, task_views, kanban_views, gantt_views, resource_views, evm_views, template_views, analytics_views, notification_views, export_views
+from django.urls import path, include
+from ..views import project_views, task_views, kanban_views, gantt_views, resource_views, evm_views, template_views, analytics_views, notification_views, export_views
 
 app_name = 'project_management'
 
@@ -109,4 +109,7 @@ urlpatterns = [
     path('<int:project_pk>/export/tasks/excel/', export_views.export_tasks_excel_view, name='export_tasks_excel'),
     path('export/resources/allocation/', export_views.export_resource_allocation_view, name='export_resource_allocation'),
     path('export/portfolio/analytics/', export_views.export_portfolio_analytics_view, name='export_portfolio_analytics'),
+
+    # Phase 6.4: Third-Party Integrations URLs
+    path('integrations/', include('project_management.urls.integration_urls')),
 ]
