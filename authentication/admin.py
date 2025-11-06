@@ -152,11 +152,11 @@ class ApplicationConfigAdmin(admin.ModelAdmin):
     """Admin interface for ApplicationConfig model."""
 
     list_display = [
-        'display_name', 'name', 'url', 'is_active',
+        'display_name', 'name', 'url', 'is_active', 'is_featured',
         'requires_sso', 'order', 'updated_at'
     ]
 
-    list_filter = ['is_active', 'requires_sso', 'created_at']
+    list_filter = ['is_active', 'is_featured', 'requires_sso', 'created_at']
 
     search_fields = ['name', 'display_name', 'description']
 
@@ -172,7 +172,7 @@ class ApplicationConfigAdmin(admin.ModelAdmin):
             'fields': ('url', 'icon', 'color', 'order')
         }),
         (_('Security'), {
-            'fields': ('is_active', 'requires_sso', 'sso_secret')
+            'fields': ('is_active', 'is_featured', 'requires_sso', 'sso_secret')
         }),
         (_('Timestamps'), {
             'fields': ('created_at', 'updated_at'),
@@ -181,7 +181,7 @@ class ApplicationConfigAdmin(admin.ModelAdmin):
     )
 
     # Actions
-    actions = ['activate_apps', 'deactivate_apps', 'enable_sso', 'disable_sso']
+    actions = ['activate_apps', 'deactivate_apps', 'enable_sso', 'disable_sso', 'mark_as_featured', 'unmark_as_featured']
 
     def activate_apps(self, request, queryset):
         """Activate selected applications."""
@@ -206,6 +206,18 @@ class ApplicationConfigAdmin(admin.ModelAdmin):
         count = queryset.update(requires_sso=False)
         self.message_user(request, f'Disabled SSO for {count} applications.')
     disable_sso.short_description = _('Disable SSO')
+
+    def mark_as_featured(self, request, queryset):
+        """Mark selected applications as featured."""
+        count = queryset.update(is_featured=True)
+        self.message_user(request, f'Marked {count} applications as featured.')
+    mark_as_featured.short_description = _('Mark as featured')
+
+    def unmark_as_featured(self, request, queryset):
+        """Unmark selected applications as featured."""
+        count = queryset.update(is_featured=False)
+        self.message_user(request, f'Unmarked {count} applications as featured.')
+    unmark_as_featured.short_description = _('Unmark as featured')
 
 
 # Customize admin site

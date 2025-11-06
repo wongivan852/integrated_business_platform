@@ -68,6 +68,85 @@
         font-size: 1.1rem;
         opacity: 0.9;
     }
+
+    .featured-app-card {
+        border: none;
+        border-radius: 20px;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+        height: 100%;
+        position: relative;
+    }
+
+    .featured-app-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 16px 32px rgba(0, 0, 0, 0.2);
+    }
+
+    .featured-app-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 5px;
+        background: linear-gradient(90deg, #f093fb 0%, #f5576c 100%);
+    }
+
+    .featured-badge {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+        padding: 0.4rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .featured-app-header {
+        padding: 2.5rem 2rem;
+        color: white;
+        min-height: 180px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .featured-app-icon {
+        font-size: 3.5rem;
+        margin-bottom: 1rem;
+        opacity: 0.95;
+    }
+
+    .section-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #e9ecef;
+    }
+
+    .section-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin: 0;
+        color: #2d3748;
+    }
+
+    .section-icon {
+        font-size: 1.8rem;
+        margin-right: 0.75rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
 </style>
 {% endblock %}
 
@@ -84,17 +163,57 @@
 </div>
 
 <div class="container">
+    <!-- Featured Apps Section -->
+    {% if featured_apps %}
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="section-header">
+                <i class="fas fa-star section-icon"></i>
+                <h3 class="section-title">Featured Applications</h3>
+            </div>
+            <p class="text-muted mb-4">Our most popular and recommended applications</p>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-5">
+        {% for app in featured_apps %}
+        <div class="col-md-6 col-lg-4">
+            <div class="featured-app-card">
+                <span class="featured-badge">
+                    <i class="fas fa-star me-1"></i>Featured
+                </span>
+                <div class="featured-app-header" style="background: {{ app.gradient }};">
+                    <div class="featured-app-icon">
+                        <i class="fas {{ app.icon }}"></i>
+                    </div>
+                    <h5 class="mb-0">{{ app.name }}</h5>
+                </div>
+                <div class="app-card-body">
+                    <p class="text-muted mb-3">{{ app.description }}</p>
+                    <a href="{{ app.url }}" target="_blank" class="btn btn-{{ app.color }} app-launch-btn">
+                        <i class="fas fa-external-link-alt me-2"></i>Launch Application
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Regular Apps Section -->
+    {% if regular_apps %}
     <div class="row mb-4">
         <div class="col-12">
-            <h3 class="mb-3">
-                <i class="fas fa-th-large me-2"></i>Available Applications
-            </h3>
+            <div class="section-header">
+                <i class="fas fa-th-large section-icon"></i>
+                <h3 class="section-title">All Applications</h3>
+            </div>
             <p class="text-muted">Select an application to access its features</p>
         </div>
     </div>
 
     <div class="row g-4">
-        {% for app in apps %}
+        {% for app in regular_apps %}
         <div class="col-md-6 col-lg-4">
             <div class="app-card">
                 <div class="app-card-header" style="background: {{ app.gradient }};">
@@ -111,15 +230,21 @@
                 </div>
             </div>
         </div>
-        {% empty %}
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- No Apps Message -->
+    {% if not featured_apps and not regular_apps %}
+    <div class="row">
         <div class="col-12">
             <div class="alert alert-info">
                 <i class="fas fa-info-circle me-2"></i>
                 No applications are currently available. Please contact your administrator.
             </div>
         </div>
-        {% endfor %}
     </div>
+    {% endif %}
 
     <div class="row mt-5">
         <div class="col-12">

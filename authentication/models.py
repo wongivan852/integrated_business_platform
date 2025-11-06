@@ -300,6 +300,12 @@ class ApplicationConfig(models.Model):
         help_text=_('Whether this application is available for use')
     )
 
+    is_featured = models.BooleanField(
+        _('Is Featured'),
+        default=False,
+        help_text=_('Whether this application is featured on the dashboard')
+    )
+
     requires_sso = models.BooleanField(
         _('Requires SSO'),
         default=True,

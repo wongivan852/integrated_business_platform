@@ -26,6 +26,10 @@ def home(request):
             name__in=user.apps_access
         )
 
+    # Separate featured and regular apps
+    featured_apps = available_apps.filter(is_featured=True)
+    regular_apps = available_apps.filter(is_featured=False)
+
     # Get recent user sessions
     recent_sessions = UserSession.objects.filter(
         user=user
@@ -34,6 +38,8 @@ def home(request):
     context = {
         'page_title': _('Dashboard'),
         'available_apps': available_apps,
+        'featured_apps': featured_apps,
+        'regular_apps': regular_apps,
         'recent_sessions': recent_sessions,
         'user': user,
     }

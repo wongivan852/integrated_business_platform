@@ -2,6 +2,38 @@
 
 {% block title %}Dashboard - Krystal Platform{% endblock %}
 
+{% block extra_css %}
+<style>
+    .featured-badge {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+        padding: 0.3rem 0.7rem;
+        border-radius: 15px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .featured-app-card {
+        position: relative;
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15) !important;
+        border: 2px solid transparent;
+        background-image: linear-gradient(white, white), linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        background-origin: border-box;
+        background-clip: padding-box, border-box;
+    }
+
+    .featured-app-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2) !important;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="row">
     <div class="col-12">
@@ -12,15 +44,50 @@
     </div>
 </div>
 
-{% if available_apps %}
+<!-- Featured Apps Section -->
+{% if featured_apps %}
 <div class="row">
     <div class="col-12">
-        <h3 class="mb-3">Available Applications</h3>
+        <h3 class="mb-3">
+            <i class="fas fa-star text-warning"></i> Featured Applications
+        </h3>
+        <p class="text-muted mb-3">Our most popular and recommended applications</p>
     </div>
 </div>
 
 <div class="row">
-    {% for app in available_apps %}
+    {% for app in featured_apps %}
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="krystal-card h-100 krystal-fade-in featured-app-card">
+            <span class="featured-badge">
+                <i class="fas fa-star me-1"></i>Featured
+            </span>
+            <div class="krystal-card-body text-center">
+                <div class="mb-3">
+                    <i class="{{ app.icon }} fa-3x krystal-text-gold"></i>
+                </div>
+                <h5 class="card-title krystal-text-primary">{{ app.display_name }}</h5>
+                <p class="card-text krystal-text-muted">{{ app.description }}</p>
+                <a href="{{ app.url }}" class="krystal-btn krystal-btn-primary">
+                    <i class="fas fa-external-link-alt"></i> Launch App
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Regular Apps Section -->
+{% if regular_apps %}
+<div class="row {% if featured_apps %}mt-4{% endif %}">
+    <div class="col-12">
+        <h3 class="mb-3">{% if featured_apps %}All Applications{% else %}Available Applications{% endif %}</h3>
+    </div>
+</div>
+
+<div class="row">
+    {% for app in regular_apps %}
     <div class="col-lg-4 col-md-6 mb-4">
         <div class="krystal-card h-100 krystal-fade-in">
             <div class="krystal-card-body text-center">
@@ -37,7 +104,10 @@
     </div>
     {% endfor %}
 </div>
-{% else %}
+{% endif %}
+
+<!-- No Apps Message -->
+{% if not featured_apps and not regular_apps %}
 <div class="row">
     <div class="col-12">
         <div class="krystal-alert krystal-alert-info">

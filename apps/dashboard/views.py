@@ -27,9 +27,18 @@ def dashboard_view(request):
     """
     from core.models import UserAppAccess
     from apps.app_integrations.registry import INTEGRATED_APPS
+    from authentication.models import ApplicationConfig
 
     # Get all active apps
     all_apps = get_active_apps()
+
+    # Get featured app names from ApplicationConfig
+    featured_app_names = set(
+        ApplicationConfig.objects.filter(
+            is_active=True,
+            is_featured=True
+        ).values_list('name', flat=True)
+    )
 
     # Filter apps based on user permissions
     if request.user.is_superuser:
@@ -51,9 +60,21 @@ def dashboard_view(request):
             if app_key and app_key in permitted_app_codes:
                 permitted_apps.append(app)
 
+    # Separate featured and regular apps
+    featured_apps = []
+    regular_apps = []
+    for app in permitted_apps:
+        # Check if app name is in featured list
+        if app.get('name') in featured_app_names:
+            featured_apps.append(app)
+        else:
+            regular_apps.append(app)
+
     context = {
         'user': request.user,
         'apps': permitted_apps,
+        'featured_apps': featured_apps,
+        'regular_apps': regular_apps,
         'total_apps': len(all_apps),
         'permitted_apps_count': len(permitted_apps),
         'platform_name': 'Krystal Business Platform',
