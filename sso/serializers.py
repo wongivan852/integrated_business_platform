@@ -1,7 +1,6 @@
 """SSO serializers for user data and permissions."""
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from authentication.models import UserProfile
 
 User = get_user_model()
 
@@ -22,8 +21,8 @@ class SSOUserSerializer(serializers.ModelSerializer):
 
     permissions = serializers.SerializerMethodField()
     full_name = serializers.CharField(source='get_full_name', read_only=True)
-    company_name = serializers.CharField(source='company.name', read_only=True, allow_null=True)
-    department_name = serializers.CharField(source='department.name', read_only=True, allow_null=True)
+    department_display = serializers.CharField(source='get_department_display', read_only=True)
+    region_display = serializers.CharField(source='get_region_display', read_only=True)
 
     class Meta:
         model = User
@@ -35,38 +34,35 @@ class SSOUserSerializer(serializers.ModelSerializer):
             'last_name',
             'full_name',
             'employee_id',
-            'job_title',
+            'department',
+            'department_display',
+            'region',
+            'region_display',
             'is_staff',
             'is_superuser',
             'is_active',
-            'company_name',
-            'department_name',
+            'apps_access',
             'permissions',
         ]
         read_only_fields = fields
 
     def get_permissions(self, obj):
-        """Get user permissions from UserProfile."""
-        try:
-            profile = obj.userprofile
-            return {
-                'can_access_leave_system': profile.can_access_leave_system,
-                'can_access_quotation_system': profile.can_access_quotation_system,
-                'can_access_expense_system': profile.can_access_expense_system,
-                'can_access_crm_system': profile.can_access_crm_system,
-                'can_access_asset_management': profile.can_access_asset_management,
-                'can_access_stripe_dashboard': profile.can_access_stripe_dashboard,
-            }
-        except UserProfile.DoesNotExist:
-            # Return default permissions if profile doesn't exist
-            return {
-                'can_access_leave_system': True,
-                'can_access_quotation_system': False,
-                'can_access_expense_system': True,
-                'can_access_crm_system': False,
-                'can_access_asset_management': False,
-                'can_access_stripe_dashboard': False,
-            }
+        """Get user permissions from apps_access field."""
+        # Map internal app names to permission keys
+        apps_map = {
+            'leave_system': 'can_access_leave_system',
+            'quotation_system': 'can_access_quotation_system',
+            'expense_system': 'can_access_expense_system',
+            'crm_system': 'can_access_crm_system',
+            'asset_management': 'can_access_asset_management',
+            'stripe_dashboard': 'can_access_stripe_dashboard',
+        }
+
+        permissions = {}
+        for app_key, perm_key in apps_map.items():
+            permissions[perm_key] = obj.has_app_access(app_key) if hasattr(obj, 'has_app_access') else obj.is_superuser
+
+        return permissions
 
 
 class TokenSerializer(serializers.Serializer):

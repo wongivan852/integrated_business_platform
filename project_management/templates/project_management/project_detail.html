@@ -1,0 +1,387 @@
+{% extends 'project_management/base.html' %}
+{% load static %}
+
+{% block page_title %}{{ project.name }}{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item active" aria-current="page">{{ project.name }}</li>
+{% endblock %}
+
+{% block page_heading %}
+    <i class="fas fa-folder-open"></i> {{ project.name }}
+{% endblock %}
+
+{% block page_subtitle %}
+<div class="d-flex align-items-center gap-3">
+    <span class="status-badge {{ project.status }}">{{ project.get_status_display }}</span>
+    <span class="priority-badge {{ project.priority }}">{{ project.get_priority_display }}</span>
+    <span class="badge bg-light text-dark">
+        <i class="fas fa-hashtag"></i> {{ project.project_code }}
+    </span>
+</div>
+{% endblock %}
+
+{% block header_actions %}
+<div class="view-switcher me-3">
+    <a href="{% url 'project_management:project_kanban' project.pk %}"
+       class="btn {% if project.default_view == 'kanban' %}active{% endif %}">
+        <i class="fas fa-columns"></i> Kanban
+    </a>
+    <a href="{% url 'project_management:project_gantt' project.pk %}"
+       class="btn {% if project.default_view == 'gantt' %}active{% endif %}">
+        <i class="fas fa-chart-bar"></i> Gantt
+    </a>
+</div>
+
+{% if can_edit %}
+<a href="{% url 'project_management:project_edit' project.pk %}" class="btn btn-outline-light me-2">
+    <i class="fas fa-edit"></i> Edit
+</a>
+{% endif %}
+
+{% if can_delete %}
+<a href="{% url 'project_management:project_delete' project.pk %}" class="btn btn-outline-danger">
+    <i class="fas fa-trash"></i> Delete
+</a>
+{% endif %}
+{% endblock %}
+
+{% block page_content %}
+<!-- Project Overview -->
+<div class="row mb-4">
+    <!-- Left Column: Project Info & Stats -->
+    <div class="col-lg-8">
+        <!-- Description -->
+        {% if project.description %}
+        <div class="card project-card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="fas fa-info-circle"></i> Project Description
+                </h5>
+                <p class="card-text">{{ project.description }}</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Task Statistics -->
+        <div class="card project-card mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="fas fa-tasks"></i> Task Overview</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <div class="stat-value">{{ task_stats.total_tasks|default:0 }}</div>
+                            <div class="stat-label">Total Tasks</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <div class="stat-value text-info">{{ task_stats.todo_tasks|default:0 }}</div>
+                            <div class="stat-label">To Do</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <div class="stat-value text-warning">{{ task_stats.in_progress_tasks|default:0 }}</div>
+                            <div class="stat-label">In Progress</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <div class="stat-value text-success">{{ task_stats.completed_tasks|default:0 }}</div>
+                            <div class="stat-label">Completed</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Completion Progress -->
+                <div class="mt-4">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span><i class="fas fa-chart-line"></i> Completion Rate</span>
+                        <span class="fw-bold">{{ completion_rate|floatformat:1 }}%</span>
+                    </div>
+                    <div class="progress-bar-container" style="height: 20px;">
+                        <div class="progress-bar-fill" style="width: {{ completion_rate }}%"></div>
+                    </div>
+                </div>
+
+                <!-- Overdue Tasks Warning -->
+                {% if task_stats.overdue_tasks > 0 %}
+                <div class="alert alert-warning mt-3 mb-0">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>{{ task_stats.overdue_tasks }}</strong> task{{ task_stats.overdue_tasks|pluralize }} overdue
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Time Tracking -->
+        {% if task_stats.total_estimated_hours or task_stats.total_actual_hours %}
+        <div class="card project-card mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="fas fa-clock"></i> Time Tracking</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="stat-card">
+                            <div class="stat-value">{{ task_stats.total_estimated_hours|default:0|floatformat:1 }}</div>
+                            <div class="stat-label">Estimated Hours</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="stat-card">
+                            <div class="stat-value text-primary">{{ task_stats.total_actual_hours|default:0|floatformat:1 }}</div>
+                            <div class="stat-label">Actual Hours</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Milestones -->
+        {% if milestones %}
+        <div class="card project-card mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="fas fa-flag-checkered"></i> Milestones</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    {% for milestone in milestones %}
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">
+                                    <i class="fas fa-flag text-warning"></i> {{ milestone.title }}
+                                </h6>
+                                <small class="text-muted">
+                                    <i class="fas fa-calendar"></i>
+                                    Due: {{ milestone.due_date|date:"M d, Y" }}
+                                </small>
+                            </div>
+                            <span class="status-badge {{ milestone.status }}">
+                                {{ milestone.get_status_display }}
+                            </span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Recent Activity -->
+        {% if recent_activities %}
+        <div class="card project-card mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="fas fa-history"></i> Recent Activity</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    {% for activity in recent_activities %}
+                    <div class="list-group-item px-0">
+                        <div class="d-flex align-items-start">
+                            <div class="me-3">
+                                <i class="fas fa-circle text-primary" style="font-size: 0.5rem;"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between">
+                                    <strong>{{ activity.user.get_full_name|default:activity.user.email }}</strong>
+                                    <small class="text-muted">{{ activity.timestamp|timesince }} ago</small>
+                                </div>
+                                <div class="text-muted small">
+                                    {{ activity.get_action_display }}
+                                    <a href="#">{{ activity.task.title }}</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Right Column: Project Details -->
+    <div class="col-lg-4">
+        <!-- Project Info Card -->
+        <div class="card project-card mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="fas fa-info"></i> Project Info</h5>
+            </div>
+            <div class="card-body">
+                <!-- Owner -->
+                <div class="mb-3">
+                    <small class="text-muted d-block mb-1">
+                        <i class="fas fa-user"></i> Owner
+                    </small>
+                    <strong>{{ project.owner.get_full_name|default:project.owner.email }}</strong>
+                </div>
+
+                <!-- Your Role -->
+                <div class="mb-3">
+                    <small class="text-muted d-block mb-1">
+                        <i class="fas fa-id-badge"></i> Your Role
+                    </small>
+                    <span class="badge bg-primary">{{ user_role|upper }}</span>
+                </div>
+
+                <!-- Timeline -->
+                <div class="mb-3">
+                    <small class="text-muted d-block mb-1">
+                        <i class="fas fa-calendar-alt"></i> Timeline
+                    </small>
+                    <div>{{ project.start_date|date:"M d, Y" }} - {{ project.end_date|date:"M d, Y" }}</div>
+                </div>
+
+                <!-- Days Remaining -->
+                {% if project.status not in 'completed,cancelled' %}
+                <div class="mb-3">
+                    <small class="text-muted d-block mb-1">
+                        <i class="fas fa-hourglass-half"></i> Time Remaining
+                    </small>
+                    {% if project.is_overdue %}
+                    <span class="text-danger fw-bold">Overdue</span>
+                    {% else %}
+                    <span class="fw-bold">{{ project.days_remaining }} days</span>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <!-- Progress -->
+                <div class="mb-3">
+                    <small class="text-muted d-block mb-1">
+                        <i class="fas fa-tasks"></i> Overall Progress
+                    </small>
+                    <div class="d-flex align-items-center">
+                        <div class="progress-bar-container flex-grow-1" style="height: 10px;">
+                            <div class="progress-bar-fill" style="width: {{ project.progress_percentage }}%"></div>
+                        </div>
+                        <span class="ms-2 fw-bold">{{ project.progress_percentage }}%</span>
+                    </div>
+                </div>
+
+                <!-- Budget -->
+                {% if project.budget %}
+                <div class="mb-3">
+                    <small class="text-muted d-block mb-1">
+                        <i class="fas fa-dollar-sign"></i> Budget
+                    </small>
+                    <div class="fw-bold">${{ project.budget|floatformat:2 }}</div>
+                    <small class="text-muted">Spent: ${{ project.actual_cost|floatformat:2 }}</small>
+                    {% if project.budget_remaining %}
+                    <div>
+                        <small class="{% if project.budget_remaining < 0 %}text-danger{% else %}text-success{% endif %}">
+                            Remaining: ${{ project.budget_remaining|floatformat:2 }}
+                        </small>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <!-- Created Date -->
+                <div class="mb-0">
+                    <small class="text-muted d-block mb-1">
+                        <i class="fas fa-calendar-plus"></i> Created
+                    </small>
+                    <div>{{ project.created_at|date:"M d, Y" }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Team Members -->
+        <div class="card project-card mb-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-users"></i> Team</h5>
+                {% if can_edit %}
+                <a href="{% url 'project_management:project_add_member' project.pk %}" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-user-plus"></i> Add
+                </a>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    <!-- Owner -->
+                    <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="fw-bold">{{ project.owner.get_full_name|default:project.owner.email }}</div>
+                            <small class="text-muted">{{ project.owner.email }}</small>
+                        </div>
+                        <span class="badge bg-warning">OWNER</span>
+                    </div>
+
+                    <!-- Team Members -->
+                    {% for member in team_members %}
+                    <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="fw-bold">{{ member.user.get_full_name|default:member.user.email }}</div>
+                            <small class="text-muted">{{ member.user.email }}</small>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-secondary">{{ member.get_role_display|upper }}</span>
+                            {% if can_edit and member.user != project.owner %}
+                            <a href="{% url 'project_management:project_remove_member' project.pk member.pk %}"
+                               class="btn btn-sm btn-outline-danger"
+                               title="Remove member">
+                                <i class="fas fa-user-minus"></i>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    {% if not team_members %}
+                    <div class="list-group-item px-0 text-muted text-center">
+                        <small>No additional team members</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card project-card">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="fas fa-bolt"></i> Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'project_management:project_kanban' project.pk %}"
+                       class="btn btn-outline-primary">
+                        <i class="fas fa-columns"></i> Open Kanban Board
+                    </a>
+                    <a href="{% url 'project_management:project_gantt' project.pk %}"
+                       class="btn btn-outline-success">
+                        <i class="fas fa-chart-bar"></i> Open Gantt Chart
+                    </a>
+                    {% if can_edit %}
+                    <a href="{% url 'project_management:task_create' project.pk %}"
+                       class="btn btn-outline-info">
+                        <i class="fas fa-plus"></i> Add Task
+                    </a>
+                    <a href="{% url 'project_management:project_edit' project.pk %}"
+                       class="btn btn-outline-secondary">
+                        <i class="fas fa-cog"></i> Project Settings
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block page_js %}
+<script>
+    // Add interactivity for future features
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Project Detail Page Loaded');
+        console.log('Project ID: {{ project.pk }}');
+        console.log('User Role: {{ user_role }}');
+    });
+</script>
+{% endblock %}

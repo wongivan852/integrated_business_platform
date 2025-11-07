@@ -162,7 +162,7 @@ class ApplicationConfigAdmin(admin.ModelAdmin):
 
     readonly_fields = ['created_at', 'updated_at']
 
-    ordering = ['order', 'display_name']
+    ordering = ['display_name']
 
     fieldsets = (
         (_('Basic Info'), {

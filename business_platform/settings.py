@@ -39,12 +39,25 @@ LOCAL_APPS = [
     # Core platform apps
     'authentication',
     'dashboard',
+    'admin_panel',
+    'sso',  # Single Sign-On module
     # 'app_integration',  # TODO: Create app integration layer
-    # Expense Claim System Apps (temporarily disabled due to user model conflict)
-    # 'expense_claims',
-    # 'expense_accounts',
-    # 'expense_documents',
-    # 'expense_reports',
+    # Expense Claim System Apps (expense_accounts disabled due to user model conflict)
+    'expense_claims',
+    # 'expense_accounts',  # Disabled - has conflicting User model
+    'expense_documents',
+    'expense_reports',
+    # Quotation System
+    'quotations',
+    # Asset Tracking System
+    'assets',
+    'locations',
+    'movements',
+    # Project & Event Management
+    'project_management',
+    'event_management',
+    # Attendance Integration
+    'attendance_integration',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -57,8 +70,9 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    # 'business_platform.middleware.AppAccessMiddleware',  # TODO: Create custom middleware for app access control
     'django.contrib.messages.middleware.MessageMiddleware',
+    'authentication.middleware.PasswordChangeRequiredMiddleware',  # Force password change on first login
+    # 'business_platform.middleware.AppAccessMiddleware',  # TODO: Create custom middleware for app access control
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
@@ -233,7 +247,19 @@ BUSINESS_APPS = {
         'internal_port': 8006,
         'app_root': '../stripe-dashboard/',
     },
+    'attendance_system': {
+        'name': 'Attendance System',
+        'description': 'WiFi-based attendance tracking with auto clock-in/out',
+        'path': '/apps/attendance/',
+        'icon': 'fas fa-clock',
+        'color': '#20c997',
+        'internal_port': 8007,
+        'app_root': '../attendance-system/',
+    },
 }
+
+# Attendance System Configuration
+ATTENDANCE_API_URL = 'http://localhost:8007'
 
 # Security settings - force disable SSL redirect for local development
 SECURE_SSL_REDIRECT = False

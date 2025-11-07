@@ -18,7 +18,7 @@ def home(request):
     # Get available applications for the user
     available_apps = ApplicationConfig.objects.filter(
         is_active=True
-    ).order_by('order', 'display_name')
+    ).order_by('display_name')
 
     # Filter apps based on user access
     if not user.is_superuser:

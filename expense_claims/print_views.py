@@ -5,6 +5,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import HttpResponse
+from django.urls import reverse
 from .models import ExpenseClaim, ExpenseItem
 from decimal import Decimal
 
@@ -331,11 +332,13 @@ def select_claims_for_print_view(request):
         
         if selected_claims:
             # Redirect to appropriate print view with selected claims
-            claim_ids = '&'.join([f'claims={cid}' for cid in selected_claims])
+            claim_ids_query = '&'.join([f'claims={cid}' for cid in selected_claims])
             if print_with_receipts:
-                return redirect(f'/claims/print/combined-receipts/?{claim_ids}')
+                url = reverse('claims:print_combined_claims_receipts') + f'?{claim_ids_query}'
+                return redirect(url)
             else:
-                return redirect(f'/claims/print/combined/?{claim_ids}')
+                url = reverse('claims:print_combined_claims') + f'?{claim_ids_query}'
+                return redirect(url)
         else:
             messages.error(request, 'Please select at least one claim to print.')
     

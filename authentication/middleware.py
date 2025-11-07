@@ -1,0 +1,47 @@
+"""
+Middleware for authentication-related checks.
+"""
+
+from django.shortcuts import redirect
+from django.urls import reverse
+from django.contrib import messages
+
+
+class PasswordChangeRequiredMiddleware:
+    """
+    Middleware to enforce password change for users with password_change_required=True.
+    Redirects to password change page after login if password change is required.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        # List of URLs that should be accessible even when password change is required
+        exempt_urls = [
+            reverse('authentication:logout'),
+            reverse('authentication:change_password'),
+        ]
+
+        # Check if user is authenticated and has password_change_required flag
+        if (
+            request.user.is_authenticated
+            and hasattr(request.user, 'password_change_required')
+            and request.user.password_change_required
+            and request.path not in exempt_urls
+            and not request.path.startswith('/static/')
+            and not request.path.startswith('/media/')
+        ):
+            # Show message only once per session
+            if not request.session.get('password_change_message_shown', False):
+                messages.warning(
+                    request,
+                    'For security reasons, you must change your password before continuing.'
+                )
+                request.session['password_change_message_shown'] = True
+
+            # Redirect to password change page
+            return redirect('authentication:change_password')
+
+        response = self.get_response(request)
+        return response

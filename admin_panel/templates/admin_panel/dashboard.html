@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Admin Panel - Business Platform{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2><i class="fas fa-tools"></i> Admin Panel</h2>
+            <p class="text-muted">Manage users, app access, and system configuration</p>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-primary">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Total Active Users</h6>
+                            <h2 class="mb-0">{{ total_users }}</h2>
+                        </div>
+                        <div class="text-primary">
+                            <i class="fas fa-users fa-3x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card border-success">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Integrated Apps</h6>
+                            <h2 class="mb-0">{{ total_apps }}</h2>
+                        </div>
+                        <div class="text-success">
+                            <i class="fas fa-th fa-3x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card border-info">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Active Access Grants</h6>
+                            <h2 class="mb-0">{{ total_access_grants }}</h2>
+                        </div>
+                        <div class="text-info">
+                            <i class="fas fa-key fa-3x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0"><i class="fas fa-bolt"></i> Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row justify-content-center">
+                        <div class="col-md-4 mb-3">
+                            <a href="{% url 'admin_panel:user_list' %}" class="btn btn-outline-primary btn-lg w-100">
+                                <i class="fas fa-users fa-2x d-block mb-2"></i>
+                                Manage Users
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <a href="{% url 'admin_panel:app_access_matrix' %}" class="btn btn-outline-success btn-lg w-100">
+                                <i class="fas fa-th fa-2x d-block mb-2"></i>
+                                App Access Matrix
+                            </a>
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-12 text-center">
+                            <a href="{% url 'dashboard:home' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-home"></i> Back to Dashboard
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Management Overview -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> Admin Panel Features</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-users text-primary"></i> User Management</h6>
+                            <p class="text-muted">View and manage all user accounts, search and filter users by status, and access detailed user profiles.</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-th text-success"></i> App Access Matrix</h6>
+                            <p class="text-muted">Interactive grid showing all users and their application access. Click any cell to instantly toggle access permissions.</p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-lightbulb"></i> <strong>Quick Tip:</strong> Use the App Access Matrix for bulk access management. Changes are saved automatically when you click on a cell.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

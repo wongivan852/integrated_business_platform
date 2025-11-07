@@ -1,0 +1,415 @@
+{% extends 'base.html' %}
+
+{% block title %}EVM Report - {{ project.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'project_management:project_list' %}">Projects</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'project_management:project_detail' project.pk %}">{{ project.name }}</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'project_management:evm_dashboard' project.pk %}">EVM Dashboard</a></li>
+            <li class="breadcrumb-item active">EVM Report</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-file-chart-line"></i> Earned Value Management Report</h2>
+        <div class="btn-group">
+            <button class="btn btn-outline-primary" onclick="window.print()">
+                <i class="fas fa-print"></i> Print Report
+            </button>
+            <button class="btn btn-outline-success" onclick="exportToPDF()">
+                <i class="fas fa-file-pdf"></i> Export PDF
+            </button>
+        </div>
+    </div>
+
+    <!-- Report Header -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h4>{{ project.name }}</h4>
+                    <p class="text-muted mb-1"><strong>Project Code:</strong> {{ project.project_code }}</p>
+                    <p class="text-muted mb-1"><strong>Manager:</strong> {{ project.owner.get_full_name }}</p>
+                    <p class="text-muted mb-1"><strong>Status:</strong>
+                        <span class="badge badge-{{ project.status }}">{{ project.get_status_display }}</span>
+                    </p>
+                </div>
+                <div class="col-md-6 text-right">
+                    <p class="text-muted mb-1"><strong>Report Period:</strong></p>
+                    <p class="mb-1">{{ start_date }} to {{ end_date }}</p>
+                    <p class="text-muted mb-1"><strong>Generated:</strong> {{ now|date:"Y-m-d H:i" }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Executive Summary -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-chart-line"></i> Executive Summary</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="text-center p-3">
+                        <h6 class="text-muted">Budget at Completion</h6>
+                        <h3 class="text-primary">${{ latest_snapshot.budget_at_completion|floatformat:0 }}</h3>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center p-3">
+                        <h6 class="text-muted">Actual Cost</h6>
+                        <h3>${{ latest_snapshot.actual_cost|floatformat:0 }}</h3>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center p-3">
+                        <h6 class="text-muted">Cost Performance Index</h6>
+                        <h3 class="{% if latest_snapshot.cost_performance_index >= 1.0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ latest_snapshot.cost_performance_index|floatformat:2 }}
+                        </h3>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center p-3">
+                        <h6 class="text-muted">Schedule Performance Index</h6>
+                        <h3 class="{% if latest_snapshot.schedule_performance_index >= 1.0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ latest_snapshot.schedule_performance_index|floatformat:2 }}
+                        </h3>
+                    </div>
+                </div>
+            </div>
+
+            <hr>
+
+            <div class="row">
+                <div class="col-md-12">
+                    <h6 class="mb-3">Performance Status:</h6>
+                    {% if latest_snapshot.cost_performance_index >= 1.0 and latest_snapshot.schedule_performance_index >= 1.0 %}
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle"></i> <strong>Excellent Performance:</strong>
+                        Project is under budget (CPI: {{ latest_snapshot.cost_performance_index|floatformat:2 }})
+                        and ahead of schedule (SPI: {{ latest_snapshot.schedule_performance_index|floatformat:2 }}).
+                    </div>
+                    {% elif latest_snapshot.cost_performance_index < 1.0 and latest_snapshot.schedule_performance_index < 1.0 %}
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle"></i> <strong>Critical:</strong>
+                        Project is over budget (CPI: {{ latest_snapshot.cost_performance_index|floatformat:2 }})
+                        and behind schedule (SPI: {{ latest_snapshot.schedule_performance_index|floatformat:2 }}).
+                        Immediate corrective action required.
+                    </div>
+                    {% elif latest_snapshot.cost_performance_index < 1.0 %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-circle"></i> <strong>Cost Overrun:</strong>
+                        Project is over budget (CPI: {{ latest_snapshot.cost_performance_index|floatformat:2 }}).
+                        Review cost management strategies.
+                    </div>
+                    {% elif latest_snapshot.schedule_performance_index < 1.0 %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-clock"></i> <strong>Schedule Delay:</strong>
+                        Project is behind schedule (SPI: {{ latest_snapshot.schedule_performance_index|floatformat:2 }}).
+                        Review resource allocation and task dependencies.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Performance Metrics -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-tachometer-alt"></i> Performance Metrics</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Metric</th>
+                            <th>Value</th>
+                            <th>Status</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Planned Value (PV)</strong></td>
+                            <td>${{ latest_snapshot.planned_value|floatformat:2 }}</td>
+                            <td><span class="badge badge-info">Baseline</span></td>
+                            <td>Value of work that should have been completed</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Earned Value (EV)</strong></td>
+                            <td>${{ latest_snapshot.earned_value|floatformat:2 }}</td>
+                            <td><span class="badge badge-primary">Actual</span></td>
+                            <td>Value of work actually completed</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Actual Cost (AC)</strong></td>
+                            <td>${{ latest_snapshot.actual_cost|floatformat:2 }}</td>
+                            <td><span class="badge badge-warning">Cost</span></td>
+                            <td>Actual cost incurred for work completed</td>
+                        </tr>
+                        <tr class="table-info">
+                            <td><strong>Cost Performance Index (CPI)</strong></td>
+                            <td>{{ latest_snapshot.cost_performance_index|floatformat:2 }}</td>
+                            <td>
+                                {% if latest_snapshot.cost_performance_index >= 1.0 %}
+                                <span class="badge badge-success">Under Budget</span>
+                                {% else %}
+                                <span class="badge badge-danger">Over Budget</span>
+                                {% endif %}
+                            </td>
+                            <td>Cost efficiency (EV / AC)</td>
+                        </tr>
+                        <tr class="table-info">
+                            <td><strong>Schedule Performance Index (SPI)</strong></td>
+                            <td>{{ latest_snapshot.schedule_performance_index|floatformat:2 }}</td>
+                            <td>
+                                {% if latest_snapshot.schedule_performance_index >= 1.0 %}
+                                <span class="badge badge-success">Ahead</span>
+                                {% else %}
+                                <span class="badge badge-danger">Behind</span>
+                                {% endif %}
+                            </td>
+                            <td>Schedule efficiency (EV / PV)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Cost Variance (CV)</strong></td>
+                            <td class="{% if latest_snapshot.cost_variance >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                ${{ latest_snapshot.cost_variance|floatformat:2 }}
+                            </td>
+                            <td>
+                                {% if latest_snapshot.cost_variance >= 0 %}
+                                <span class="badge badge-success">Favorable</span>
+                                {% else %}
+                                <span class="badge badge-danger">Unfavorable</span>
+                                {% endif %}
+                            </td>
+                            <td>Cost difference (EV - AC)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Schedule Variance (SV)</strong></td>
+                            <td class="{% if latest_snapshot.schedule_variance >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                ${{ latest_snapshot.schedule_variance|floatformat:2 }}
+                            </td>
+                            <td>
+                                {% if latest_snapshot.schedule_variance >= 0 %}
+                                <span class="badge badge-success">Favorable</span>
+                                {% else %}
+                                <span class="badge badge-danger">Unfavorable</span>
+                                {% endif %}
+                            </td>
+                            <td>Schedule difference (EV - PV)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Forecasts -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-crystal-ball"></i> Project Forecasts</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Forecast</th>
+                            <th>Value</th>
+                            <th>vs. Baseline</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Estimate at Completion (EAC)</strong></td>
+                            <td>${{ latest_snapshot.estimate_at_completion|floatformat:2 }}</td>
+                            <td>
+                                {% if latest_snapshot.estimate_at_completion <= latest_snapshot.budget_at_completion %}
+                                <span class="text-success">
+                                    -${{ latest_snapshot.budget_at_completion|add:"-"|add:latest_snapshot.estimate_at_completion|floatformat:2 }}
+                                </span>
+                                {% else %}
+                                <span class="text-danger">
+                                    +${{ latest_snapshot.estimate_at_completion|add:"-"|add:latest_snapshot.budget_at_completion|floatformat:2 }}
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>Projected total cost at project completion</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Estimate to Complete (ETC)</strong></td>
+                            <td>${{ latest_snapshot.estimate_to_complete|floatformat:2 }}</td>
+                            <td>-</td>
+                            <td>Additional funds needed to complete project</td>
+                        </tr>
+                        <tr class="{% if latest_snapshot.variance_at_completion >= 0 %}table-success{% else %}table-danger{% endif %}">
+                            <td><strong>Variance at Completion (VAC)</strong></td>
+                            <td class="{% if latest_snapshot.variance_at_completion >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                ${{ latest_snapshot.variance_at_completion|floatformat:2 }}
+                            </td>
+                            <td>
+                                {% if latest_snapshot.variance_at_completion >= 0 %}
+                                <span class="badge badge-success">Under Budget</span>
+                                {% else %}
+                                <span class="badge badge-danger">Over Budget</span>
+                                {% endif %}
+                            </td>
+                            <td>Expected variance from original budget</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Trend Analysis -->
+    {% if snapshots.count >= 2 %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-chart-area"></i> Trend Analysis</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Cost Performance Trend</h6>
+                    <div class="d-flex align-items-center">
+                        {% if cpi_improving %}
+                        <i class="fas fa-arrow-up text-success fa-2x mr-3"></i>
+                        <div>
+                            <p class="mb-0 text-success"><strong>Improving</strong></p>
+                            <p class="text-muted mb-0">CPI increased by {{ cpi_trend|floatformat:2 }}</p>
+                        </div>
+                        {% elif cpi_improving == False %}
+                        <i class="fas fa-arrow-down text-danger fa-2x mr-3"></i>
+                        <div>
+                            <p class="mb-0 text-danger"><strong>Declining</strong></p>
+                            <p class="text-muted mb-0">CPI decreased by {{ cpi_trend|floatformat:2 }}</p>
+                        </div>
+                        {% else %}
+                        <i class="fas fa-minus text-muted fa-2x mr-3"></i>
+                        <div>
+                            <p class="mb-0 text-muted"><strong>Stable</strong></p>
+                            <p class="text-muted mb-0">No significant change</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <h6>Schedule Performance Trend</h6>
+                    <div class="d-flex align-items-center">
+                        {% if spi_improving %}
+                        <i class="fas fa-arrow-up text-success fa-2x mr-3"></i>
+                        <div>
+                            <p class="mb-0 text-success"><strong>Improving</strong></p>
+                            <p class="text-muted mb-0">SPI increased by {{ spi_trend|floatformat:2 }}</p>
+                        </div>
+                        {% elif spi_improving == False %}
+                        <i class="fas fa-arrow-down text-danger fa-2x mr-3"></i>
+                        <div>
+                            <p class="mb-0 text-danger"><strong>Declining</strong></p>
+                            <p class="text-muted mb-0">SPI decreased by {{ spi_trend|floatformat:2 }}</p>
+                        </div>
+                        {% else %}
+                        <i class="fas fa-minus text-muted fa-2x mr-3"></i>
+                        <div>
+                            <p class="mb-0 text-muted"><strong>Stable</strong></p>
+                            <p class="text-muted mb-0">No significant change</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Cost Breakdown -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-coins"></i> Cost Breakdown by Category</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th class="text-right">Amount</th>
+                            <th class="text-right">% of Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for category in cost_by_category %}
+                        <tr>
+                            <td>{{ category.category|title }}</td>
+                            <td class="text-right">${{ category.total|floatformat:2 }}</td>
+                            <td class="text-right">
+                                {% widthratio category.total latest_snapshot.actual_cost 100 %}%
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted">No cost entries in this period</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="font-weight-bold">
+                        <tr>
+                            <td>Total</td>
+                            <td class="text-right">${{ latest_snapshot.actual_cost|floatformat:2 }}</td>
+                            <td class="text-right">100%</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recommendations -->
+    {% if recommendations %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-lightbulb"></i> Recommendations</h5>
+        </div>
+        <div class="card-body">
+            {% for rec in recommendations %}
+            <div class="alert alert-{{ rec.type }}">
+                <h6><i class="fas fa-{% if rec.type == 'success' %}check{% else %}exclamation{% endif %}-circle"></i> {{ rec.title }}</h6>
+                <p class="mb-0">{{ rec.message }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    @media print {
+        .breadcrumb, .btn-group, .card-header {
+            display: none;
+        }
+        .card {
+            border: 1px solid #dee2e6 !important;
+            page-break-inside: avoid;
+        }
+    }
+</style>
+
+<script>
+    function exportToPDF() {
+        alert('PDF export functionality would integrate with a library like jsPDF or server-side PDF generation.');
+        // In a real implementation, you would:
+        // 1. Use jsPDF with html2canvas to convert the page to PDF
+        // 2. Or send the data to a server endpoint that generates PDF using ReportLab (Python)
+    }
+</script>
+{% endblock %}

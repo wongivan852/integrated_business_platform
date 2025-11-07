@@ -1,4 +1,4 @@
-#!/home/user/krystal-company-apps/integrated_business_platform/venv/bin/python3
+#!/home/user/Desktop/integrated_business_platform/venv/bin/python3
 import sys
 from gunicorn.app.wsgiapp import run
 if __name__ == '__main__':

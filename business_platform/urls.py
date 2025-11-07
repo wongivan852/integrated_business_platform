@@ -2,10 +2,11 @@
 URL configuration for business_platform project.
 """
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
 from django.conf import settings
 from django.conf.urls.static import static
 from django.views.generic import RedirectView
+from authentication.views import home_redirect
 
 urlpatterns = [
     # Admin
@@ -15,8 +16,14 @@ urlpatterns = [
     path('auth/', include('authentication.urls')),
 
     # Dashboard
-    path('', RedirectView.as_view(url='/auth/login/', permanent=False)),  # Redirect to login
+    path('', home_redirect, name='home'),  # Smart redirect based on auth status
     path('dashboard/', include('dashboard.urls')),
+
+    # Admin Panel (User & App Management)
+    path('admin-panel/', include('admin_panel.urls')),
+
+    # SSO API Endpoints
+    path('api/sso/', include('sso.urls')),
 
     # App Integration - Fixed paths for each business application
     # path('apps/leave/', include('app_integration.urls', namespace='app_leave')),
@@ -26,10 +33,25 @@ urlpatterns = [
     # path('apps/assets/', include('app_integration.urls', namespace='app_assets')),
     # path('apps/stripe/', include('app_integration.urls', namespace='app_stripe')),
 
-    # Expense System Direct Routes (TODO: Fix URL patterns)
-    # path('expense-accounts/', include('expense_accounts.urls')),
-    # path('expense-documents/', include('expense_documents.urls')),
-    # path('expense-reports/', include('expense_reports.urls')),
+    # Expense System Direct Routes
+    path('expense-claims/', include('expense_claims.urls')),
+    # Redirect legacy /claims/ URLs to /expense-claims/
+    re_path(r'^claims/(?P<path>.*)$', RedirectView.as_view(url='/expense-claims/%(path)s', permanent=True)),
+    # path('expense-accounts/', include('expense_accounts.urls')),  # Disabled - user model conflict
+    path('expense-documents/', include('expense_documents.urls')),
+    path('expense-reports/', include('expense_reports.urls')),
+
+    # Quotation System
+    path('quotations/', include('quotations.urls')),
+
+    # Asset Tracking System
+    path('assets/', include('assets.urls')),
+    path('locations/', include('locations.urls')),
+    path('movements/', include('movements.urls')),
+
+    # Project & Event Management
+    path('project-management/', include('project_management.urls')),
+    path('event-management/', include('event_management.urls')),
 
     # API endpoints (commented out until api module is created)
     # path('api/v1/', include('app_integration.api.urls')),

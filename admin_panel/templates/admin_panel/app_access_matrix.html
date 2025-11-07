@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}App Access Matrix - Admin Panel{% endblock %}
+
+{% block extra_css %}
+<style>
+    .matrix-table {
+        font-size: 0.85rem;
+    }
+    .matrix-table th {
+        background-color: #f8f9fa;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    .matrix-table td {
+        text-align: center;
+        vertical-align: middle;
+    }
+    .access-cell {
+        cursor: pointer;
+        padding: 0.5rem !important;
+        transition: background-color 0.2s;
+    }
+    .access-cell:hover {
+        background-color: #f0f0f0;
+    }
+    .access-badge {
+        font-size: 0.75rem;
+        padding: 0.35rem 0.6rem;
+        cursor: pointer;
+        min-width: 70px;
+        display: inline-block;
+        transition: all 0.2s;
+    }
+    .access-badge:hover {
+        transform: scale(1.05);
+    }
+    .sticky-col {
+        position: sticky;
+        left: 0;
+        background-color: white;
+        z-index: 5;
+        border-right: 2px solid #dee2e6;
+    }
+    .app-header {
+        writing-mode: vertical-rl;
+        transform: rotate(180deg);
+        white-space: nowrap;
+        min-height: 120px;
+        padding: 0.5rem 0.25rem;
+    }
+    .app-icon-header {
+        writing-mode: horizontal-tb;
+        transform: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'admin_panel:dashboard' %}">Admin Panel</a></li>
+                    <li class="breadcrumb-item active">App Access Matrix</li>
+                </ol>
+            </nav>
+            <h2><i class="fas fa-th"></i> Application Access Matrix</h2>
+            <p class="text-muted">Quick overview of all users and their access to each application. Click any cell to toggle access.</p>
+        </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <strong><i class="fas fa-info-circle"></i> Legend:</strong>
+                    <span class="badge bg-success ms-2"><i class="fas fa-check"></i> Has Access</span>
+                    <span class="badge bg-secondary ms-2"><i class="fas fa-times"></i> No Access</span>
+                    <span class="text-muted ms-3">Click any cell to toggle access</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h4 class="mb-0">{{ users|length }}</h4>
+                    <small class="text-muted">Active Users</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h4 class="mb-0">{{ apps|length }}</h4>
+                    <small class="text-muted">Active Apps</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Matrix Table -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-table"></i> Access Matrix</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 600px; overflow-y: auto; overflow-x: auto;">
+                        <table class="table table-bordered table-hover matrix-table mb-0">
+                            <thead>
+                                <tr>
+                                    <th class="sticky-col">User</th>
+                                    {% for app in apps %}
+                                    <th class="text-center" style="min-width: 100px;">
+                                        <div class="app-header">
+                                            <div class="app-icon-header">
+                                                <i class="fas {{ app.icon }}"></i>
+                                            </div>
+                                            <div>{{ app.display_name }}</div>
+                                        </div>
+                                    </th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in matrix_data %}
+                                <tr>
+                                    <td class="sticky-col">
+                                        <a href="{% url 'admin_panel:user_detail' row.user.id %}">
+                                            <strong>{{ row.user.get_full_name }}</strong><br>
+                                            <small class="text-muted">{{ row.user.email }}</small>
+                                        </a>
+                                    </td>
+                                    {% for access in row.access_list %}
+                                    <td class="access-cell"
+                                        data-user-id="{{ row.user.id }}"
+                                        data-app-name="{{ access.app_name }}"
+                                        onclick="toggleAccess(this)">
+                                        {% if access.has_access %}
+                                        <span class="badge bg-success access-badge">
+                                            <i class="fas fa-check"></i> Access
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-secondary access-badge">
+                                            <i class="fas fa-times"></i> None
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                    {% endfor %}
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="{{ apps|length|add:1 }}" class="text-center text-muted py-4">
+                                        <i class="fas fa-user-slash fa-2x mb-2"></i>
+                                        <p>No active users found</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer text-muted">
+                    <small><i class="fas fa-info-circle"></i> Changes are saved automatically when you click on a cell</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+const csrftoken = getCookie('csrftoken');
+
+function toggleAccess(cell) {
+    const userId = cell.dataset.userId;
+    const appName = cell.dataset.appName;
+    const badge = cell.querySelector('.badge');
+
+    // Disable cell during request
+    cell.style.pointerEvents = 'none';
+    cell.style.opacity = '0.6';
+
+    // Send AJAX request
+    fetch(`/admin-panel/api/users/${userId}/apps/${appName}/toggle/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrftoken,
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update badge
+            if (data.has_access) {
+                badge.className = 'badge bg-success access-badge';
+                badge.innerHTML = '<i class="fas fa-check"></i> Access';
+            } else {
+                badge.className = 'badge bg-secondary access-badge';
+                badge.innerHTML = '<i class="fas fa-times"></i> None';
+            }
+
+            // Show success message
+            showToast(`Access ${data.action} successfully`, 'success');
+        } else {
+            showToast(`Error: ${data.error}`, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('Failed to update access', 'danger');
+    })
+    .finally(() => {
+        // Re-enable cell
+        cell.style.pointerEvents = 'auto';
+        cell.style.opacity = '1';
+    });
+}
+
+function showToast(message, type = 'info') {
+    // Create toast element
+    const toastContainer = document.getElementById('toastContainer') || createToastContainer();
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-white bg-${type} border-0`;
+    toast.setAttribute('role', 'alert');
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${message}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+
+    toastContainer.appendChild(toast);
+    const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
+    bsToast.show();
+
+    // Remove toast after it's hidden
+    toast.addEventListener('hidden.bs.toast', () => {
+        toast.remove();
+    });
+}
+
+function createToastContainer() {
+    const container = document.createElement('div');
+    container.id = 'toastContainer';
+    container.className = 'toast-container position-fixed top-0 end-0 p-3';
+    container.style.zIndex = '9999';
+    document.body.appendChild(container);
+    return container;
+}
+</script>
+{% endblock %}

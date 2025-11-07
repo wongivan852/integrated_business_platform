@@ -1,0 +1,375 @@
+{% extends 'base.html' %}
+
+{% block title %}Analytics Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2><i class="fas fa-chart-line"></i> Analytics Dashboard</h2>
+                    <p class="text-muted">Portfolio overview and key performance indicators</p>
+                </div>
+                <div>
+                    <a href="{% url 'project_management:customize_dashboard' %}" class="btn btn-outline-primary me-2">
+                        <i class="fas fa-sliders-h me-2"></i>Customize
+                    </a>
+                    <div class="dropdown d-inline-block">
+                        <button class="btn btn-primary dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown">
+                            <i class="fas fa-download me-2"></i>Export
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="exportDropdown">
+                            <li><a class="dropdown-item" href="{% url 'project_management:export_projects_csv' %}"><i class="fas fa-file-csv me-2"></i>Projects (CSV)</a></li>
+                            <li><a class="dropdown-item" href="{% url 'project_management:export_projects_excel' %}"><i class="fas fa-file-excel me-2"></i>Projects (Excel)</a></li>
+                            <li><a class="dropdown-item" href="{% url 'project_management:export_portfolio_analytics' %}"><i class="fas fa-file-excel me-2"></i>Portfolio Analytics (Excel)</a></li>
+                            {% if user.is_superuser %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'project_management:export_resource_allocation' %}"><i class="fas fa-users me-2"></i>Resource Allocation (Excel)</a></li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Portfolio Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Total Projects</h6>
+                            <h2 class="mb-0">{{ portfolio_data.total_projects }}</h2>
+                        </div>
+                        <i class="fas fa-project-diagram fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Avg Health Score</h6>
+                            <h2 class="mb-0">{{ portfolio_data.avg_health_score }}</h2>
+                        </div>
+                        <i class="fas fa-heartbeat fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">At-Risk Projects</h6>
+                            <h2 class="mb-0">{{ portfolio_data.at_risk_count }}</h2>
+                        </div>
+                        <i class="fas fa-exclamation-triangle fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Completion Rate</h6>
+                            <h2 class="mb-0">{{ portfolio_data.completion_rate }}%</h2>
+                        </div>
+                        <i class="fas fa-tasks fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left Column -->
+        <div class="col-lg-8">
+            <!-- Status Distribution Chart -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-pie"></i> Project Status Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="statusChart" height="80"></canvas>
+                </div>
+            </div>
+
+            <!-- Budget Overview -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-dollar-sign"></i> Budget Overview</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="metric-box">
+                                <h6 class="text-muted">Total Budget</h6>
+                                <h3 class="text-primary">${{ portfolio_data.total_budget|floatformat:0 }}</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="metric-box">
+                                <h6 class="text-muted">Actual Cost</h6>
+                                <h3 class="text-info">${{ portfolio_data.total_cost|floatformat:0 }}</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="metric-box">
+                                <h6 class="text-muted">Variance</h6>
+                                <h3 class="{% if portfolio_data.budget_variance >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    ${{ portfolio_data.budget_variance|floatformat:0 }}
+                                </h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="progress mt-3" style="height: 30px;">
+                        {% widthratio portfolio_data.total_cost 1 portfolio_data.total_budget as cost_percent %}
+                        <div class="progress-bar {% if cost_percent > 90 %}bg-danger{% elif cost_percent > 75 %}bg-warning{% else %}bg-success{% endif %}"
+                             style="width: {{ cost_percent }}%;">
+                            {{ cost_percent }}% Utilized
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- At-Risk Projects -->
+            {% if at_risk_projects %}
+            <div class="card mb-4">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0"><i class="fas fa-exclamation-circle"></i> Projects Needing Attention</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Project</th>
+                                    <th>Health Score</th>
+                                    <th>Status</th>
+                                    <th>End Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in at_risk_projects %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'project_management:project_detail' item.project.id %}">
+                                            {{ item.project.name }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="progress flex-grow-1" style="height: 20px;">
+                                                <div class="progress-bar {% if item.health_score < 40 %}bg-danger{% elif item.health_score < 60 %}bg-warning{% else %}bg-success{% endif %}"
+                                                     style="width: {{ item.health_score }}%;">
+                                                    {{ item.health_score }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-{{ item.project.status }}">
+                                            {{ item.project.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ item.project.end_date|date:"M d, Y" }}</td>
+                                    <td>
+                                        <a href="{% url 'project_management:project_analytics' item.project.id %}"
+                                           class="btn btn-sm btn-primary">
+                                            <i class="fas fa-chart-bar"></i> View Analytics
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Right Column -->
+        <div class="col-lg-4">
+            <!-- Upcoming Deadlines -->
+            <div class="card mb-4">
+                <div class="card-header bg-warning">
+                    <h6 class="mb-0"><i class="fas fa-clock"></i> Upcoming Deadlines (Next 7 Days)</h6>
+                </div>
+                <div class="card-body p-0">
+                    {% if upcoming_deadlines %}
+                    <div class="list-group list-group-flush">
+                        {% for task in upcoming_deadlines %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">{{ task.name }}</h6>
+                                    <small class="text-muted">{{ task.project.name }}</small>
+                                </div>
+                                <span class="badge badge-warning">{{ task.due_date|date:"M d" }}</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                        <p class="text-muted">No upcoming deadlines in the next 7 days!</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-history"></i> Recent Activity</h6>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_activity %}
+                    <div class="list-group list-group-flush">
+                        {% for task in recent_activity %}
+                        <div class="list-group-item">
+                            <div class="d-flex align-items-start">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1 small">{{ task.name }}</h6>
+                                    <small class="text-muted">
+                                        {{ task.project.name }} •
+                                        {% if task.assigned_to %}{{ task.assigned_to.get_full_name }}{% else %}Unassigned{% endif %}
+                                    </small>
+                                </div>
+                                <small class="text-muted">{{ task.updated_at|timesince }} ago</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <p class="text-muted">No recent activity</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-bolt"></i> Quick Actions</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'project_management:portfolio_analytics' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-briefcase"></i> Portfolio Analytics
+                        </a>
+                        <a href="{% url 'project_management:team_performance' %}" class="btn btn-outline-success">
+                            <i class="fas fa-users"></i> Team Performance
+                        </a>
+                        <a href="{% url 'project_management:trend_analysis' %}" class="btn btn-outline-info">
+                            <i class="fas fa-chart-line"></i> Trend Analysis
+                        </a>
+                        <a href="{% url 'project_management:predictive_analytics' %}" class="btn btn-outline-warning">
+                            <i class="fas fa-crystal-ball"></i> Predictive Analytics
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .metric-box {
+        padding: 1rem;
+        text-align: center;
+        border-radius: 8px;
+        background-color: #f8f9fa;
+    }
+
+    .opacity-50 {
+        opacity: 0.5;
+    }
+
+    .badge-planning { background-color: #6c757d; }
+    .badge-active { background-color: #28a745; }
+    .badge-on_hold { background-color: #ffc107; color: #000; }
+    .badge-completed { background-color: #007bff; }
+    .badge-cancelled { background-color: #dc3545; }
+
+    .list-group-item {
+        border-left: none;
+        border-right: none;
+    }
+
+    .list-group-item:first-child {
+        border-top: none;
+    }
+
+    .list-group-item:last-child {
+        border-bottom: none;
+    }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+    // Status Distribution Pie Chart
+    const statusData = {{ portfolio_data.status_breakdown|safe }};
+    const statusLabels = statusData.map(item => item.status.replace('_', ' ').toUpperCase());
+    const statusCounts = statusData.map(item => item.count);
+
+    const statusColors = {
+        'planning': '#6c757d',
+        'active': '#28a745',
+        'on_hold': '#ffc107',
+        'completed': '#007bff',
+        'cancelled': '#dc3545',
+    };
+
+    const colors = statusData.map(item => statusColors[item.status] || '#6c757d');
+
+    new Chart(document.getElementById('statusChart'), {
+        type: 'doughnut',
+        data: {
+            labels: statusLabels,
+            datasets: [{
+                data: statusCounts,
+                backgroundColor: colors,
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.parsed || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percent = ((value / total) * 100).toFixed(1);
+                            return `${label}: ${value} (${percent}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

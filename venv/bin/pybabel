@@ -1,4 +1,4 @@
-#!/home/user/krystal-company-apps/integrated_business_platform/venv/bin/python3
+#!/home/user/Desktop/integrated_business_platform/venv/bin/python3
 import sys
 from babel.messages.frontend import main
 if __name__ == '__main__':

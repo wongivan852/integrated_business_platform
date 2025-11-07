@@ -1,0 +1,252 @@
+{% extends 'project_management/base.html' %}
+{% load static %}
+
+{% block page_title %}All Projects{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item active" aria-current="page">All Projects</li>
+{% endblock %}
+
+{% block page_heading %}
+    <i class="fas fa-project-diagram"></i> All Projects
+{% endblock %}
+
+{% block page_subtitle %}
+<p class="pm-subtitle">Manage all your projects in one place</p>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'project_management:project_create' %}" class="btn btn-primary">
+    <i class="fas fa-plus"></i> New Project
+</a>
+{% endblock %}
+
+{% block page_content %}
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="stat-card position-relative">
+            <i class="fas fa-folder-open stat-icon"></i>
+            <div class="stat-value">{{ total_projects }}</div>
+            <div class="stat-label">Total Projects</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card position-relative">
+            <i class="fas fa-play-circle stat-icon"></i>
+            <div class="stat-value text-success">{{ active_projects }}</div>
+            <div class="stat-label">Active Projects</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card position-relative">
+            <i class="fas fa-check-circle stat-icon"></i>
+            <div class="stat-value text-info">{{ completed_projects }}</div>
+            <div class="stat-label">Completed Projects</div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters & Search -->
+<div class="card project-card">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label"><i class="fas fa-search"></i> Search</label>
+                <input type="text" name="q" class="form-control"
+                       placeholder="Search projects..."
+                       value="{{ search_query|default:'' }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label"><i class="fas fa-filter"></i> Status</label>
+                <select name="status" class="form-select">
+                    <option value="">All Statuses</option>
+                    {% for value, label in status_choices %}
+                    <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>
+                        {{ label }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label"><i class="fas fa-exclamation-circle"></i> Priority</label>
+                <select name="priority" class="form-select">
+                    <option value="">All Priorities</option>
+                    {% for value, label in priority_choices %}
+                    <option value="{{ value }}" {% if priority_filter == value %}selected{% endif %}>
+                        {{ label }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-search"></i> Filter
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Projects List -->
+<div class="row mt-4">
+    {% if projects %}
+        {% for project in projects %}
+        <div class="col-md-6 col-lg-4">
+            <div class="project-card card">
+                <div class="card-body">
+                    <!-- Project Header -->
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <h5 class="card-title mb-0">
+                            <a href="{% url 'project_management:project_detail' project.pk %}"
+                               class="text-decoration-none text-dark">
+                                {{ project.name }}
+                            </a>
+                        </h5>
+                        <span class="status-badge {{ project.status }}">
+                            {{ project.get_status_display }}
+                        </span>
+                    </div>
+
+                    <!-- Project Code & Priority -->
+                    <div class="mb-3">
+                        <span class="badge bg-light text-dark me-2">
+                            <i class="fas fa-hashtag"></i> {{ project.project_code }}
+                        </span>
+                        <span class="priority-badge {{ project.priority }}">
+                            <i class="fas fa-flag"></i> {{ project.get_priority_display }}
+                        </span>
+                    </div>
+
+                    <!-- Description -->
+                    {% if project.description %}
+                    <p class="card-text text-muted small">
+                        {{ project.description|truncatewords:15 }}
+                    </p>
+                    {% endif %}
+
+                    <!-- Progress Bar -->
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between small mb-1">
+                            <span>Progress</span>
+                            <span class="fw-bold">{{ project.progress_percentage }}%</span>
+                        </div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar-fill"
+                                 style="width: {{ project.progress_percentage }}%">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Stats -->
+                    <div class="row small text-muted mb-3">
+                        <div class="col-6">
+                            <i class="fas fa-tasks"></i>
+                            <strong>{{ project.task_count }}</strong> tasks
+                            {% if project.completed_tasks > 0 %}
+                            ({{ project.completed_tasks }} done)
+                            {% endif %}
+                        </div>
+                        <div class="col-6">
+                            <i class="fas fa-users"></i>
+                            <strong>{{ project.member_count }}</strong> members
+                        </div>
+                    </div>
+
+                    <!-- Dates -->
+                    <div class="small text-muted mb-3">
+                        <div class="d-flex justify-content-between">
+                            <span>
+                                <i class="fas fa-calendar"></i>
+                                {{ project.start_date|date:"M d, Y" }}
+                            </span>
+                            <span>
+                                <i class="fas fa-calendar-check"></i>
+                                {{ project.end_date|date:"M d, Y" }}
+                            </span>
+                        </div>
+                        {% if project.is_overdue %}
+                        <div class="text-danger mt-1">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Overdue
+                        </div>
+                        {% elif project.status not in 'completed,cancelled' %}
+                        <div class="text-info mt-1">
+                            <i class="fas fa-clock"></i>
+                            {{ project.days_remaining }} days remaining
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Owner -->
+                    <div class="small text-muted mb-3">
+                        <i class="fas fa-user"></i>
+                        Owner: <strong>{{ project.owner.get_full_name|default:project.owner.email }}</strong>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'project_management:project_detail' project.pk %}"
+                           class="btn btn-sm btn-outline-primary flex-fill">
+                            <i class="fas fa-eye"></i> View
+                        </a>
+                        {% if project.default_view == 'kanban' %}
+                        <a href="{% url 'project_management:project_kanban' project.pk %}"
+                           class="btn btn-sm btn-outline-info">
+                            <i class="fas fa-columns"></i> Board
+                        </a>
+                        {% else %}
+                        <a href="{% url 'project_management:project_gantt' project.pk %}"
+                           class="btn btn-sm btn-outline-success">
+                            <i class="fas fa-chart-bar"></i> Gantt
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <!-- Empty State -->
+        <div class="col-12">
+            <div class="card project-card text-center py-5">
+                <div class="card-body">
+                    <i class="fas fa-folder-open" style="font-size: 4rem; color: #e9ecef;"></i>
+                    <h3 class="mt-4">No Projects Found</h3>
+                    <p class="text-muted">
+                        {% if search_query or status_filter or priority_filter %}
+                            No projects match your search criteria. Try adjusting your filters.
+                        {% else %}
+                            Get started by creating your first project!
+                        {% endif %}
+                    </p>
+                    <a href="{% url 'project_management:project_create' %}" class="btn btn-primary mt-3">
+                        <i class="fas fa-plus"></i> Create Your First Project
+                    </a>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block page_js %}
+<script>
+    // Add hover effects to project cards
+    document.querySelectorAll('.project-card').forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-4px)';
+        });
+        card.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+        });
+    });
+
+    // Auto-submit filter form on select change
+    document.querySelectorAll('select[name="status"], select[name="priority"]').forEach(select => {
+        select.addEventListener('change', function() {
+            this.closest('form').submit();
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}User Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'admin_panel:dashboard' %}">Admin Panel</a></li>
+                    <li class="breadcrumb-item active">User Management</li>
+                </ol>
+            </nav>
+            <h2><i class="fas fa-users"></i> User Management</h2>
+        </div>
+    </div>
+
+    <!-- Search and Filter -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-6">
+                            <input type="text"
+                                   name="search"
+                                   class="form-control"
+                                   placeholder="Search by name or email..."
+                                   value="{{ search_query }}">
+                        </div>
+                        <div class="col-md-3">
+                            <select name="status" class="form-select">
+                                <option value="">All Status</option>
+                                <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                                <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-search"></i> Search
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User List -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Users ({{ users.count }})</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Employee ID</th>
+                                    <th>Department</th>
+                                    <th>Region</th>
+                                    <th>Status</th>
+                                    <th>Joined</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in users %}
+                                <tr>
+                                    <td>{{ user.get_full_name|default:"-" }}</td>
+                                    <td>{{ user.email }}</td>
+                                    <td>{{ user.employee_id|default:"-" }}</td>
+                                    <td>{{ user.get_department_display|default:"-" }}</td>
+                                    <td>{{ user.get_region_display|default:"-" }}</td>
+                                    <td>
+                                        {% if user.is_active %}
+                                            <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Inactive</span>
+                                        {% endif %}
+                                        {% if user.is_superuser %}
+                                            <span class="badge bg-warning">Admin</span>
+                                        {% endif %}
+                                    </td>
+                                    <td><small>{{ user.date_joined|date:"Y-m-d" }}</small></td>
+                                    <td>
+                                        <a href="{% url 'admin_panel:user_detail' user.id %}"
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-edit"></i> Manage
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="8" class="text-center text-muted py-4">
+                                        No users found
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

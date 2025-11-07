@@ -14,6 +14,7 @@ urlpatterns = [
     path('register/', views.UserRegistrationView.as_view(), name='register'),
     path('profile/', views.UserProfileView.as_view(), name='profile'),
     path('refresh-token/', views.refresh_sso_token, name='refresh_token'),
+    path('change-password/', views.change_password_required, name='change_password'),
 
     # SSO API URLs
     path('api/sso/validate/', views.sso_validate_token, name='sso_validate'),

@@ -372,7 +372,7 @@ class DashboardWidget(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='dashboard_widgets',
+        related_name='expense_dashboard_widgets',
         verbose_name=_("User")
     )
     

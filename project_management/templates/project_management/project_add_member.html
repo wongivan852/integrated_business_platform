@@ -1,0 +1,111 @@
+{% extends 'project_management/base.html' %}
+{% load static %}
+
+{% block page_title %}Add Team Member{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item">
+    <a href="{% url 'project_management:project_list' %}">Projects</a>
+</li>
+<li class="breadcrumb-item">
+    <a href="{% url 'project_management:project_detail' project.pk %}">{{ project.name }}</a>
+</li>
+<li class="breadcrumb-item active" aria-current="page">Add Team Member</li>
+{% endblock %}
+
+{% block page_heading %}
+    <i class="fas fa-user-plus"></i> Add Team Member
+{% endblock %}
+
+{% block page_subtitle %}
+Add a new member to {{ project.name }}
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'project_management:project_detail' project.pk %}" class="btn btn-outline-light">
+    <i class="fas fa-arrow-left"></i> Back to Project
+</a>
+{% endblock %}
+
+{% block page_content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card project-card">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="fas fa-user-plus"></i> Add Team Member to Project</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {{ form.non_field_errors }}
+                    </div>
+                    {% endif %}
+
+                    <!-- User Selection -->
+                    <div class="mb-3">
+                        <label for="{{ form.user.id_for_label }}" class="form-label">
+                            <i class="fas fa-user"></i> User
+                            <span class="text-danger">*</span>
+                        </label>
+                        {{ form.user }}
+                        {% if form.user.errors %}
+                        <div class="invalid-feedback d-block">
+                            {{ form.user.errors }}
+                        </div>
+                        {% endif %}
+                        <small class="form-text text-muted">
+                            Select a user to add to this project. Only users who have access to Project Management app are shown.
+                        </small>
+                    </div>
+
+                    <!-- Role Selection -->
+                    <div class="mb-3">
+                        <label for="{{ form.role.id_for_label }}" class="form-label">
+                            <i class="fas fa-id-badge"></i> Role
+                            <span class="text-danger">*</span>
+                        </label>
+                        {{ form.role }}
+                        {% if form.role.errors %}
+                        <div class="invalid-feedback d-block">
+                            {{ form.role.errors }}
+                        </div>
+                        {% endif %}
+                        <small class="form-text text-muted">
+                            <strong>Owner:</strong> Full access and can delete project<br>
+                            <strong>Admin:</strong> Can manage settings and team members<br>
+                            <strong>Member:</strong> Can create and edit tasks<br>
+                            <strong>Viewer:</strong> Read-only access
+                        </small>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-user-plus"></i> Add Member
+                        </button>
+                        <a href="{% url 'project_management:project_detail' project.pk %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Info Card -->
+        <div class="card project-card mt-4">
+            <div class="card-body">
+                <h6 class="card-title"><i class="fas fa-info-circle"></i> About Team Roles</h6>
+                <ul class="mb-0">
+                    <li><strong>Owner:</strong> Has complete control over the project including deletion</li>
+                    <li><strong>Admin:</strong> Can manage project settings, team members, and all tasks</li>
+                    <li><strong>Member:</strong> Can create, edit, and be assigned to tasks</li>
+                    <li><strong>Viewer:</strong> Can only view project information without making changes</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

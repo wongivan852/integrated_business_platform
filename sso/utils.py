@@ -80,12 +80,13 @@ class SSOTokenManager:
             'first_name': user.first_name,
             'last_name': user.last_name,
             'employee_id': getattr(user, 'employee_id', ''),
-            'job_title': getattr(user, 'job_title', ''),
+            'job_title': '',  # CompanyUser doesn't have job_title field
             'is_staff': user.is_staff,
             'is_superuser': user.is_superuser,
             'is_active': user.is_active,
-            'company': user.company.name if hasattr(user, 'company') and user.company else None,
-            'department': user.department.name if hasattr(user, 'department') and user.department else None,
+            'company': None,  # CompanyUser doesn't have company field
+            'department': getattr(user, 'department', None),  # department is a string, not a FK
+            'region': getattr(user, 'region', None),
             'permissions': permissions,
             'iat': int(now.timestamp()),
             'exp': int((now + timedelta(seconds=cls.get_token_lifetime())).timestamp()),

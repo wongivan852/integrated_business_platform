@@ -1,0 +1,522 @@
+{% load print_filters %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Combined Expense Claims - {{ combined_data.claim_numbers }}</title>
+    <style>
+        /* Print-specific styles */
+        @media print {
+            @page {
+                margin: 0.5in;
+                size: A4 landscape;
+            }
+            .no-print { display: none; }
+            .page-break { page-break-before: always; }
+        }
+        
+        /* Base styles matching PDF format */
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 11px;
+            line-height: 1.2;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .claim-container {
+            width: 100%;
+            margin-bottom: 40px;
+        }
+        
+        .claim-header {
+            text-align: left;
+            margin-bottom: 20px;
+        }
+        
+        .company-name {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .claim-title {
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        .claim-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        
+        .info-left, .info-right {
+            width: 48%;
+        }
+        
+        .info-line {
+            margin-bottom: 5px;
+        }
+        
+        /* Table styles matching PDF */
+        .expense-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .expense-table th,
+        .expense-table td {
+            border: 1px solid #000;
+            padding: 4px;
+            text-align: left;
+            vertical-align: top;
+        }
+        
+        .expense-table th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .expense-table .item-col { width: 30px; }
+        .expense-table .date-col { width: 60px; }
+        .expense-table .desc-col { width: 250px; }
+        .expense-table .currency-col { width: 50px; }
+        .expense-table .category-cols { width: 40px; }
+        .expense-table .exchange-col { width: 50px; }
+        .expense-table .total-col { width: 60px; }
+        
+        /* Category columns - horizontal labels */
+        .category-header {
+            font-size: 8px;
+            text-align: center;
+            padding: 4px 2px !important;
+            line-height: 1.1;
+            word-wrap: break-word;
+        }
+        
+        .category-cols { 
+            width: 35px; 
+            min-width: 35px;
+            max-width: 35px;
+        }
+        
+        .amount-cell {
+            text-align: right;
+            font-family: monospace;
+        }
+        
+        .total-row {
+            font-weight: bold;
+            background-color: #f8f8f8;
+        }
+        
+        .total-row td {
+            font-weight: bold;
+        }
+        
+        /* Approval section */
+        .approval-section {
+            margin-top: 30px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .approval-box {
+            border: 1px solid #000;
+            padding: 10px;
+            width: 200px;
+            height: 50px;
+        }
+        
+        .approval-label {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        /* Receipt references section */
+        .receipt-references {
+            margin-top: 30px;
+            border-top: 1px solid #ccc;
+            padding-top: 15px;
+        }
+
+        .receipt-references-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            font-size: 12px;
+        }
+
+        .receipt-refs-row {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            gap: 10px;
+            font-size: 10px;
+            flex-wrap: wrap;
+        }
+
+        .receipt-ref-item {
+            text-align: center;
+            flex: 1;
+            border: 1px dashed #999;
+            padding: 8px;
+            min-height: 30px;
+            background-color: #f9f9f9;
+            min-width: 100px;
+        }
+        
+        /* Print controls */
+        .print-controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            margin: 0 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .btn:hover {
+            opacity: 0.8;
+        }
+        
+        /* Receipt images placeholder */
+        .receipt-note {
+            font-size: 9px;
+            font-style: italic;
+            color: #666;
+        }
+        
+        /* Combined claims info */
+        .claims-info {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-size: 10px;
+        }
+        
+        .claims-info strong {
+            color: #495057;
+        }
+        
+        /* Receipt copies section for A4 landscape */
+        .receipt-copies-section {
+            margin-top: 15px;
+            padding: 15px 0;
+            height: calc(100vh - 60px);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .receipt-copies-title {
+            font-weight: bold;
+            font-size: 13px;
+            margin-bottom: 15px;
+            text-align: center;
+            border-bottom: 1px solid #333;
+            padding-bottom: 8px;
+        }
+        
+        .receipt-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            align-items: stretch;
+            flex-grow: 1;
+        }
+        
+        /* For landscape A4: 3 receipts per row */
+        @media print {
+            .receipt-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 25px;
+            }
+            .page-break { page-break-before: always; }
+            .page-break-after { page-break-after: always; }
+            
+            .receipt-copies-section {
+                margin-top: 0;
+                padding: 15px 0;
+                page-break-inside: avoid;
+                height: calc(100vh - 40px);
+            }
+        }
+        
+        .receipt-item {
+            border: 2px solid #333;
+            padding: 15px;
+            background: white;
+            break-inside: avoid;
+            page-break-inside: avoid;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .receipt-header {
+            background: #e0e0e0;
+            padding: 8px;
+            margin: -15px -15px 15px -15px;
+            font-size: 11px;
+            font-weight: bold;
+            text-align: center;
+            border-bottom: 1px solid #333;
+        }
+        
+        .receipt-image {
+            width: 100%;
+            height: 200px;
+            object-fit: contain;
+            border: 1px solid #999;
+            background: #fafafa;
+            margin-bottom: 8px;
+        }
+        
+        .receipt-details {
+            font-size: 10px;
+            line-height: 1.4;
+            margin-top: auto;
+        }
+        
+        .receipt-placeholder {
+            width: 100%;
+            height: 200px;
+            border: 2px dashed #999;
+            background: #f9f9f9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            font-style: italic;
+            text-align: center;
+            padding: 8px;
+            font-size: 11px;
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Print Controls -->
+    <div class="print-controls no-print">
+        <button onclick="window.print()" class="btn btn-primary">
+            <i class="fas fa-print"></i> Print
+        </button>
+        <button onclick="history.back()" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back
+        </button>
+    </div>
+
+    <div class="claim-container">
+        <!-- Header -->
+        <div class="claim-header">
+            <div class="company-name">{{ combined_data.company_info }}</div>
+            <div class="claim-title">{{ combined_data.event_name }}</div>
+        </div>
+        
+        <!-- Combined Claims Information -->
+        <div class="claims-info no-print">
+            <div><strong>Combined Claims:</strong> {{ combined_data.claim_numbers }}</div>
+            <div><strong>Total Claims:</strong> {{ combined_data.claims_count }}</div>
+            <div><strong>Total Items:</strong> {{ combined_data.expense_items|length }}</div>
+        </div>
+        
+        <!-- Basic Information -->
+        <div class="claim-info">
+            <div class="info-left">
+                <div class="info-line"><strong>Claim made by:</strong> {{ combined_data.claimant_name }}</div>
+            </div>
+            <div class="info-right">
+                <div class="info-line"><strong>Period:</strong> {{ combined_data.period_from|date:"M d" }}-{{ combined_data.period_to|date:"d, Y" }}</div>
+            </div>
+        </div>
+        
+        <!-- Combined Expense Items Table -->
+        <table class="expense-table">
+            <thead>
+                <tr>
+                    <th rowspan="2" class="item-col">Item</th>
+                    <th rowspan="2" class="date-col">Date</th>
+                    <th rowspan="2" class="desc-col">Description</th>
+                    <th rowspan="2" class="currency-col">Original Currency</th>
+                    <!-- Dynamic Category Headers - only present categories -->
+                    {% for category in combined_data.present_categories %}
+                    <th class="category-cols category-header">{{ category.zh_label }}</th>
+                    {% endfor %}
+                    <th rowspan="2" class="exchange-col">Exchange</th>
+                    <th rowspan="2" class="total-col">Total(HK)</th>
+                </tr>
+                <tr>
+                    <!-- Second row for English category labels -->
+                    {% for category in combined_data.present_categories %}
+                    <th class="category-cols">{{ category.en_label }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in combined_data.expense_items %}
+                <tr>
+                    <td class="item-col">{{ item.combined_item_number }}</td>
+                    <td class="date-col">{{ item.expense_date|date:"M d" }}</td>
+                    <td class="desc-col">
+                        {{ item.description }}
+                        <br><small><strong>Ref:</strong> {{ item.claim_reference }}</small>
+                        {% if item.description_chinese %}
+                        <br><em>{{ item.description_chinese }}</em>
+                        {% endif %}
+                        {% if item.participants %}
+                        <br><small>({{ item.participants }})</small>
+                        {% endif %}
+                        {% if not item.has_receipt %}
+                        <br><span class="receipt-note">{{ item.receipt_notes|default:"without receipt" }}</span>
+                        {% else %}
+                        {% if item.receipt_notes %}
+                        <br><span class="receipt-note">{{ item.receipt_notes }}</span>
+                        {% endif %}
+                        {% endif %}
+                    </td>
+                    <td class="currency-col">{{ item.currency.code }}</td>
+                    
+                    <!-- Dynamic Category Amount Columns - only present categories -->
+                    {% for category in combined_data.present_categories %}
+                        {% if item.category.code == category.code %}
+                        <td class="amount-cell category-cols">{{ item.amount_hkd|floatformat:2 }}</td>
+                        {% else %}
+                        <td class="category-cols"></td>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    <td class="amount-cell exchange-col">{{ item.exchange_rate|floatformat:2 }}</td>
+                    <td class="amount-cell total-col">{{ item.amount_hkd|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+                
+                <!-- Total Row -->
+                <tr class="total-row">
+                    <td colspan="4"><strong>Combined Total</strong></td>
+                    {% for category in combined_data.present_categories %}
+                    <td class="amount-cell">{{ combined_data.category_totals|get_item:category.code|floatformat:2 }}</td>
+                    {% endfor %}
+                    <td></td>
+                    <td class="amount-cell"><strong>{{ combined_data.total_hkd|floatformat:2 }}</strong></td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <!-- Combined Claims Information Summary -->
+        <div style="margin-top: 20px; font-size: 10px; color: #666;">
+            <div><strong>Total Combined Amount:</strong> {{ combined_data.total_hkd|floatformat:2 }} HKD</div>
+            <div><strong>Period Coverage:</strong> {{ combined_data.period_from|date:"F d, Y" }} to {{ combined_data.period_to|date:"F d, Y" }}</div>
+            <div><strong>Generated:</strong> {% now "F d, Y g:i A" %}</div>
+        </div>
+        
+        <!-- Approval Section -->
+        <div class="approval-section">
+            <div class="approval-box">
+                <div class="approval-label">Claim checked by</div>
+                <!-- Show first approver info if any claim was checked -->
+                {% if combined_data.checked_by %}
+                    <div>{{ combined_data.checked_by.get_full_name }}</div>
+                    <div><small>{{ combined_data.checked_at|date:"M d, Y" }}</small></div>
+                {% endif %}
+            </div>
+            <div class="approval-box">
+                <div class="approval-label">Approved</div>
+                <!-- Show first approver info if any claim was approved -->
+                {% if combined_data.approved_by %}
+                    <div>{{ combined_data.approved_by.get_full_name }}</div>
+                    <div><small>{{ combined_data.approved_at|date:"M d, Y" }}</small></div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Receipt Copies Section - With Page Breaks for A4 Landscape -->
+        {% if combined_data.expense_items %}
+        <div class="page-break"></div>
+        <div class="receipt-copies-section">
+            <div class="receipt-copies-title">
+                Receipt Copies for Combined Claims
+            </div>
+            
+            <div class="receipt-grid">
+                {% for item in combined_data.expense_items %}
+                <div class="receipt-item">
+                    <div class="receipt-header">
+                        Ref: {{ item.claim_reference }} - {{ item.expense_date|date:"M d, Y" }}
+                    </div>
+                    
+                    {% if item.documents.exists %}
+                        {% with receipt=item.documents.first %}
+                        {% if receipt.file %}
+                            {% if receipt.file.url|slice:"-4:"|lower == ".pdf" %}
+                            <div class="receipt-placeholder">
+                                <div>
+                                    <i class="fas fa-file-pdf fa-3x"></i><br>
+                                    PDF Receipt<br>
+                                    <small>{{ receipt.file.name|truncatechars:30 }}</small>
+                                </div>
+                            </div>
+                            {% else %}
+                            <img src="{{ receipt.file.url }}" class="receipt-image" alt="Receipt">
+                            {% endif %}
+                        {% endif %}
+                        {% endwith %}
+                    {% else %}
+                        <div class="receipt-placeholder">
+                            <div>No Receipt<br><small>{{ item.receipt_notes|default:"Receipt not uploaded" }}</small></div>
+                        </div>
+                    {% endif %}
+                    
+                    <div class="receipt-details">
+                        <strong>{{ item.category.name }}</strong><br>
+                        {{ item.description|truncatechars:60 }}<br>
+                        <strong>Amount:</strong> {{ item.currency.code }} {{ item.original_amount|floatformat:2 }}<br>
+                        <strong>HKD:</strong> {{ item.amount_hkd|floatformat:2 }}
+                    </div>
+                </div>
+                
+                {% if forloop.counter|divisibleby:3 and not forloop.last %}
+                    </div>
+                    <!-- Page break after every 3 receipts -->
+                    <div class="page-break"></div>
+                    <div class="receipt-copies-section">
+                        <div class="receipt-grid">
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        // Auto-print when page loads (optional)
+        // window.onload = function() { window.print(); }
+    </script>
+</body>
+</html>

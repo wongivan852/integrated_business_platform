@@ -1,0 +1,810 @@
+{% extends 'project_management/base.html' %}
+{% load static %}
+
+{% block page_title %}{{ project.name }} - Gantt Chart{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item">
+    <a href="{% url 'project_management:project_detail' project.pk %}">{{ project.name }}</a>
+</li>
+<li class="breadcrumb-item active" aria-current="page">Gantt Chart</li>
+{% endblock %}
+
+{% block page_heading %}
+    <i class="fas fa-chart-bar"></i> {{ project.name }}
+{% endblock %}
+
+{% block page_subtitle %}
+<div class="d-flex align-items-center gap-3">
+    <span class="badge bg-light text-dark">Gantt Chart View</span>
+    <span class="status-badge {{ project.status }}">{{ project.get_status_display }}</span>
+    {% if timeline_stats %}
+    <span class="text-muted small">
+        <i class="far fa-calendar"></i>
+        {{ timeline_stats.start_date|date:"M d" }} - {{ timeline_stats.end_date|date:"M d, Y" }}
+        ({{ timeline_stats.total_duration }} days)
+    </span>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block header_actions %}
+<div class="view-switcher me-3">
+    <a href="{% url 'project_management:project_kanban' project.pk %}"
+       class="btn">
+        <i class="fas fa-columns"></i> Kanban
+    </a>
+    <a href="{% url 'project_management:project_gantt' project.pk %}"
+       class="btn active">
+        <i class="fas fa-chart-bar"></i> Gantt
+    </a>
+</div>
+
+{% if is_admin %}
+<div class="btn-group me-2">
+    <button class="btn btn-outline-light" onclick="showCreateBaselineModal()">
+        <i class="fas fa-save"></i> Save Baseline
+    </button>
+    <button class="btn btn-outline-light" onclick="showDependencyModal()">
+        <i class="fas fa-link"></i> Add Dependency
+    </button>
+</div>
+{% endif %}
+
+<a href="{% url 'project_management:project_detail' project.pk %}" class="btn btn-outline-light">
+    <i class="fas fa-arrow-left"></i> Back
+</a>
+{% endblock %}
+
+{% block page_content %}
+<!-- Gantt Chart Toolbar -->
+<div class="card project-card mb-3">
+    <div class="card-body py-2">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <div class="btn-group btn-group-sm" role="group">
+                    <input type="radio" class="btn-check" name="viewMode" id="viewDay" value="day">
+                    <label class="btn btn-outline-secondary" for="viewDay">Day</label>
+
+                    <input type="radio" class="btn-check" name="viewMode" id="viewWeek" value="week">
+                    <label class="btn btn-outline-secondary" for="viewWeek">Week</label>
+
+                    <input type="radio" class="btn-check" name="viewMode" id="viewMonth" value="month" checked>
+                    <label class="btn btn-outline-secondary" for="viewMonth">Month</label>
+
+                    <input type="radio" class="btn-check" name="viewMode" id="viewYear" value="year">
+                    <label class="btn btn-outline-secondary" for="viewYear">Year</label>
+                </div>
+
+                <div class="btn-group btn-group-sm ms-3" role="group">
+                    <button class="btn btn-outline-secondary" onclick="gantt.scrollToToday()">
+                        <i class="fas fa-calendar-day"></i> Today
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="gantt.ext.fullscreen.toggle()">
+                        <i class="fas fa-expand"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="col-md-6 text-end">
+                <div class="form-check form-check-inline form-switch">
+                    <input class="form-check-input" type="checkbox" id="showCritical" checked>
+                    <label class="form-check-label" for="showCritical">
+                        <i class="fas fa-route text-danger"></i> Critical Path
+                    </label>
+                </div>
+
+                <div class="form-check form-check-inline form-switch">
+                    <input class="form-check-input" type="checkbox" id="showDeps" checked>
+                    <label class="form-check-label" for="showDeps">
+                        <i class="fas fa-project-diagram"></i> Dependencies
+                    </label>
+                </div>
+
+                <div class="form-check form-check-inline form-switch">
+                    <input class="form-check-input" type="checkbox" id="showProgress" checked>
+                    <label class="form-check-label" for="showProgress">
+                        <i class="fas fa-tasks"></i> Progress
+                    </label>
+                </div>
+
+                {% if baselines %}
+                <select class="form-select form-select-sm d-inline-block w-auto ms-2" id="baselineSelect">
+                    <option value="">No Baseline</option>
+                    {% for baseline in baselines %}
+                    <option value="{{ baseline.pk }}" {% if baseline.pk|stringformat:"s" == selected_baseline_id %}selected{% endif %}>
+                        {{ baseline.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Project Statistics -->
+{% if timeline_stats %}
+<div class="row mb-3">
+    <div class="col-md-3">
+        <div class="card project-card">
+            <div class="card-body text-center py-3">
+                <h6 class="text-muted mb-1">Total Tasks</h6>
+                <h3 class="mb-0">{{ timeline_stats.total_tasks }}</h3>
+                <small class="text-success">{{ timeline_stats.completed_tasks }} completed</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card project-card">
+            <div class="card-body text-center py-3">
+                <h6 class="text-muted mb-1">Average Progress</h6>
+                <h3 class="mb-0">{{ timeline_stats.average_progress }}%</h3>
+                <div class="progress mt-2" style="height: 5px;">
+                    <div class="progress-bar bg-success" style="width: {{ timeline_stats.average_progress }}%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card project-card">
+            <div class="card-body text-center py-3">
+                <h6 class="text-muted mb-1">In Progress</h6>
+                <h3 class="mb-0">{{ timeline_stats.in_progress_tasks }}</h3>
+                <small class="text-muted">{{ timeline_stats.not_started_tasks }} not started</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card project-card">
+            <div class="card-body text-center py-3">
+                <h6 class="text-muted mb-1">Overdue Tasks</h6>
+                <h3 class="mb-0 {% if timeline_stats.overdue_tasks > 0 %}text-danger{% endif %}">
+                    {{ timeline_stats.overdue_tasks }}
+                </h3>
+                <small class="text-muted">{{ timeline_stats.completion_percentage|floatformat:0 }}% complete</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Gantt Chart Container -->
+<div class="card project-card">
+    <div class="card-body p-0">
+        <div id="gantt_here" style="width:100%; height:600px;"></div>
+    </div>
+</div>
+
+<!-- Critical Path Tasks -->
+{% if critical_path %}
+<div class="card project-card mt-3">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">
+            <i class="fas fa-route text-danger"></i> Critical Path Tasks ({{ critical_path|length }})
+        </h5>
+    </div>
+    <div class="card-body">
+        <p class="text-muted">
+            These tasks are on the critical path. Any delay in these tasks will delay the entire project.
+        </p>
+        <div class="row">
+            {% for task in tasks %}
+            {% if task.id in critical_path %}
+            <div class="col-md-6 mb-2">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-exclamation-triangle text-danger me-2"></i>
+                    <a href="{% url 'project_management:task_detail' project.pk task.pk %}" class="text-decoration-none">
+                        <strong>{{ task.task_code }}</strong> - {{ task.title }}
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Baseline Comparison -->
+{% if baseline_comparison %}
+<div class="card project-card mt-3">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">
+            <i class="fas fa-balance-scale"></i> Baseline Comparison: {{ baseline_comparison.baseline.name }}
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="row mb-3">
+            <div class="col-md-4 text-center">
+                <div class="p-3 bg-success bg-opacity-10 rounded">
+                    <h4 class="text-success mb-0">{{ baseline_comparison.total_ahead }}</h4>
+                    <small class="text-muted">Tasks Ahead of Schedule</small>
+                </div>
+            </div>
+            <div class="col-md-4 text-center">
+                <div class="p-3 bg-info bg-opacity-10 rounded">
+                    <h4 class="text-info mb-0">{{ baseline_comparison.total_on_track }}</h4>
+                    <small class="text-muted">Tasks On Track</small>
+                </div>
+            </div>
+            <div class="col-md-4 text-center">
+                <div class="p-3 bg-danger bg-opacity-10 rounded">
+                    <h4 class="text-danger mb-0">{{ baseline_comparison.total_behind }}</h4>
+                    <small class="text-muted">Tasks Behind Schedule</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-sm table-hover">
+                <thead>
+                    <tr>
+                        <th>Task</th>
+                        <th>Current Dates</th>
+                        <th>Baseline Dates</th>
+                        <th>Variance</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for comparison in baseline_comparison.comparisons %}
+                    <tr>
+                        <td>
+                            <strong>{{ comparison.task.task_code }}</strong><br>
+                            <small class="text-muted">{{ comparison.task.title|truncatewords:5 }}</small>
+                        </td>
+                        <td>
+                            {% if comparison.task.start_date %}
+                            {{ comparison.task.start_date|date:"M d" }} - {{ comparison.task.end_date|date:"M d" }}
+                            {% else %}
+                            <span class="text-muted">Not scheduled</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {{ comparison.baseline_task.start_date|date:"M d" }} - {{ comparison.baseline_task.end_date|date:"M d" }}
+                        </td>
+                        <td>
+                            {% if comparison.end_variance %}
+                            <span class="badge {% if comparison.is_ahead %}bg-success{% elif comparison.is_behind %}bg-danger{% else %}bg-info{% endif %}">
+                                {{ comparison.end_variance|stringformat:"+d" }} days
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if comparison.is_ahead %}
+                            <i class="fas fa-check-circle text-success"></i> Ahead
+                            {% elif comparison.is_behind %}
+                            <i class="fas fa-exclamation-circle text-danger"></i> Behind
+                            {% else %}
+                            <i class="fas fa-minus-circle text-info"></i> On Track
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Create Baseline Modal -->
+<div class="modal fade" id="createBaselineModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-save"></i> Create Baseline
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="baselineName" class="form-label">Baseline Name</label>
+                    <input type="text" class="form-control" id="baselineName"
+                           placeholder="e.g., Initial Plan, Sprint 1 Baseline">
+                </div>
+                <div class="mb-3">
+                    <label for="baselineDescription" class="form-label">Description (Optional)</label>
+                    <textarea class="form-control" id="baselineDescription" rows="3"
+                              placeholder="What does this baseline represent?"></textarea>
+                </div>
+                <div class="alert alert-info mb-0">
+                    <i class="fas fa-info-circle"></i>
+                    This will save the current schedule (start dates, end dates, duration, and progress) for all tasks.
+                    You can later compare the actual schedule against this baseline.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="createBaseline()">
+                    <i class="fas fa-save"></i> Create Baseline
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Dependency Modal -->
+<div class="modal fade" id="dependencyModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-link"></i> Add Task Dependency
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="predecessorTask" class="form-label">Predecessor Task (From)</label>
+                    <select class="form-select" id="predecessorTask">
+                        <option value="">Select a task...</option>
+                        {% for task in tasks %}
+                        <option value="{{ task.pk }}">{{ task.task_code }} - {{ task.title }}</option>
+                        {% endfor %}
+                    </select>
+                    <small class="form-text text-muted">This task must finish before the successor can start</small>
+                </div>
+
+                <div class="mb-3">
+                    <label for="successorTask" class="form-label">Successor Task (To)</label>
+                    <select class="form-select" id="successorTask">
+                        <option value="">Select a task...</option>
+                        {% for task in tasks %}
+                        <option value="{{ task.pk }}">{{ task.task_code }} - {{ task.title }}</option>
+                        {% endfor %}
+                    </select>
+                    <small class="form-text text-muted">This task depends on the predecessor</small>
+                </div>
+
+                <div class="mb-3">
+                    <label for="dependencyType" class="form-label">Dependency Type</label>
+                    <select class="form-select" id="dependencyType">
+                        <option value="FS">Finish-to-Start (FS)</option>
+                        <option value="SS">Start-to-Start (SS)</option>
+                        <option value="FF">Finish-to-Finish (FF)</option>
+                        <option value="SF">Start-to-Finish (SF)</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label for="lagDays" class="form-label">Lag Days</label>
+                    <input type="number" class="form-control" id="lagDays" value="0"
+                           placeholder="0">
+                    <small class="form-text text-muted">Positive for delay, negative for overlap</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="addDependency()">
+                    <i class="fas fa-link"></i> Add Dependency
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block page_js %}
+<!-- dhtmlxGantt Library -->
+<script src="https://cdn.dhtmlx.com/gantt/edge/dhtmlxgantt.js"></script>
+<link href="https://cdn.dhtmlx.com/gantt/edge/dhtmlxgantt.css" rel="stylesheet">
+
+<style>
+    /* Gantt Chart Custom Styles */
+    .gantt_task_line.critical_task {
+        background-color: #dc3545 !important;
+        border: 2px solid #bd2130 !important;
+    }
+
+    .gantt_task_line.critical_task .gantt_task_progress {
+        background-color: #a71d2a !important;
+    }
+
+    .gantt_grid_head_cell,
+    .gantt_grid_data .gantt_cell {
+        font-size: 14px;
+    }
+
+    .gantt_task_cell.week_end {
+        background-color: #f8f9fa;
+    }
+
+    .gantt_grid_data .gantt_row.gantt_selected,
+    .gantt_grid_data .gantt_row.odd.gantt_selected,
+    .gantt_task_row.gantt_selected {
+        background-color: #e3f2fd;
+    }
+
+    .gantt_link_arrow {
+        z-index: 100;
+    }
+
+    /* Milestone styling */
+    .gantt_task_line.milestone {
+        background-color: #ffc107;
+        border: 2px solid #e0a800;
+        transform: rotate(45deg);
+        width: 20px !important;
+        height: 20px !important;
+        margin-left: -10px;
+        margin-top: -3px;
+    }
+
+    /* Progress bar colors */
+    .gantt_task_progress {
+        background: #198754 !important;
+    }
+
+    /* Baseline comparison */
+    .gantt_task_line.baseline {
+        opacity: 0.5;
+        background-color: #6c757d !important;
+    }
+</style>
+
+<script>
+    // Initialize Gantt Chart
+    gantt.config.date_format = "%Y-%m-%d";
+    gantt.config.xml_date = "%Y-%m-%d";
+    gantt.config.scale_unit = "month";
+    gantt.config.date_scale = "%F %Y";
+    gantt.config.min_column_width = 50;
+    gantt.config.scale_height = 90;
+    gantt.config.row_height = 40;
+
+    // Enable features
+    gantt.config.drag_links = true;
+    gantt.config.drag_progress = {% if can_edit %}true{% else %}false{% endif %};
+    gantt.config.drag_resize = {% if can_edit %}true{% else %}false{% endif %};
+    gantt.config.drag_move = {% if can_edit %}true{% else %}false{% endif %};
+    gantt.config.show_progress = true;
+    gantt.config.order_branch = true;
+    gantt.config.auto_scheduling = false;
+    gantt.config.highlight_critical_path = {{ show_critical_path|lower }};
+
+    // Grid columns
+    gantt.config.columns = [
+        {name: "text", label: "Task name", tree: true, width: 250, resize: true},
+        {name: "task_code", label: "Code", width: 100, align: "center"},
+        {name: "start_date", label: "Start date", width: 100, align: "center"},
+        {name: "duration", label: "Duration", width: 70, align: "center"},
+        {name: "progress", label: "Progress", width: 70, align: "center", template: function(task) {
+            return Math.round(task.progress * 100) + "%";
+        }},
+        {name: "add", label: "", width: 44}
+    ];
+
+    // Templates
+    gantt.templates.task_text = function(start, end, task) {
+        return task.text;
+    };
+
+    gantt.templates.rightside_text = function(start, end, task) {
+        if (task.progress >= 1) {
+            return "<i class='fas fa-check-circle' style='color: #198754;'></i>";
+        }
+        return "";
+    };
+
+    gantt.templates.task_class = function(start, end, task) {
+        let classes = [];
+
+        // Critical path highlighting
+        if (task.critical) {
+            classes.push("critical_task");
+        }
+
+        // Milestone
+        if (task.is_milestone) {
+            classes.push("milestone");
+        }
+
+        // Priority coloring
+        if (task.priority) {
+            classes.push("priority-" + task.priority);
+        }
+
+        return classes.join(" ");
+    };
+
+    // Prepare data for Gantt
+    const ganttData = {
+        data: [
+            {% for task in tasks %}
+            {
+                id: {{ task.pk }},
+                text: "{{ task.title|escapejs }}",
+                task_code: "{{ task.task_code }}",
+                start_date: {% if task.start_date %}"{{ task.start_date|date:"Y-m-d" }}"{% else %}null{% endif %},
+                duration: {{ task.duration|default:1 }},
+                progress: {{ task.progress|default:0 }} / 100,
+                parent: {% if task.parent_task %}{{ task.parent_task.pk }}{% else %}0{% endif %},
+                priority: "{{ task.priority }}",
+                status: "{{ task.status }}",
+                is_milestone: {{ task.is_milestone|lower }},
+                critical: {% if task.id in critical_path %}true{% else %}false{% endif %},
+                open: true,
+                assignees: [
+                    {% for user in task.assigned_to.all %}
+                    {
+                        id: {{ user.pk }},
+                        name: "{{ user.get_full_name|default:user.email|escapejs }}"
+                    }{% if not forloop.last %},{% endif %}
+                    {% endfor %}
+                ]
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ],
+        links: [
+            {% for task in tasks %}
+            {% for dep in task.predecessors.all %}
+            {
+                id: "{{ dep.pk }}",
+                source: {{ dep.predecessor.pk }},
+                target: {{ dep.successor.pk }},
+                type: "{% if dep.dependency_type == 'FS' %}0{% elif dep.dependency_type == 'SS' %}1{% elif dep.dependency_type == 'FF' %}2{% else %}3{% endif %}"
+            }{% if not forloop.last or not forloop.parentloop.last %},{% endif %}
+            {% endfor %}
+            {% endfor %}
+        ]
+    };
+
+    // Initialize Gantt
+    gantt.init("gantt_here");
+    gantt.parse(ganttData);
+
+    // CSRF token helper
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    const csrftoken = getCookie('csrftoken');
+
+    // Event handlers
+    gantt.attachEvent("onAfterTaskDrag", function(id, mode, e){
+        const task = gantt.getTask(id);
+
+        if (mode === "resize" || mode === "move") {
+            // Update task dates via API
+            fetch(`/project-management/{{ project.pk }}/api/gantt/tasks/${id}/update-dates/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                },
+                body: JSON.stringify({
+                    start_date: gantt.date.date_to_str("%Y-%m-%d")(task.start_date),
+                    end_date: gantt.date.date_to_str("%Y-%m-%d")(task.end_date)
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    alert('Error: ' + data.error);
+                    gantt.undo();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                gantt.undo();
+            });
+        }
+    });
+
+    gantt.attachEvent("onAfterLinkAdd", function(id, link){
+        // Add dependency via API
+        fetch(`/project-management/{{ project.pk }}/api/gantt/dependencies/add/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            },
+            body: JSON.stringify({
+                predecessor_id: link.source,
+                successor_id: link.target,
+                dependency_type: link.type === "0" ? "FS" : link.type === "1" ? "SS" : link.type === "2" ? "FF" : "SF"
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                alert('Error: ' + data.error);
+                gantt.deleteLink(id);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            gantt.deleteLink(id);
+        });
+
+        return true;
+    });
+
+    gantt.attachEvent("onAfterTaskUpdate", function(id, task){
+        // Update task progress
+        fetch(`/project-management/{{ project.pk }}/api/gantt/tasks/${id}/update-progress/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            },
+            body: JSON.stringify({
+                progress: Math.round(task.progress * 100)
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                console.error('Progress update failed:', data.error);
+            }
+        });
+    });
+
+    // View mode change
+    document.querySelectorAll('input[name="viewMode"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            switch(this.value) {
+                case 'day':
+                    gantt.config.scale_unit = "day";
+                    gantt.config.date_scale = "%d %M";
+                    gantt.config.subscales = [{unit:"hour", step:6, date:"%H"}];
+                    break;
+                case 'week':
+                    gantt.config.scale_unit = "week";
+                    gantt.config.date_scale = "Week #%W";
+                    gantt.config.subscales = [{unit:"day", step:1, date:"%d %M"}];
+                    break;
+                case 'month':
+                    gantt.config.scale_unit = "month";
+                    gantt.config.date_scale = "%F %Y";
+                    gantt.config.subscales = [{unit:"week", step:1, date:"#%W"}];
+                    break;
+                case 'year':
+                    gantt.config.scale_unit = "year";
+                    gantt.config.date_scale = "%Y";
+                    gantt.config.subscales = [{unit:"month", step:1, date:"%M"}];
+                    break;
+            }
+            gantt.render();
+        });
+    });
+
+    // Toggle options
+    document.getElementById('showCritical').addEventListener('change', function() {
+        gantt.config.highlight_critical_path = this.checked;
+        gantt.render();
+    });
+
+    document.getElementById('showDeps').addEventListener('change', function() {
+        gantt.config.show_links = this.checked;
+        gantt.render();
+    });
+
+    document.getElementById('showProgress').addEventListener('change', function() {
+        gantt.config.show_progress = this.checked;
+        gantt.render();
+    });
+
+    // Baseline selection
+    {% if baselines %}
+    document.getElementById('baselineSelect').addEventListener('change', function() {
+        const baselineId = this.value;
+        const url = new URL(window.location);
+        if (baselineId) {
+            url.searchParams.set('baseline', baselineId);
+        } else {
+            url.searchParams.delete('baseline');
+        }
+        window.location.href = url.toString();
+    });
+    {% endif %}
+
+    // Modal functions
+    function showCreateBaselineModal() {
+        const modal = new bootstrap.Modal(document.getElementById('createBaselineModal'));
+        modal.show();
+    }
+
+    function showDependencyModal() {
+        const modal = new bootstrap.Modal(document.getElementById('dependencyModal'));
+        modal.show();
+    }
+
+    function createBaseline() {
+        const name = document.getElementById('baselineName').value.trim();
+        const description = document.getElementById('baselineDescription').value.trim();
+
+        if (!name) {
+            alert('Please enter a baseline name');
+            return;
+        }
+
+        fetch(`/project-management/{{ project.pk }}/api/gantt/baselines/create/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            },
+            body: JSON.stringify({
+                name: name,
+                description: description
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Baseline created successfully!');
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to create baseline');
+        });
+    }
+
+    function addDependency() {
+        const predecessorId = document.getElementById('predecessorTask').value;
+        const successorId = document.getElementById('successorTask').value;
+        const dependencyType = document.getElementById('dependencyType').value;
+        const lagDays = document.getElementById('lagDays').value;
+
+        if (!predecessorId || !successorId) {
+            alert('Please select both predecessor and successor tasks');
+            return;
+        }
+
+        if (predecessorId === successorId) {
+            alert('A task cannot depend on itself');
+            return;
+        }
+
+        fetch(`/project-management/{{ project.pk }}/api/gantt/dependencies/add/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            },
+            body: JSON.stringify({
+                predecessor_id: predecessorId,
+                successor_id: successorId,
+                dependency_type: dependencyType,
+                lag_days: parseInt(lagDays) || 0
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Dependency added successfully!');
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to add dependency');
+        });
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,394 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Resources - Project Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .resource-card {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        transition: box-shadow 0.3s ease;
+    }
+
+    .resource-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .resource-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+
+    .resource-avatar {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 24px;
+        font-weight: bold;
+        margin-right: 15px;
+    }
+
+    .resource-info h5 {
+        margin: 0 0 5px 0;
+        font-size: 18px;
+    }
+
+    .resource-info .text-muted {
+        font-size: 14px;
+    }
+
+    .utilization-bar {
+        height: 30px;
+        background-color: #e9ecef;
+        border-radius: 5px;
+        overflow: hidden;
+        position: relative;
+        margin: 10px 0;
+    }
+
+    .utilization-fill {
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 14px;
+        transition: width 0.5s ease;
+    }
+
+    .utilization-available {
+        background-color: #28a745;
+    }
+
+    .utilization-busy {
+        background-color: #ffc107;
+    }
+
+    .utilization-overallocated {
+        background-color: #dc3545;
+    }
+
+    .status-badge {
+        padding: 5px 12px;
+        border-radius: 15px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .status-available {
+        background-color: #d4edda;
+        color: #155724;
+    }
+
+    .status-busy {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+
+    .status-overallocated {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+
+    .skill-tag {
+        display: inline-block;
+        background-color: #e7f3ff;
+        color: #0066cc;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 12px;
+        margin-right: 5px;
+        margin-bottom: 5px;
+    }
+
+    .filter-section {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 30px;
+    }
+
+    .stats-card {
+        text-align: center;
+        padding: 20px;
+        border-radius: 8px;
+        background: white;
+        border: 1px solid #dee2e6;
+    }
+
+    .stats-number {
+        font-size: 32px;
+        font-weight: bold;
+        color: #007bff;
+    }
+
+    .stats-label {
+        color: #6c757d;
+        font-size: 14px;
+        margin-top: 5px;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #6c757d;
+    }
+
+    .empty-state i {
+        font-size: 64px;
+        margin-bottom: 20px;
+        opacity: 0.3;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="fas fa-users"></i> Resource Management</h2>
+            <p class="text-muted">Team capacity and workload overview</p>
+        </div>
+        <div>
+            <a href="{% url 'project_management:resource_workload' %}" class="btn btn-outline-primary">
+                <i class="fas fa-calendar-alt"></i> Workload Calendar
+            </a>
+            <a href="{% url 'project_management:resource_capacity_report' %}" class="btn btn-outline-info">
+                <i class="fas fa-chart-bar"></i> Capacity Report
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-number">{{ resource_data|length }}</div>
+                <div class="stats-label">Total Resources</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-number text-success">
+                    {% with available=resource_data|length %}
+                    {% for item in resource_data %}
+                        {% if item.utilization < 70 %}
+                            {{ forloop.counter }}
+                        {% endif %}
+                    {% endfor %}
+                    {% endwith %}
+                </div>
+                <div class="stats-label">Available (&lt;70%)</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-number text-warning">
+                    {% for item in resource_data %}
+                        {% if item.utilization >= 70 and item.utilization <= 100 %}
+                            {{ forloop.counter }}
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                <div class="stats-label">Busy (70-100%)</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-number text-danger">
+                    {% for item in resource_data %}
+                        {% if item.utilization > 100 %}
+                            {{ forloop.counter }}
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                <div class="stats-label">Over-Allocated (&gt;100%)</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filter-section">
+        <form method="get" id="filterForm">
+            <div class="row">
+                <div class="col-md-3">
+                    <label for="search" class="form-label">Search</label>
+                    <input type="text" class="form-control" id="search" name="search"
+                           value="{{ filters.search }}" placeholder="Name, job title...">
+                </div>
+                <div class="col-md-2">
+                    <label for="department" class="form-label">Department</label>
+                    <select class="form-control" id="department" name="department">
+                        <option value="">All Departments</option>
+                        {% for dept in departments %}
+                        <option value="{{ dept }}" {% if filters.department == dept %}selected{% endif %}>
+                            {{ dept }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="skill" class="form-label">Skill</label>
+                    <select class="form-control" id="skill" name="skill">
+                        <option value="">All Skills</option>
+                        {% for skill in skills %}
+                        <option value="{{ skill.id }}" {% if filters.skill == skill.id|stringformat:"s" %}selected{% endif %}>
+                            {{ skill.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="availability" class="form-label">Availability</label>
+                    <select class="form-control" id="availability" name="availability">
+                        <option value="">All</option>
+                        <option value="available" {% if filters.availability == 'available' %}selected{% endif %}>Available</option>
+                        <option value="busy" {% if filters.availability == 'busy' %}selected{% endif %}>Busy</option>
+                        <option value="overallocated" {% if filters.availability == 'overallocated' %}selected{% endif %}>Over-Allocated</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="sort" class="form-label">Sort By</label>
+                    <select class="form-control" id="sort" name="sort">
+                        <option value="name" {% if filters.sort == 'name' %}selected{% endif %}>Name</option>
+                        <option value="utilization" {% if filters.sort == 'utilization' %}selected{% endif %}>Utilization</option>
+                        <option value="rate" {% if filters.sort == 'rate' %}selected{% endif %}>Hourly Rate</option>
+                        <option value="department" {% if filters.sort == 'department' %}selected{% endif %}>Department</option>
+                    </select>
+                </div>
+                <div class="col-md-1 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-filter"></i> Filter
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Resource List -->
+    {% if resource_data %}
+    <div class="row">
+        {% for item in resource_data %}
+        <div class="col-md-6 col-lg-4">
+            <div class="resource-card">
+                <div class="resource-header">
+                    <div class="resource-avatar">
+                        {{ item.resource.user.first_name|first|upper|default:"U" }}{{ item.resource.user.last_name|first|upper|default:"" }}
+                    </div>
+                    <div class="resource-info">
+                        <h5>
+                            <a href="{% url 'project_management:resource_detail' item.resource.id %}" class="text-decoration-none">
+                                {{ item.resource.user.get_full_name|default:item.resource.user.email }}
+                            </a>
+                        </h5>
+                        <div class="text-muted">{{ item.resource.job_title }}</div>
+                        <div class="text-muted small">{{ item.resource.department }}</div>
+                    </div>
+                </div>
+
+                <!-- Utilization Bar -->
+                <div class="utilization-bar">
+                    {% if item.utilization < 70 %}
+                    <div class="utilization-fill utilization-available" style="width: {{ item.utilization }}%">
+                        {{ item.utilization|floatformat:0 }}%
+                    </div>
+                    {% elif item.utilization <= 100 %}
+                    <div class="utilization-fill utilization-busy" style="width: {{ item.utilization }}%">
+                        {{ item.utilization|floatformat:0 }}%
+                    </div>
+                    {% else %}
+                    <div class="utilization-fill utilization-overallocated" style="width: 100%">
+                        {{ item.utilization|floatformat:0 }}%
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Status Badge -->
+                <div class="mb-3">
+                    {% if item.utilization < 70 %}
+                    <span class="status-badge status-available">Available</span>
+                    {% elif item.utilization <= 100 %}
+                    <span class="status-badge status-busy">Busy</span>
+                    {% else %}
+                    <span class="status-badge status-overallocated">Over-Allocated</span>
+                    {% endif %}
+                    <span class="small text-muted">{{ item.workload|floatformat:1 }}h / {{ item.resource.available_hours_per_day|floatformat:1 }}h per day</span>
+                </div>
+
+                <!-- Capacity Info -->
+                <div class="mb-3">
+                    <small class="text-muted">
+                        <i class="fas fa-clock"></i> {{ item.resource.working_hours_per_day }}h/day @ {{ item.resource.availability_percentage }}% availability
+                    </small>
+                    <br>
+                    <small class="text-muted">
+                        <i class="fas fa-dollar-sign"></i> ${{ item.resource.hourly_rate|floatformat:2 }}/hr
+                    </small>
+                </div>
+
+                <!-- Skills -->
+                {% if item.resource.skills.all %}
+                <div class="mt-2">
+                    {% for skill in item.resource.skills.all|slice:":4" %}
+                    <span class="skill-tag">{{ skill.name }}</span>
+                    {% endfor %}
+                    {% if item.resource.skills.count > 4 %}
+                    <span class="skill-tag">+{{ item.resource.skills.count|add:"-4" }} more</span>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <!-- Actions -->
+                <div class="mt-3">
+                    <a href="{% url 'project_management:resource_detail' item.resource.id %}" class="btn btn-sm btn-outline-primary w-100">
+                        <i class="fas fa-eye"></i> View Profile
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-users"></i>
+        <h3>No Resources Found</h3>
+        <p>No resources match your current filters. Try adjusting your search criteria.</p>
+        <a href="{% url 'project_management:resource_list' %}" class="btn btn-primary">
+            <i class="fas fa-redo"></i> Clear Filters
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-submit form on filter change
+    document.querySelectorAll('#filterForm select').forEach(select => {
+        select.addEventListener('change', function() {
+            document.getElementById('filterForm').submit();
+        });
+    });
+
+    // Search with debounce
+    let searchTimeout;
+    document.getElementById('search').addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            document.getElementById('filterForm').submit();
+        }, 500);
+    });
+</script>
+{% endblock %}

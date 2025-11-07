@@ -45,7 +45,7 @@ class ExpenseClaimForm(forms.ModelForm):
         # Use cached company data
         companies = ExpenseSystemCache.get_active_companies()
         self.fields['company'].choices = [('', '--- Select Company ---')] + [
-            (company['id'], company['name']) for company in companies
+            (company.id, company.name) for company in companies
         ]
     
     def clean_event_name(self):
@@ -135,13 +135,13 @@ class ExpenseItemForm(forms.ModelForm):
         # Use cached data for dropdowns
         categories = ExpenseSystemCache.get_active_categories()
         currencies = ExpenseSystemCache.get_active_currencies()
-        
+
         self.fields['category'].choices = [('', '--- Select Category ---')] + [
-            (cat['id'], cat['name']) for cat in categories
+            (cat.id, cat.name) for cat in categories
         ]
-        
+
         self.fields['currency'].choices = [('', '--- Select Currency ---')] + [
-            (curr['id'], f"{curr['code']} - {curr['name']}") for curr in currencies
+            (curr.id, f"{curr.code} - {curr.name}") for curr in currencies
         ]
     
     def clean_expense_date(self):

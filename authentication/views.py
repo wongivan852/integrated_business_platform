@@ -351,3 +351,57 @@ def get_client_ip(request):
     else:
         ip = request.META.get('REMOTE_ADDR')
     return ip
+
+
+def home_redirect(request):
+    """
+    Smart redirect for home page.
+    Redirects authenticated users to dashboard, others to login.
+    """
+    if request.user.is_authenticated:
+        return redirect('dashboard:home')
+    else:
+        return redirect('authentication:login')
+
+
+@login_required
+def change_password_required(request):
+    """
+    Forced password change view for users with password_change_required=True.
+    Users cannot access other parts of the application until they change their password.
+    """
+    from django.contrib.auth.forms import PasswordChangeForm
+
+    if request.method == 'POST':
+        form = PasswordChangeForm(request.user, request.POST)
+        if form.is_valid():
+            user = form.save()
+            # Clear the password_change_required flag
+            user.password_change_required = False
+            user.save(update_fields=['password_change_required'])
+
+            # Clear the session message flag
+            request.session.pop('password_change_message_shown', None)
+
+            # Update the session to prevent logout
+            from django.contrib.auth import update_session_auth_hash
+            update_session_auth_hash(request, user)
+
+            messages.success(
+                request,
+                _('Your password has been changed successfully! You can now access all applications.')
+            )
+            return redirect('dashboard:home')
+        else:
+            messages.error(
+                request,
+                _('Please correct the errors below.')
+            )
+    else:
+        form = PasswordChangeForm(request.user)
+
+    return render(request, 'authentication/change_password_required.html', {
+        'form': form,
+        'page_title': _('Change Password Required'),
+        'is_required': True,
+    })

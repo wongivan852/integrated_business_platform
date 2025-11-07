@@ -3,7 +3,7 @@ Management command to set up Krystal Group companies.
 """
 
 from django.core.management.base import BaseCommand
-from claims.models import Company, Currency
+from expense_claims.models import Company, Currency
 from django.db import transaction
 from decimal import Decimal
 

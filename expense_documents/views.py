@@ -29,7 +29,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from django.db import models
 
 from .models import ExpenseDocument, DocumentProcessingJob, GeneratedDocument
-from claims.models import ExpenseItem
+from expense_claims.models import ExpenseItem
 from utils.cache_utils import cache_result
 import logging
 

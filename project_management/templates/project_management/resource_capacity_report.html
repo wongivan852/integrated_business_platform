@@ -1,0 +1,530 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Capacity Report - Project Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .report-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 8px;
+        margin-bottom: 30px;
+    }
+
+    .summary-card {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 25px;
+        text-align: center;
+        margin-bottom: 20px;
+        transition: transform 0.3s, box-shadow 0.3s;
+    }
+
+    .summary-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+    }
+
+    .summary-number {
+        font-size: 48px;
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
+
+    .summary-label {
+        font-size: 16px;
+        color: #6c757d;
+        font-weight: 600;
+    }
+
+    .summary-detail {
+        font-size: 13px;
+        color: #6c757d;
+        margin-top: 10px;
+    }
+
+    .section-card {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 25px;
+        margin-bottom: 30px;
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #007bff;
+    }
+
+    .section-title {
+        font-size: 20px;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .resource-item {
+        display: flex;
+        align-items: center;
+        padding: 15px;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        margin-bottom: 10px;
+        transition: background-color 0.3s;
+    }
+
+    .resource-item:hover {
+        background-color: #f8f9fa;
+    }
+
+    .resource-avatar {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 18px;
+        margin-right: 15px;
+        flex-shrink: 0;
+    }
+
+    .resource-info {
+        flex-grow: 1;
+    }
+
+    .resource-name {
+        font-weight: 600;
+        font-size: 16px;
+        margin-bottom: 3px;
+    }
+
+    .resource-details {
+        font-size: 13px;
+        color: #6c757d;
+    }
+
+    .resource-metric {
+        text-align: right;
+        min-width: 120px;
+    }
+
+    .metric-value {
+        font-size: 20px;
+        font-weight: bold;
+        margin-bottom: 3px;
+    }
+
+    .metric-label {
+        font-size: 12px;
+        color: #6c757d;
+    }
+
+    .department-item {
+        padding: 20px;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        background: white;
+    }
+
+    .department-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+
+    .department-name {
+        font-size: 18px;
+        font-weight: 600;
+    }
+
+    .department-stats {
+        display: flex;
+        gap: 20px;
+    }
+
+    .dept-stat {
+        text-align: center;
+    }
+
+    .dept-stat-value {
+        font-size: 24px;
+        font-weight: bold;
+    }
+
+    .dept-stat-label {
+        font-size: 11px;
+        color: #6c757d;
+        text-transform: uppercase;
+    }
+
+    .utilization-gauge {
+        height: 30px;
+        background-color: #e9ecef;
+        border-radius: 15px;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .utilization-fill {
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 13px;
+        transition: width 0.5s ease;
+    }
+
+    .skill-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 15px;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        margin-bottom: 8px;
+        background: white;
+    }
+
+    .skill-name {
+        font-weight: 600;
+        font-size: 15px;
+    }
+
+    .skill-availability {
+        display: flex;
+        gap: 15px;
+        align-items: center;
+    }
+
+    .availability-badge {
+        padding: 5px 12px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .badge-available {
+        background-color: #d4edda;
+        color: #155724;
+    }
+
+    .badge-limited {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+
+    .badge-unavailable {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+
+    .date-selector {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 30px;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #6c757d;
+    }
+
+    .empty-state i {
+        font-size: 64px;
+        opacity: 0.3;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Report Header -->
+    <div class="report-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2><i class="fas fa-chart-bar"></i> Team Capacity Report</h2>
+                <p class="mb-0">Resource utilization analysis for {{ start_date|date:"M d" }} - {{ end_date|date:"M d, Y" }}</p>
+            </div>
+            <div>
+                <a href="{% url 'project_management:resource_list' %}" class="btn btn-light">
+                    <i class="fas fa-users"></i> Resource List
+                </a>
+                <a href="{% url 'project_management:resource_workload' %}" class="btn btn-light">
+                    <i class="fas fa-calendar-alt"></i> Workload Calendar
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Date Range Selector -->
+    <div class="date-selector">
+        <form method="get" class="row align-items-end">
+            <div class="col-md-3">
+                <label class="form-label"><strong>Start Date</strong></label>
+                <input type="date" class="form-control" name="start_date" value="{{ start_date|date:'Y-m-d' }}" required>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label"><strong>End Date</strong></label>
+                <input type="date" class="form-control" name="end_date" value="{{ end_date|date:'Y-m-d' }}" required>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-search"></i> Generate Report
+                </button>
+            </div>
+            <div class="col-md-4 text-end">
+                <a href="?start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&export=pdf" class="btn btn-outline-secondary">
+                    <i class="fas fa-file-pdf"></i> Export PDF
+                </a>
+                <a href="?start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&export=xlsx" class="btn btn-outline-success">
+                    <i class="fas fa-file-excel"></i> Export Excel
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="summary-card">
+                <div class="summary-number text-primary">{{ total_resources }}</div>
+                <div class="summary-label">Total Resources</div>
+                <div class="summary-detail">{{ total_available_hours|floatformat:0 }}h available</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="summary-card">
+                {% if overall_utilization < 70 %}
+                <div class="summary-number text-success">{{ overall_utilization|floatformat:1 }}%</div>
+                {% elif overall_utilization <= 100 %}
+                <div class="summary-number text-warning">{{ overall_utilization|floatformat:1 }}%</div>
+                {% else %}
+                <div class="summary-number text-danger">{{ overall_utilization|floatformat:1 }}%</div>
+                {% endif %}
+                <div class="summary-label">Overall Utilization</div>
+                <div class="summary-detail">{{ total_allocated_hours|floatformat:0 }}h allocated</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="summary-card">
+                <div class="summary-number text-success">{{ available_resources|length }}</div>
+                <div class="summary-label">Available Resources</div>
+                <div class="summary-detail">&lt;70% utilization</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="summary-card">
+                <div class="summary-number text-danger">{{ overallocated_resources|length }}</div>
+                <div class="summary-label">Over-Allocated</div>
+                <div class="summary-detail">&gt;100% utilization</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left Column -->
+        <div class="col-md-8">
+            <!-- Over-Allocated Resources -->
+            {% if overallocated_resources %}
+            <div class="section-card">
+                <div class="section-header">
+                    <h5 class="section-title">
+                        <i class="fas fa-exclamation-triangle text-danger"></i> Over-Allocated Resources
+                    </h5>
+                    <span class="badge bg-danger">{{ overallocated_resources|length }} resources</span>
+                </div>
+
+                {% for item in overallocated_resources %}
+                <div class="resource-item">
+                    <div class="resource-avatar">
+                        {{ item.resource.user.first_name|first|upper|default:"U" }}{{ item.resource.user.last_name|first|upper|default:"" }}
+                    </div>
+                    <div class="resource-info">
+                        <div class="resource-name">
+                            <a href="{% url 'project_management:resource_detail' item.resource.id %}">
+                                {{ item.resource.user.get_full_name|default:item.resource.user.email }}
+                            </a>
+                        </div>
+                        <div class="resource-details">
+                            {{ item.resource.job_title }} • {{ item.resource.department }}
+                        </div>
+                        <div class="mt-2">
+                            <small class="text-danger">
+                                <i class="fas fa-exclamation-circle"></i>
+                                Over by {{ item.overage|floatformat:1 }} hours
+                                ({{ item.allocated_hours|floatformat:1 }}h / {{ item.available_hours|floatformat:1 }}h)
+                            </small>
+                        </div>
+                    </div>
+                    <div class="resource-metric">
+                        <div class="metric-value text-danger">{{ item.utilization|floatformat:0 }}%</div>
+                        <div class="metric-label">Utilization</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Available Resources -->
+            {% if available_resources %}
+            <div class="section-card">
+                <div class="section-header">
+                    <h5 class="section-title">
+                        <i class="fas fa-check-circle text-success"></i> Available Resources
+                    </h5>
+                    <span class="badge bg-success">{{ available_resources|length }} resources</span>
+                </div>
+
+                {% for item in available_resources %}
+                <div class="resource-item">
+                    <div class="resource-avatar">
+                        {{ item.resource.user.first_name|first|upper|default:"U" }}{{ item.resource.user.last_name|first|upper|default:"" }}
+                    </div>
+                    <div class="resource-info">
+                        <div class="resource-name">
+                            <a href="{% url 'project_management:resource_detail' item.resource.id %}">
+                                {{ item.resource.user.get_full_name|default:item.resource.user.email }}
+                            </a>
+                        </div>
+                        <div class="resource-details">
+                            {{ item.resource.job_title }} • {{ item.resource.department }}
+                        </div>
+                        <div class="mt-2">
+                            <small class="text-success">
+                                <i class="fas fa-check"></i>
+                                {{ item.available_capacity|floatformat:1 }}h available capacity
+                            </small>
+                        </div>
+                    </div>
+                    <div class="resource-metric">
+                        <div class="metric-value text-success">{{ item.utilization|floatformat:0 }}%</div>
+                        <div class="metric-label">Utilization</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Department Breakdown -->
+            <div class="section-card">
+                <div class="section-header">
+                    <h5 class="section-title">
+                        <i class="fas fa-building"></i> Department Breakdown
+                    </h5>
+                </div>
+
+                {% for dept, stats in department_stats.items %}
+                <div class="department-item">
+                    <div class="department-header">
+                        <div class="department-name">{{ dept }}</div>
+                        <div class="department-stats">
+                            <div class="dept-stat">
+                                <div class="dept-stat-value">{{ stats.count }}</div>
+                                <div class="dept-stat-label">Resources</div>
+                            </div>
+                            <div class="dept-stat">
+                                <div class="dept-stat-value">{{ stats.available|floatformat:0 }}h</div>
+                                <div class="dept-stat-label">Available</div>
+                            </div>
+                            <div class="dept-stat">
+                                <div class="dept-stat-value">{{ stats.allocated|floatformat:0 }}h</div>
+                                <div class="dept-stat-label">Allocated</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="utilization-gauge">
+                        {% if stats.utilization < 70 %}
+                        <div class="utilization-fill" style="width: {{ stats.utilization }}%; background-color: #28a745;">
+                            {{ stats.utilization|floatformat:1 }}%
+                        </div>
+                        {% elif stats.utilization <= 100 %}
+                        <div class="utilization-fill" style="width: {{ stats.utilization }}%; background-color: #ffc107;">
+                            {{ stats.utilization|floatformat:1 }}%
+                        </div>
+                        {% else %}
+                        <div class="utilization-fill" style="width: 100%; background-color: #dc3545;">
+                            {{ stats.utilization|floatformat:1 }}%
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="col-md-4">
+            <!-- Skill Availability -->
+            <div class="section-card">
+                <div class="section-header">
+                    <h5 class="section-title">
+                        <i class="fas fa-tools"></i> Skill Availability
+                    </h5>
+                </div>
+
+                {% if skill_stats %}
+                {% for skill_data in skill_stats %}
+                <div class="skill-item">
+                    <div class="skill-name">{{ skill_data.skill.name }}</div>
+                    <div class="skill-availability">
+                        <span class="small text-muted">
+                            {{ skill_data.available_resources }} / {{ skill_data.total_resources }} available
+                        </span>
+                        {% if skill_data.available_resources >= 3 %}
+                        <span class="availability-badge badge-available">Available</span>
+                        {% elif skill_data.available_resources >= 1 %}
+                        <span class="availability-badge badge-limited">Limited</span>
+                        {% else %}
+                        <span class="availability-badge badge-unavailable">None</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-tools"></i>
+                    <p>No skill data available</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="section-card">
+                <div class="section-header">
+                    <h5 class="section-title">
+                        <i class="fas fa-bolt"></i> Quick Actions
+                    </h5>
+                </div>
+                <div class="d-grid gap-2">
+                    <a href="{% url 'project_management:resource_workload' %}?view=week&date={{ start_date|date:'Y-m-d' }}" class="btn btn-outline-primary">
+                        <i class="fas fa-calendar-week"></i> View Weekly Calendar
+                    </a>
+                    <a href="{% url 'project_management:resource_list' %}?availability=overallocated" class="btn btn-outline-danger">
+                        <i class="fas fa-exclamation-triangle"></i> See Over-Allocated Resources
+                    </a>
+                    <a href="{% url 'project_management:resource_list' %}?availability=available" class="btn btn-outline-success">
+                        <i class="fas fa-check-circle"></i> Find Available Resources
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

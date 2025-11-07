@@ -1,0 +1,754 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Resource Allocation - {{ project.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .allocation-container {
+        display: flex;
+        gap: 20px;
+        margin-top: 20px;
+    }
+
+    .task-panel {
+        flex: 1;
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        max-height: 800px;
+        overflow-y: auto;
+    }
+
+    .resource-panel {
+        flex: 1;
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        max-height: 800px;
+        overflow-y: auto;
+    }
+
+    .panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #007bff;
+    }
+
+    .panel-title {
+        font-size: 18px;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .task-item {
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        padding: 15px;
+        margin-bottom: 10px;
+        cursor: pointer;
+        transition: all 0.3s;
+        position: relative;
+    }
+
+    .task-item:hover {
+        background-color: #f8f9fa;
+        border-color: #007bff;
+    }
+
+    .task-item.selected {
+        background-color: #e3f2fd;
+        border-color: #007bff;
+        border-width: 2px;
+    }
+
+    .task-code {
+        font-weight: 600;
+        color: #007bff;
+        font-size: 14px;
+    }
+
+    .task-title {
+        font-weight: 600;
+        margin: 5px 0;
+    }
+
+    .task-dates {
+        font-size: 12px;
+        color: #6c757d;
+        margin-top: 5px;
+    }
+
+    .task-assignments {
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid #dee2e6;
+    }
+
+    .assignment-tag {
+        display: inline-block;
+        background-color: #e7f3ff;
+        color: #0066cc;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        margin-right: 5px;
+        margin-bottom: 5px;
+    }
+
+    .resource-card {
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        padding: 15px;
+        margin-bottom: 10px;
+        transition: all 0.3s;
+    }
+
+    .resource-card:hover {
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .resource-header-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .resource-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        margin-right: 12px;
+        flex-shrink: 0;
+    }
+
+    .resource-info {
+        flex-grow: 1;
+    }
+
+    .resource-name {
+        font-weight: 600;
+        font-size: 15px;
+    }
+
+    .resource-title {
+        font-size: 12px;
+        color: #6c757d;
+    }
+
+    .resource-capacity {
+        margin-top: 10px;
+    }
+
+    .capacity-bar {
+        height: 20px;
+        background-color: #e9ecef;
+        border-radius: 10px;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .capacity-fill {
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: bold;
+        color: white;
+    }
+
+    .status-available {
+        background-color: #28a745;
+    }
+
+    .status-busy {
+        background-color: #ffc107;
+    }
+
+    .status-overallocated {
+        background-color: #dc3545;
+    }
+
+    .assign-btn {
+        width: 100%;
+        margin-top: 10px;
+    }
+
+    .allocation-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 1050;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .allocation-modal.show {
+        display: flex;
+    }
+
+    .modal-content {
+        background: white;
+        border-radius: 8px;
+        padding: 30px;
+        max-width: 500px;
+        width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #007bff;
+    }
+
+    .modal-title {
+        font-size: 20px;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .close-btn {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #6c757d;
+    }
+
+    .close-btn:hover {
+        color: #000;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-label {
+        font-weight: 600;
+        margin-bottom: 8px;
+        display: block;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        font-size: 14px;
+    }
+
+    .alert {
+        padding: 12px 15px;
+        border-radius: 6px;
+        margin-bottom: 15px;
+    }
+
+    .alert-warning {
+        background-color: #fff3cd;
+        border: 1px solid #ffc107;
+        color: #856404;
+    }
+
+    .alert-success {
+        background-color: #d4edda;
+        border: 1px solid #28a745;
+        color: #155724;
+    }
+
+    .alert-danger {
+        background-color: #f8d7da;
+        border: 1px solid #dc3545;
+        color: #721c24;
+    }
+
+    .current-assignments {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 2px solid #dee2e6;
+    }
+
+    .assignment-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px;
+        background: #f8f9fa;
+        border-radius: 6px;
+        margin-bottom: 8px;
+    }
+
+    .assignment-details {
+        flex-grow: 1;
+    }
+
+    .assignment-resource {
+        font-weight: 600;
+        margin-bottom: 3px;
+    }
+
+    .assignment-info {
+        font-size: 12px;
+        color: #6c757d;
+    }
+
+    .remove-assignment-btn {
+        background: none;
+        border: none;
+        color: #dc3545;
+        cursor: pointer;
+        font-size: 18px;
+        padding: 5px 10px;
+    }
+
+    .remove-assignment-btn:hover {
+        color: #bd2130;
+    }
+
+    .filter-section {
+        margin-bottom: 15px;
+        padding: 10px;
+        background: #f8f9fa;
+        border-radius: 6px;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        font-size: 14px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'project_management:project_list' %}">Projects</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'project_management:project_detail' project.pk %}">{{ project.name }}</a></li>
+            <li class="breadcrumb-item active">Resource Allocation</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="fas fa-user-plus"></i> Resource Allocation</h2>
+            <p class="text-muted">Assign team members to project tasks</p>
+        </div>
+        <div>
+            <a href="{% url 'project_management:project_detail' project.pk %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Project
+            </a>
+            <a href="{% url 'project_management:resource_list' %}" class="btn btn-outline-primary">
+                <i class="fas fa-users"></i> All Resources
+            </a>
+        </div>
+    </div>
+
+    <!-- Allocation Interface -->
+    <div class="allocation-container">
+        <!-- Left: Tasks -->
+        <div class="task-panel">
+            <div class="panel-header">
+                <h5 class="panel-title">
+                    <i class="fas fa-tasks"></i> Project Tasks
+                </h5>
+                <span class="badge bg-primary">{{ tasks.count }} tasks</span>
+            </div>
+
+            <div class="filter-section">
+                <input type="text" class="search-input" id="taskSearch" placeholder="Search tasks...">
+            </div>
+
+            <div id="taskList">
+                {% for task in tasks %}
+                <div class="task-item" data-task-id="{{ task.id }}" onclick="selectTask({{ task.id }})">
+                    <div class="task-code">{{ task.task_code }}</div>
+                    <div class="task-title">{{ task.title }}</div>
+                    <div class="task-dates">
+                        <i class="fas fa-calendar"></i>
+                        {% if task.start_date and task.end_date %}
+                            {{ task.start_date }} to {{ task.end_date }}
+                        {% else %}
+                            No dates set
+                        {% endif %}
+                    </div>
+
+                    {% with task_assignments=task.resource_assignments.all %}
+                    {% if task_assignments %}
+                    <div class="task-assignments">
+                        <small class="text-muted">Assigned:</small>
+                        {% for assignment in task_assignments %}
+                        <span class="assignment-tag">
+                            {{ assignment.resource.user.get_full_name|default:assignment.resource.user.email }}
+                            ({{ assignment.allocation_percentage }}%)
+                        </span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    {% endwith %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Right: Resources -->
+        <div class="resource-panel">
+            <div class="panel-header">
+                <h5 class="panel-title">
+                    <i class="fas fa-users"></i> Available Resources
+                </h5>
+                <span class="badge bg-success">{{ resource_availability|length }} resources</span>
+            </div>
+
+            <div class="filter-section">
+                <input type="text" class="search-input" id="resourceSearch" placeholder="Search resources...">
+                <select class="form-control mt-2" id="availabilityFilter">
+                    <option value="">All Resources</option>
+                    <option value="available">Available (&lt;70%)</option>
+                    <option value="busy">Busy (70-100%)</option>
+                    <option value="overallocated">Over-Allocated (&gt;100%)</option>
+                </select>
+            </div>
+
+            <div id="resourceList">
+                {% for item in resource_availability %}
+                <div class="resource-card" data-resource-id="{{ item.resource.id }}" data-status="{{ item.status }}">
+                    <div class="resource-header-row">
+                        <div class="resource-avatar">
+                            {{ item.resource.user.first_name|first|upper|default:"U" }}{{ item.resource.user.last_name|first|upper|default:"" }}
+                        </div>
+                        <div class="resource-info">
+                            <div class="resource-name">
+                                {{ item.resource.user.get_full_name|default:item.resource.user.email }}
+                            </div>
+                            <div class="resource-title">
+                                {{ item.resource.job_title }} • {{ item.resource.department }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="resource-capacity">
+                        <div class="capacity-bar">
+                            <div class="capacity-fill status-{{ item.status }}"
+                                 style="width: {% if item.utilization > 100 %}100{% else %}{{ item.utilization }}{% endif %}%">
+                                {{ item.utilization|floatformat:0 }}%
+                            </div>
+                        </div>
+                        <small class="text-muted d-block mt-1">
+                            {{ item.available_capacity|floatformat:1 }}% capacity available
+                        </small>
+                    </div>
+
+                    <button class="btn btn-sm btn-primary assign-btn"
+                            onclick="openAssignModal({{ item.resource.id }}, '{{ item.resource.user.get_full_name|default:item.resource.user.email|escapejs }}')">
+                        <i class="fas fa-plus"></i> Assign to Selected Task
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Assignments -->
+    <div class="current-assignments">
+        <h4><i class="fas fa-list"></i> Current Project Assignments</h4>
+        {% if project_assignments %}
+        <div class="row mt-3">
+            {% for assignment in project_assignments %}
+            <div class="col-md-6 col-lg-4 mb-3">
+                <div class="assignment-item">
+                    <div class="assignment-details">
+                        <div class="assignment-resource">
+                            {{ assignment.resource.user.get_full_name|default:assignment.resource.user.email }}
+                        </div>
+                        <div class="assignment-info">
+                            <strong>{{ assignment.task.task_code }}</strong> • {{ assignment.allocation_percentage }}%<br>
+                            {{ assignment.start_date }} to {{ assignment.end_date }}
+                        </div>
+                    </div>
+                    <button class="remove-assignment-btn" onclick="removeAssignment({{ assignment.id }})"
+                            title="Remove assignment">
+                        <i class="fas fa-times-circle"></i>
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted">No resource assignments for this project yet.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Assignment Modal -->
+<div id="assignmentModal" class="allocation-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h5 class="modal-title">Assign Resource to Task</h5>
+            <button class="close-btn" onclick="closeAssignModal()">&times;</button>
+        </div>
+
+        <div id="modalAlert"></div>
+
+        <form id="assignmentForm">
+            <input type="hidden" id="selectedTaskId">
+            <input type="hidden" id="selectedResourceId">
+
+            <div class="form-group">
+                <label class="form-label">Resource</label>
+                <input type="text" class="form-control" id="resourceName" readonly>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Task</label>
+                <input type="text" class="form-control" id="taskName" readonly>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Allocation Percentage (%)</label>
+                <input type="number" class="form-control" id="allocationPercentage"
+                       min="1" max="100" value="100" required>
+                <small class="text-muted">Percentage of resource's time allocated to this task</small>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Assigned Hours</label>
+                <input type="number" class="form-control" id="assignedHours"
+                       min="0" step="0.5" value="0" required>
+                <small class="text-muted">Total hours to allocate for this task</small>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label class="form-label">Start Date</label>
+                        <input type="date" class="form-control" id="startDate" required>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label class="form-label">End Date</label>
+                        <input type="date" class="form-control" id="endDate" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2 mt-4">
+                <button type="button" class="btn btn-primary flex-grow-1" onclick="submitAssignment()">
+                    <i class="fas fa-check"></i> Assign Resource
+                </button>
+                <button type="button" class="btn btn-outline-secondary" onclick="closeAssignModal()">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const csrftoken = '{{ csrf_token }}';
+    const projectId = {{ project.pk }};
+    let selectedTaskId = null;
+    let selectedResourceId = null;
+
+    // Select task
+    function selectTask(taskId) {
+        // Remove previous selection
+        document.querySelectorAll('.task-item').forEach(item => {
+            item.classList.remove('selected');
+        });
+
+        // Add selection
+        const taskItem = document.querySelector(`[data-task-id="${taskId}"]`);
+        if (taskItem) {
+            taskItem.classList.add('selected');
+            selectedTaskId = taskId;
+        }
+    }
+
+    // Open assignment modal
+    function openAssignModal(resourceId, resourceName) {
+        if (!selectedTaskId) {
+            alert('Please select a task first');
+            return;
+        }
+
+        selectedResourceId = resourceId;
+
+        // Get task details
+        const taskItem = document.querySelector(`[data-task-id="${selectedTaskId}"]`);
+        const taskCode = taskItem.querySelector('.task-code').textContent;
+        const taskTitle = taskItem.querySelector('.task-title').textContent;
+        const taskName = `${taskCode}: ${taskTitle}`;
+
+        // Populate form
+        document.getElementById('selectedTaskId').value = selectedTaskId;
+        document.getElementById('selectedResourceId').value = resourceId;
+        document.getElementById('resourceName').value = resourceName;
+        document.getElementById('taskName').value = taskName;
+
+        // Get task dates if available
+        const taskDates = taskItem.querySelector('.task-dates');
+        if (taskDates && taskDates.textContent.includes('to')) {
+            // Parse dates from text (simplified)
+            const dates = taskDates.textContent.match(/\d{4}-\d{2}-\d{2}/g);
+            if (dates && dates.length === 2) {
+                document.getElementById('startDate').value = dates[0];
+                document.getElementById('endDate').value = dates[1];
+            }
+        }
+
+        // Show modal
+        document.getElementById('assignmentModal').classList.add('show');
+    }
+
+    // Close modal
+    function closeAssignModal() {
+        document.getElementById('assignmentModal').classList.remove('show');
+        document.getElementById('modalAlert').innerHTML = '';
+        document.getElementById('assignmentForm').reset();
+    }
+
+    // Submit assignment
+    async function submitAssignment() {
+        const taskId = document.getElementById('selectedTaskId').value;
+        const resourceId = document.getElementById('selectedResourceId').value;
+        const allocationPercentage = document.getElementById('allocationPercentage').value;
+        const assignedHours = document.getElementById('assignedHours').value;
+        const startDate = document.getElementById('startDate').value;
+        const endDate = document.getElementById('endDate').value;
+
+        const data = {
+            resource_id: resourceId,
+            allocation_percentage: allocationPercentage,
+            assigned_hours: assignedHours,
+            start_date: startDate,
+            end_date: endDate
+        };
+
+        try {
+            const response = await fetch(`/project-management/${projectId}/api/resources/tasks/${taskId}/assign/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                },
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                showAlert('success', result.message || 'Resource assigned successfully!');
+                setTimeout(() => {
+                    location.reload();
+                }, 1500);
+            } else if (result.warning) {
+                showAlert('warning', result.error);
+            } else {
+                showAlert('danger', result.error || 'Failed to assign resource');
+            }
+        } catch (error) {
+            showAlert('danger', 'An error occurred: ' + error.message);
+        }
+    }
+
+    // Remove assignment
+    async function removeAssignment(assignmentId) {
+        if (!confirm('Are you sure you want to remove this resource assignment?')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/project-management/${projectId}/api/resources/assignments/${assignmentId}/remove/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                }
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                alert(result.message);
+                location.reload();
+            } else {
+                alert('Error: ' + result.error);
+            }
+        } catch (error) {
+            alert('An error occurred: ' + error.message);
+        }
+    }
+
+    // Show alert in modal
+    function showAlert(type, message) {
+        const alertHtml = `
+            <div class="alert alert-${type}">
+                ${message}
+            </div>
+        `;
+        document.getElementById('modalAlert').innerHTML = alertHtml;
+    }
+
+    // Search tasks
+    document.getElementById('taskSearch').addEventListener('input', function(e) {
+        const searchTerm = e.target.value.toLowerCase();
+        document.querySelectorAll('.task-item').forEach(item => {
+            const text = item.textContent.toLowerCase();
+            item.style.display = text.includes(searchTerm) ? 'block' : 'none';
+        });
+    });
+
+    // Search resources
+    document.getElementById('resourceSearch').addEventListener('input', function(e) {
+        const searchTerm = e.target.value.toLowerCase();
+        filterResources(searchTerm, document.getElementById('availabilityFilter').value);
+    });
+
+    // Filter resources by availability
+    document.getElementById('availabilityFilter').addEventListener('change', function(e) {
+        const searchTerm = document.getElementById('resourceSearch').value.toLowerCase();
+        filterResources(searchTerm, e.target.value);
+    });
+
+    function filterResources(searchTerm, status) {
+        document.querySelectorAll('.resource-card').forEach(card => {
+            const text = card.textContent.toLowerCase();
+            const cardStatus = card.getAttribute('data-status');
+
+            const matchesSearch = text.includes(searchTerm);
+            const matchesStatus = !status || cardStatus === status;
+
+            card.style.display = (matchesSearch && matchesStatus) ? 'block' : 'none';
+        });
+    }
+</script>
+{% endblock %}

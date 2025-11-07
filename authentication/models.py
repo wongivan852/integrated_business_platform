@@ -118,6 +118,13 @@ class CompanyUser(AbstractUser):
         help_text=_('Last time user logged in via SSO')
     )
 
+    # Password management
+    password_change_required = models.BooleanField(
+        _('Password Change Required'),
+        default=False,
+        help_text=_('User must change password on next login')
+    )
+
     # Audit fields
     created_by = models.ForeignKey(
         'self',
@@ -302,7 +309,7 @@ class ApplicationConfig(models.Model):
     class Meta:
         verbose_name = _('Application Configuration')
         verbose_name_plural = _('Application Configurations')
-        ordering = ['order', 'display_name']
+        ordering = ['display_name']
 
     def __str__(self):
         return self.display_name

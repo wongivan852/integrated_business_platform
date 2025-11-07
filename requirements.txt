@@ -11,6 +11,10 @@ psycopg2-binary==2.9.9
 djangorestframework==3.14.0
 django-cors-headers==4.3.1
 
+# SSO & JWT Support
+djangorestframework-simplejwt==5.3.0
+PyJWT==2.8.0
+
 # Forms & UI
 django-crispy-forms==2.1
 crispy-bootstrap5==0.7

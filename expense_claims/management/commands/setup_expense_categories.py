@@ -4,7 +4,7 @@ Management command to set up default expense categories.
 
 from django.core.management.base import BaseCommand
 from django.db import transaction
-from claims.models import ExpenseCategory
+from expense_claims.models import ExpenseCategory
 
 
 class Command(BaseCommand):

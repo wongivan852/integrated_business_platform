@@ -1,0 +1,482 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Resource Workload Calendar - Project Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .workload-calendar {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 30px;
+    }
+
+    .calendar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #007bff;
+    }
+
+    .calendar-navigation {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .view-selector {
+        display: flex;
+        gap: 5px;
+    }
+
+    .view-btn {
+        padding: 6px 12px;
+        border: 1px solid #dee2e6;
+        background: white;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: all 0.3s;
+    }
+
+    .view-btn.active {
+        background: #007bff;
+        color: white;
+        border-color: #007bff;
+    }
+
+    .calendar-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .calendar-table th {
+        background: #f8f9fa;
+        padding: 12px 8px;
+        text-align: center;
+        font-weight: 600;
+        border: 1px solid #dee2e6;
+        font-size: 14px;
+    }
+
+    .calendar-table td {
+        border: 1px solid #dee2e6;
+        padding: 8px;
+        vertical-align: top;
+        min-height: 80px;
+    }
+
+    .resource-row-header {
+        font-weight: 600;
+        background: #f8f9fa;
+        padding: 12px;
+        position: sticky;
+        left: 0;
+        z-index: 10;
+        min-width: 200px;
+        border-right: 2px solid #dee2e6;
+    }
+
+    .resource-name {
+        font-size: 15px;
+        margin-bottom: 3px;
+    }
+
+    .resource-title {
+        font-size: 12px;
+        color: #6c757d;
+    }
+
+    .workload-cell {
+        position: relative;
+        height: 60px;
+        transition: background-color 0.3s;
+    }
+
+    .workload-cell:hover {
+        background-color: #f8f9fa;
+    }
+
+    .workload-status-available {
+        background-color: #d4edda !important;
+    }
+
+    .workload-status-busy {
+        background-color: #fff3cd !important;
+    }
+
+    .workload-status-overallocated {
+        background-color: #f8d7da !important;
+    }
+
+    .workload-hours {
+        font-weight: bold;
+        font-size: 14px;
+        margin-bottom: 3px;
+    }
+
+    .workload-utilization {
+        font-size: 11px;
+        color: #6c757d;
+    }
+
+    .workload-bar {
+        height: 4px;
+        background-color: #e9ecef;
+        border-radius: 2px;
+        overflow: hidden;
+        margin-top: 5px;
+    }
+
+    .workload-bar-fill {
+        height: 100%;
+        transition: width 0.3s ease;
+    }
+
+    .assignment-tooltip {
+        position: absolute;
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        padding: 10px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 1000;
+        min-width: 250px;
+        display: none;
+    }
+
+    .assignment-item {
+        padding: 5px 0;
+        border-bottom: 1px solid #f0f0f0;
+        font-size: 12px;
+    }
+
+    .assignment-item:last-child {
+        border-bottom: none;
+    }
+
+    .legend {
+        display: flex;
+        gap: 20px;
+        margin-top: 20px;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 6px;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+    }
+
+    .legend-color {
+        width: 20px;
+        height: 20px;
+        border-radius: 4px;
+        border: 1px solid #dee2e6;
+    }
+
+    .date-header {
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .date-subheader {
+        font-size: 11px;
+        color: #6c757d;
+    }
+
+    .today-column {
+        background-color: #e3f2fd !important;
+    }
+
+    .calendar-controls {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+    }
+
+    .stat-box {
+        text-align: center;
+        padding: 15px;
+        background: white;
+        border-radius: 6px;
+        border: 1px solid #dee2e6;
+    }
+
+    .stat-number {
+        font-size: 24px;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+
+    .stat-label {
+        font-size: 12px;
+        color: #6c757d;
+    }
+
+    .table-container {
+        overflow-x: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="fas fa-calendar-alt"></i> Resource Workload Calendar</h2>
+            <p class="text-muted">Team capacity visualization</p>
+        </div>
+        <div>
+            <a href="{% url 'project_management:resource_list' %}" class="btn btn-outline-primary">
+                <i class="fas fa-users"></i> Resource List
+            </a>
+            <a href="{% url 'project_management:resource_capacity_report' %}" class="btn btn-outline-info">
+                <i class="fas fa-chart-bar"></i> Capacity Report
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stat-box">
+                <div class="stat-number text-primary">{{ workload_data|length }}</div>
+                <div class="stat-label">Total Resources</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-box">
+                <div class="stat-number text-success">
+                    {% with count=0 %}
+                    {% for item in workload_data %}
+                        {% for day in item.daily_workload %}
+                            {% if day.status == 'available' %}
+                                {{ count|add:1 }}
+                            {% endif %}
+                        {% endfor %}
+                    {% endfor %}
+                    {% endwith %}
+                </div>
+                <div class="stat-label">Available Days</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-box">
+                <div class="stat-number text-warning">
+                    {% with count=0 %}
+                    {% for item in workload_data %}
+                        {% for day in item.daily_workload %}
+                            {% if day.status == 'busy' %}
+                                {{ count|add:1 }}
+                            {% endif %}
+                        {% endfor %}
+                    {% endfor %}
+                    {% endwith %}
+                </div>
+                <div class="stat-label">Busy Days</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-box">
+                <div class="stat-number text-danger">
+                    {% with count=0 %}
+                    {% for item in workload_data %}
+                        {% for day in item.daily_workload %}
+                            {% if day.status == 'overallocated' %}
+                                {{ count|add:1 }}
+                            {% endif %}
+                        {% endfor %}
+                    {% endfor %}
+                    {% endwith %}
+                </div>
+                <div class="stat-label">Over-Allocated Days</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Calendar Controls -->
+    <div class="calendar-controls">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <div class="calendar-navigation">
+                    <a href="?view={{ view_mode }}&date={{ prev_date }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-chevron-left"></i> Previous
+                    </a>
+                    <div class="px-3">
+                        <strong>
+                            {% if view_mode == 'day' %}
+                                {{ current_date|date:"F d, Y" }}
+                            {% elif view_mode == 'week' %}
+                                Week of {{ start_date|date:"M d" }} - {{ end_date|date:"M d, Y" }}
+                            {% else %}
+                                {{ current_date|date:"F Y" }}
+                            {% endif %}
+                        </strong>
+                    </div>
+                    <a href="?view={{ view_mode }}&date={{ next_date }}" class="btn btn-outline-secondary btn-sm">
+                        Next <i class="fas fa-chevron-right"></i>
+                    </a>
+                    <a href="?view={{ view_mode }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-calendar-day"></i> Today
+                    </a>
+                </div>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="view-selector">
+                    <a href="?view=day&date={{ current_date|date:'Y-m-d' }}"
+                       class="view-btn {% if view_mode == 'day' %}active{% endif %}">
+                        Day
+                    </a>
+                    <a href="?view=week&date={{ current_date|date:'Y-m-d' }}"
+                       class="view-btn {% if view_mode == 'week' %}active{% endif %}">
+                        Week
+                    </a>
+                    <a href="?view=month&date={{ current_date|date:'Y-m-d' }}"
+                       class="view-btn {% if view_mode == 'month' %}active{% endif %}">
+                        Month
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Workload Calendar -->
+    <div class="workload-calendar">
+        <div class="table-container">
+            <table class="calendar-table">
+                <thead>
+                    <tr>
+                        <th class="resource-row-header">Resource</th>
+                        {% for i in "x"|rjust:num_days %}
+                        {% with day=start_date|add_days:forloop.counter0 %}
+                        <th class="{% if day == current_date %}today-column{% endif %}">
+                            <div class="date-header">{{ day|date:"D" }}</div>
+                            <div class="date-subheader">{{ day|date:"M d" }}</div>
+                        </th>
+                        {% endwith %}
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in workload_data %}
+                    <tr>
+                        <td class="resource-row-header">
+                            <div class="resource-name">
+                                <a href="{% url 'project_management:resource_detail' item.resource.id %}">
+                                    {{ item.resource.user.get_full_name|default:item.resource.user.email }}
+                                </a>
+                            </div>
+                            <div class="resource-title">{{ item.resource.job_title }}</div>
+                        </td>
+                        {% for day_data in item.daily_workload %}
+                        <td class="workload-cell workload-status-{{ day_data.status }} {% if day_data.date == current_date %}today-column{% endif %}"
+                            data-resource="{{ item.resource.id }}"
+                            data-date="{{ day_data.date|date:'Y-m-d' }}"
+                            onmouseenter="showTooltip(this, {{ day_data.assignments|length }})"
+                            onmouseleave="hideTooltip()">
+
+                            {% if day_data.hours > 0 %}
+                            <div class="workload-hours">
+                                {{ day_data.hours }}h
+                            </div>
+                            <div class="workload-utilization">
+                                {{ day_data.utilization|floatformat:0 }}%
+                            </div>
+                            <div class="workload-bar">
+                                {% if day_data.status == 'available' %}
+                                <div class="workload-bar-fill" style="width: {{ day_data.utilization }}%; background-color: #28a745;"></div>
+                                {% elif day_data.status == 'busy' %}
+                                <div class="workload-bar-fill" style="width: {{ day_data.utilization }}%; background-color: #ffc107;"></div>
+                                {% else %}
+                                <div class="workload-bar-fill" style="width: 100%; background-color: #dc3545;"></div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Hidden assignment data for tooltip -->
+                            <div class="d-none assignment-data">
+                                {% for assignment in day_data.assignments %}
+                                <div class="assignment-item">
+                                    <strong>{{ assignment.task.task_code }}</strong><br>
+                                    {{ assignment.task.project.name }}
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <div class="text-center text-muted" style="font-size: 20px;">-</div>
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Legend -->
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #d4edda;"></div>
+                <span>Available (&lt;70% utilization)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #fff3cd;"></div>
+                <span>Busy (70-100% utilization)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #f8d7da;"></div>
+                <span>Over-Allocated (&gt;100% utilization)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #e3f2fd; border: 2px solid #007bff;"></div>
+                <span>Today</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tooltip -->
+<div id="assignmentTooltip" class="assignment-tooltip"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Tooltip functionality
+    let tooltipTimeout;
+    const tooltip = document.getElementById('assignmentTooltip');
+
+    function showTooltip(cell, assignmentCount) {
+        if (assignmentCount === 0) return;
+
+        clearTimeout(tooltipTimeout);
+
+        const assignmentData = cell.querySelector('.assignment-data');
+        if (assignmentData) {
+            tooltip.innerHTML = assignmentData.innerHTML;
+            tooltip.style.display = 'block';
+
+            // Position tooltip
+            const rect = cell.getBoundingClientRect();
+            tooltip.style.left = rect.left + 'px';
+            tooltip.style.top = (rect.bottom + 5) + 'px';
+        }
+    }
+
+    function hideTooltip() {
+        tooltipTimeout = setTimeout(() => {
+            tooltip.style.display = 'none';
+        }, 200);
+    }
+
+    // Custom template filter for adding days
+    // Note: This is a placeholder - actual implementation would be done in Django template filter
+</script>
+{% endblock %}
