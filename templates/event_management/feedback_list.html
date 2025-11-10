@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Customer Feedback - Krystal Platform{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-comments"></i> Customer Feedback</h2>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card border-primary">
+            <div class="card-body text-center">
+                <h3 class="text-primary">{{ total_feedback }}</h3>
+                <p class="mb-0">Total Feedback</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-success">
+            <div class="card-body text-center">
+                <h3 class="text-success">{{ submitted_count }}</h3>
+                <p class="mb-0">Submitted</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-warning">
+            <div class="card-body text-center">
+                <h3 class="text-warning">{{ pending_count }}</h3>
+                <p class="mb-0">Pending</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-info">
+            <div class="card-body text-center">
+                <h3 class="text-info">{{ avg_rating|floatformat:1 }}/5.0</h3>
+                <p class="mb-0">Avg Rating</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- NPS Score Card -->
+<div class="card mb-4">
+    <div class="card-body">
+        <h5><i class="fas fa-chart-line"></i> Net Promoter Score (NPS)</h5>
+        <div class="row mt-3">
+            <div class="col-md-3 text-center">
+                <h2 class="{% if nps_score >= 50 %}text-success{% elif nps_score >= 0 %}text-warning{% else %}text-danger{% endif %}">
+                    {{ nps_score|floatformat:0 }}
+                </h2>
+                <p>NPS Score</p>
+            </div>
+            <div class="col-md-3 text-center">
+                <h3 class="text-success">{{ promoters }}</h3>
+                <p>Promoters</p>
+            </div>
+            <div class="col-md-3 text-center">
+                <h3 class="text-warning">{{ passives }}</h3>
+                <p>Passives</p>
+            </div>
+            <div class="col-md-3 text-center">
+                <h3 class="text-danger">{{ detractors }}</h3>
+                <p>Detractors</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filter -->
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="get" class="row align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-select" onchange="this.form.submit()">
+                    <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
+                    <option value="submitted" {% if status_filter == 'submitted' %}selected{% endif %}>Submitted</option>
+                    <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                </select>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Feedback List -->
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Event</th>
+                        <th>Customer</th>
+                        <th>Status</th>
+                        <th>Avg Rating</th>
+                        <th>NPS</th>
+                        <th>Submitted</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for feedback in feedbacks %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'event_management:event_detail' feedback.event.pk %}">
+                                {{ feedback.event.event_number }}
+                            </a>
+                        </td>
+                        <td>{{ feedback.customer_name }}</td>
+                        <td>
+                            {% if feedback.submitted %}
+                                <span class="badge bg-success">Submitted</span>
+                            {% else %}
+                                <span class="badge bg-warning">Pending</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if feedback.submitted %}
+                                <span class="badge {% if feedback.average_rating >= 4 %}bg-success{% elif feedback.average_rating >= 3 %}bg-warning{% else %}bg-danger{% endif %}">
+                                    {{ feedback.average_rating|floatformat:1 }}/5.0
+                                </span>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if feedback.submitted %}
+                                <span class="badge {% if feedback.nps_category == 'promoter' %}bg-success{% elif feedback.nps_category == 'passive' %}bg-warning{% else %}bg-danger{% endif %}">
+                                    {{ feedback.nps_category|title }}
+                                </span>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if feedback.submitted_at %}
+                                {{ feedback.submitted_at|date:"M d, Y" }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'event_management:feedback_detail' feedback.pk %}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-eye"></i> View
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted">No feedback found</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

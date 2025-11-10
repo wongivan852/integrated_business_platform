@@ -1,0 +1,381 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Damage Reports - {{ event.event_number }} - Krystal Platform{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Breadcrumb Navigation -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard:home' %}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'event_management:event_list' %}">Events</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'event_management:event_detail' event.pk %}">{{ event.event_number }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Damage Reports</li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="fas fa-exclamation-triangle text-warning"></i> Equipment Damage Reports</h2>
+            <p class="text-muted mb-0">{{ event.event_number }} - {{ event.customer_company }}</p>
+        </div>
+        <div>
+            <a href="{% url 'event_management:equipment_inventory' event.pk %}" class="btn btn-outline-secondary me-2">
+                <i class="fas fa-boxes"></i> Equipment Inventory
+            </a>
+            <a href="{% url 'event_management:event_detail' event.pk %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Event
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="mb-0">{{ total_equipment }}</h3>
+                    <p class="text-muted mb-0 small">Total Equipment</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center border-danger">
+                <div class="card-body">
+                    <h3 class="mb-0 text-danger">{{ damaged_count }}</h3>
+                    <p class="text-muted mb-0 small">Items with Damage</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="mb-0">{{ total_reports }}</h3>
+                    <p class="text-muted mb-0 small">Total Reports</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center border-warning">
+                <div class="card-body">
+                    <h3 class="mb-0 text-warning">¥{{ total_cost|floatformat:2 }}</h3>
+                    <p class="text-muted mb-0 small">Total Cost</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Damage Type</label>
+                    <select name="damage_type" class="form-select" onchange="this.form.submit()">
+                        <option value="">All Types</option>
+                        <option value="physical" {% if request.GET.damage_type == 'physical' %}selected{% endif %}>Physical Damage</option>
+                        <option value="water" {% if request.GET.damage_type == 'water' %}selected{% endif %}>Water Damage</option>
+                        <option value="electrical" {% if request.GET.damage_type == 'electrical' %}selected{% endif %}>Electrical</option>
+                        <option value="wear_tear" {% if request.GET.damage_type == 'wear_tear' %}selected{% endif %}>Wear & Tear</option>
+                        <option value="missing" {% if request.GET.damage_type == 'missing' %}selected{% endif %}>Missing Parts</option>
+                        <option value="other" {% if request.GET.damage_type == 'other' %}selected{% endif %}>Other</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Severity</label>
+                    <select name="severity" class="form-select" onchange="this.form.submit()">
+                        <option value="">All Severities</option>
+                        <option value="minor" {% if request.GET.severity == 'minor' %}selected{% endif %}>Minor</option>
+                        <option value="moderate" {% if request.GET.severity == 'moderate' %}selected{% endif %}>Moderate</option>
+                        <option value="severe" {% if request.GET.severity == 'severe' %}selected{% endif %}>Severe</option>
+                        <option value="total_loss" {% if request.GET.severity == 'total_loss' %}selected{% endif %}>Total Loss</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Repair Status</label>
+                    <select name="repair_status" class="form-select" onchange="this.form.submit()">
+                        <option value="">All</option>
+                        <option value="pending" {% if request.GET.repair_status == 'pending' %}selected{% endif %}>Repair Pending</option>
+                        <option value="completed" {% if request.GET.repair_status == 'completed' %}selected{% endif %}>Repair Completed</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">&nbsp;</label>
+                    <a href="{% url 'event_management:damage_report_list' event.pk %}" class="btn btn-outline-secondary w-100">
+                        <i class="fas fa-undo"></i> Clear Filters
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Damage Reports Table -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-list"></i> Damage Reports</h5>
+        </div>
+        <div class="card-body">
+            {% if damage_reports %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Equipment</th>
+                            <th>Damage Type</th>
+                            <th>Severity</th>
+                            <th>Discovered</th>
+                            <th>Cost</th>
+                            <th>Repair Status</th>
+                            <th>Photos</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for report in damage_reports %}
+                        <tr>
+                            <td>
+                                <strong>{{ report.equipment.equipment_name }}</strong>
+                                {% if report.equipment.equipment_serial %}
+                                <br><small class="text-muted"><code>{{ report.equipment.equipment_serial }}</code></small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">{{ report.get_damage_type_display }}</span>
+                            </td>
+                            <td>
+                                {% if report.severity == 'minor' %}
+                                    <span class="badge bg-info">Minor</span>
+                                {% elif report.severity == 'moderate' %}
+                                    <span class="badge bg-warning">Moderate</span>
+                                {% elif report.severity == 'severe' %}
+                                    <span class="badge bg-danger">Severe</span>
+                                {% elif report.severity == 'total_loss' %}
+                                    <span class="badge bg-dark">Total Loss</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ report.discovered_date|date:"M d, Y" }}
+                                {% if report.discovered_by %}
+                                <br><small class="text-muted">by {{ report.discovered_by.get_full_name }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <strong class="text-danger">¥{{ report.total_cost|floatformat:2 }}</strong>
+                            </td>
+                            <td>
+                                {% if report.repair_completed %}
+                                    <span class="badge bg-success"><i class="fas fa-check"></i> Completed</span>
+                                    {% if report.repair_completion_date %}
+                                    <br><small class="text-muted">{{ report.repair_completion_date|date:"M d" }}</small>
+                                    {% endif %}
+                                {% elif report.repair_required %}
+                                    <span class="badge bg-warning"><i class="fas fa-tools"></i> Required</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Not Required</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if report.photos.exists %}
+                                    <span class="badge bg-primary">
+                                        <i class="fas fa-camera"></i> {{ report.photos.count }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{% url 'event_management:damage_report_detail' report.pk %}"
+                                       class="btn btn-outline-primary"
+                                       title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{% url 'event_management:damage_report_edit' report.pk %}"
+                                       class="btn btn-outline-warning"
+                                       title="Edit Report">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    {% if not report.photos.exists %}
+                                    <a href="{% url 'event_management:damage_photo_upload' report.pk %}"
+                                       class="btn btn-outline-info"
+                                       title="Add Photos">
+                                        <i class="fas fa-camera"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-light">
+                            <td colspan="4" class="text-end"><strong>Total Cost:</strong></td>
+                            <td><strong class="text-danger">¥{{ total_cost|floatformat:2 }}</strong></td>
+                            <td colspan="3"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                <h5>No Damage Reports</h5>
+                <p class="text-muted">Great! No equipment damage has been reported for this event.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Damage Summary by Type -->
+    {% if damage_reports %}
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Damage by Type</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="damageTypeChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-pie"></i> Severity Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="severityChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cost Breakdown -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-dollar-sign"></i> Cost Breakdown</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="text-center p-3">
+                        <h4 class="text-primary">¥{{ estimated_repair_total|floatformat:2 }}</h4>
+                        <p class="mb-0 small text-muted">Estimated Repair</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center p-3">
+                        <h4 class="text-danger">¥{{ actual_repair_total|floatformat:2 }}</h4>
+                        <p class="mb-0 small text-muted">Actual Repair</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center p-3">
+                        <h4 class="text-warning">¥{{ replacement_total|floatformat:2 }}</h4>
+                        <p class="mb-0 small text-muted">Replacement</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center p-3">
+                        <h4 class="text-success">{{ preventable_count }}</h4>
+                        <p class="mb-0 small text-muted">Preventable Cases</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Chart.js for Visualizations -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+    {% if damage_reports %}
+    document.addEventListener('DOMContentLoaded', function() {
+        // Damage by Type Chart
+        const typeCtx = document.getElementById('damageTypeChart').getContext('2d');
+        new Chart(typeCtx, {
+            type: 'bar',
+            data: {
+                labels: {{ damage_type_labels|safe }},
+                datasets: [{
+                    label: 'Number of Reports',
+                    data: {{ damage_type_data|safe }},
+                    backgroundColor: 'rgba(220, 53, 69, 0.6)',
+                    borderColor: 'rgba(220, 53, 69, 1)',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+
+        // Severity Distribution Chart
+        const severityCtx = document.getElementById('severityChart').getContext('2d');
+        new Chart(severityCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Minor', 'Moderate', 'Severe', 'Total Loss'],
+                datasets: [{
+                    data: {{ severity_data|safe }},
+                    backgroundColor: [
+                        'rgba(13, 202, 240, 0.6)',  // Info - Minor
+                        'rgba(255, 193, 7, 0.6)',   // Warning - Moderate
+                        'rgba(220, 53, 69, 0.6)',   // Danger - Severe
+                        'rgba(52, 58, 64, 0.6)'     // Dark - Total Loss
+                    ],
+                    borderColor: [
+                        'rgba(13, 202, 240, 1)',
+                        'rgba(255, 193, 7, 1)',
+                        'rgba(220, 53, 69, 1)',
+                        'rgba(52, 58, 64, 1)'
+                    ],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    });
+    {% endif %}
+</script>
+
+<style>
+    .card {
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .table tbody tr:hover {
+        background-color: rgba(0, 0, 0, 0.02);
+    }
+    .badge {
+        padding: 6px 12px;
+        font-size: 0.85rem;
+    }
+</style>
+{% endblock %}

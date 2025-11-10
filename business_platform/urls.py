@@ -53,6 +53,9 @@ urlpatterns = [
     path('project-management/', include('project_management.urls')),
     path('event-management/', include('event_management.urls')),
 
+    # Leave Management System
+    path('leave/', include('leave_management.urls')),
+
     # API endpoints (commented out until api module is created)
     # path('api/v1/', include('app_integration.api.urls')),
 ]

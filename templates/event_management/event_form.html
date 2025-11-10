@@ -1,0 +1,234 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{% if event %}Edit Event{% else %}Create New Event{% endif %} - Krystal Platform{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-section {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    .form-section h5 {
+        color: #0d6efd;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #0d6efd;
+    }
+    .required-field::after {
+        content: " *";
+        color: red;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <h2>
+                <i class="fas fa-{% if event %}edit{% else %}plus{% endif %}"></i>
+                {% if event %}Edit Event: {{ event.event_number }}{% else %}Create New Event{% endif %}
+            </h2>
+            <a href="{% url 'event_management:event_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Cancel
+            </a>
+        </div>
+        <hr>
+    </div>
+</div>
+
+<div class="alert alert-info">
+    <i class="fas fa-info-circle"></i>
+    <strong>Phase 2 Implementation:</strong> This is a basic form template. The full multi-step event creation wizard
+    with advanced features (automatic event number generation, prerequisite templates, cost calculators) will be
+    implemented in the next development cycle.
+</div>
+
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+
+    <!-- Basic Information -->
+    <div class="form-section">
+        <h5><i class="fas fa-info-circle"></i> Basic Information</h5>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="id_event_type" class="form-label required-field">Event Type</label>
+                <select class="form-select" id="id_event_type" name="event_type" required>
+                    <option value="">Select event type...</option>
+                    {% for value, label in event_type_choices %}
+                        <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <small class="text-muted">Choose the type of customer event</small>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="id_status" class="form-label required-field">Status</label>
+                <select class="form-select" id="id_status" name="status" required>
+                    {% for value, label in status_choices %}
+                        <option value="{{ value }}" {% if value == 'planned' %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <small class="text-muted">Current event status</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Customer Information -->
+    <div class="form-section">
+        <h5><i class="fas fa-building"></i> Customer Information</h5>
+        <div class="row">
+            <div class="col-md-12 mb-3">
+                <label for="id_customer_company" class="form-label required-field">Company Name</label>
+                <input type="text" class="form-control" id="id_customer_company"
+                       name="customer_company" placeholder="Enter customer company name" required>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <label for="id_contact_person" class="form-label required-field">Contact Person</label>
+                <input type="text" class="form-control" id="id_contact_person"
+                       name="contact_person" placeholder="Full name" required>
+            </div>
+            <div class="col-md-4 mb-3">
+                <label for="id_contact_position" class="form-label required-field">Position</label>
+                <input type="text" class="form-control" id="id_contact_position"
+                       name="contact_position" placeholder="Job title" required>
+            </div>
+            <div class="col-md-4 mb-3">
+                <label for="id_contact_phone" class="form-label required-field">Phone</label>
+                <input type="tel" class="form-control" id="id_contact_phone"
+                       name="contact_phone" placeholder="+86 xxx xxxx xxxx" required>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="id_contact_email" class="form-label required-field">Email</label>
+                <input type="email" class="form-control" id="id_contact_email"
+                       name="contact_email" placeholder="email@company.com" required>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="id_contact_wechat" class="form-label">WeChat ID</label>
+                <input type="text" class="form-control" id="id_contact_wechat"
+                       name="contact_wechat" placeholder="WeChat ID (optional)">
+            </div>
+        </div>
+    </div>
+
+    <!-- Location Information -->
+    <div class="form-section">
+        <h5><i class="fas fa-map-marker-alt"></i> Location Information</h5>
+        <div class="row">
+            <div class="col-md-12 mb-3">
+                <label for="id_delivery_address" class="form-label required-field">Delivery Address</label>
+                <textarea class="form-control" id="id_delivery_address" name="delivery_address"
+                          rows="2" placeholder="Full delivery address" required></textarea>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="id_installation_address" class="form-label">Installation Address</label>
+                <textarea class="form-control" id="id_installation_address" name="installation_address"
+                          rows="2" placeholder="Leave blank if same as delivery address"></textarea>
+                <small class="text-muted">Optional - only if different from delivery address</small>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="id_training_address" class="form-label">Training Address</label>
+                <textarea class="form-control" id="id_training_address" name="training_address"
+                          rows="2" placeholder="Leave blank if same as delivery address"></textarea>
+                <small class="text-muted">Optional - only if different from delivery address</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Schedule Information -->
+    <div class="form-section">
+        <h5><i class="fas fa-calendar"></i> Schedule Information</h5>
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <label for="id_planned_start_date" class="form-label required-field">Planned Start Date</label>
+                <input type="date" class="form-control" id="id_planned_start_date"
+                       name="planned_start_date" required>
+            </div>
+            <div class="col-md-4 mb-3">
+                <label for="id_planned_end_date" class="form-label required-field">Planned End Date</label>
+                <input type="date" class="form-control" id="id_planned_end_date"
+                       name="planned_end_date" required>
+            </div>
+            <div class="col-md-4 mb-3">
+                <label for="id_estimated_duration_days" class="form-label required-field">Duration (Days)</label>
+                <input type="number" class="form-control" id="id_estimated_duration_days"
+                       name="estimated_duration_days" min="1" required>
+                <small class="text-muted">Will be calculated automatically from dates</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Financial Information -->
+    <div class="form-section">
+        <h5><i class="fas fa-dollar-sign"></i> Financial Information</h5>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="id_estimated_total_cost" class="form-label required-field">Estimated Total Cost (¥)</label>
+                <input type="number" class="form-control" id="id_estimated_total_cost"
+                       name="estimated_total_cost" step="0.01" min="0" required>
+                <small class="text-muted">Initial cost estimate</small>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="id_actual_total_cost" class="form-label">Actual Total Cost (¥)</label>
+                <input type="number" class="form-control" id="id_actual_total_cost"
+                       name="actual_total_cost" step="0.01" min="0" value="0">
+                <small class="text-muted">Leave as 0 for new events</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form Actions -->
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'event_management:event_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> Cancel
+                </a>
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="fas fa-save"></i>
+                    {% if event %}Update Event{% else %}Create Event{% endif %}
+                </button>
+            </div>
+        </div>
+    </div>
+</form>
+
+<div class="alert alert-warning mt-4">
+    <i class="fas fa-lightbulb"></i>
+    <strong>Note:</strong> After creating the event, you can add:
+    <ul class="mb-0 mt-2">
+        <li>Prerequisites and checklists via the Admin Panel</li>
+        <li>Detailed cost breakdowns by staff and daily rates</li>
+        <li>Team member assignments</li>
+        <li>Approval workflow configuration</li>
+        <li>Equipment checkout tracking</li>
+    </ul>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-calculate duration when dates change
+document.getElementById('id_planned_start_date').addEventListener('change', calculateDuration);
+document.getElementById('id_planned_end_date').addEventListener('change', calculateDuration);
+
+function calculateDuration() {
+    const startDate = new Date(document.getElementById('id_planned_start_date').value);
+    const endDate = new Date(document.getElementById('id_planned_end_date').value);
+
+    if (startDate && endDate && endDate >= startDate) {
+        const diffTime = Math.abs(endDate - startDate);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // Include both start and end day
+        document.getElementById('id_estimated_duration_days').value = diffDays;
+    }
+}
+</script>
+{% endblock %}

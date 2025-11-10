@@ -1,0 +1,335 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Return Equipment - {{ equipment.equipment_name }} - Krystal Platform{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Breadcrumb Navigation -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard:home' %}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'event_management:event_list' %}">Events</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'event_management:event_detail' equipment.event.pk %}">{{ equipment.event.event_number }}</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'event_management:equipment_inventory' equipment.event.pk %}">Equipment Inventory</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Return Equipment</li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="fas fa-undo"></i> Return Equipment</h2>
+            <p class="text-muted mb-0">Process equipment return and document condition</p>
+        </div>
+        <div>
+            <a href="{% url 'event_management:equipment_inventory' equipment.event.pk %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Inventory
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Equipment Information Card -->
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> Equipment Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="text-muted small">Equipment Name</label>
+                        <p class="mb-0"><strong>{{ equipment.equipment_name }}</strong></p>
+                    </div>
+
+                    {% if equipment.equipment_serial %}
+                    <div class="mb-3">
+                        <label class="text-muted small">Serial Number</label>
+                        <p class="mb-0"><code>{{ equipment.equipment_serial }}</code></p>
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label class="text-muted small">Quantity</label>
+                        <p class="mb-0"><span class="badge bg-secondary">{{ equipment.quantity }}</span></p>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="text-muted small">Current Status</label>
+                        <p class="mb-0">
+                            {% if equipment.status == 'checked_out' %}
+                                <span class="badge bg-warning">Checked Out</span>
+                            {% elif equipment.status == 'in_use' %}
+                                <span class="badge bg-info">In Use</span>
+                            {% elif equipment.status == 'returned' %}
+                                <span class="badge bg-success">Returned</span>
+                            {% elif equipment.status == 'damaged' %}
+                                <span class="badge bg-danger">Damaged</span>
+                            {% elif equipment.status == 'lost' %}
+                                <span class="badge bg-dark">Lost</span>
+                            {% endif %}
+                        </p>
+                    </div>
+
+                    {% if equipment.checked_out_date %}
+                    <div class="mb-3">
+                        <label class="text-muted small">Checked Out</label>
+                        <p class="mb-0">{{ equipment.checked_out_date|date:"M d, Y g:i A" }}</p>
+                    </div>
+                    {% endif %}
+
+                    {% if equipment.expected_return_date %}
+                    <div class="mb-3">
+                        <label class="text-muted small">Expected Return</label>
+                        <p class="mb-0">
+                            {{ equipment.expected_return_date|date:"M d, Y" }}
+                            {% if equipment.is_overdue %}
+                                <br><small class="text-danger"><i class="fas fa-exclamation-circle"></i> Overdue by {{ equipment.days_overdue }} days</small>
+                            {% endif %}
+                        </p>
+                    </div>
+                    {% endif %}
+
+                    {% if equipment.days_out %}
+                    <div class="mb-3">
+                        <label class="text-muted small">Days Out</label>
+                        <p class="mb-0">
+                            <span class="{% if equipment.days_out > 30 %}text-danger{% elif equipment.days_out > 14 %}text-warning{% endif %}">
+                                {{ equipment.days_out }} days
+                            </span>
+                        </p>
+                    </div>
+                    {% endif %}
+
+                    {% if equipment.notes %}
+                    <div class="mb-3">
+                        <label class="text-muted small">Original Notes</label>
+                        <p class="mb-0 small">{{ equipment.notes }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Event Information -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-calendar-alt"></i> Event Details</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-2">
+                        <label class="text-muted small">Event Number</label>
+                        <p class="mb-0">{{ equipment.event.event_number }}</p>
+                    </div>
+                    <div class="mb-2">
+                        <label class="text-muted small">Customer</label>
+                        <p class="mb-0">{{ equipment.event.customer_company }}</p>
+                    </div>
+                    <div class="mb-0">
+                        <label class="text-muted small">Event Type</label>
+                        <p class="mb-0">{{ equipment.event.get_event_type_display }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Return Processing Form -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-clipboard-check"></i> Return Processing</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="returnForm">
+                        {% csrf_token %}
+
+                        <!-- Return Status -->
+                        <div class="mb-4">
+                            <label for="{{ form.status.id_for_label }}" class="form-label">
+                                <strong>Return Status *</strong>
+                            </label>
+                            {{ form.status }}
+                            {% if form.status.errors %}
+                                <div class="invalid-feedback d-block">{{ form.status.errors }}</div>
+                            {% endif %}
+                            <small class="form-text text-muted">Select the current condition of the equipment</small>
+                        </div>
+
+                        <!-- Condition Notes -->
+                        <div class="mb-4">
+                            <label for="{{ form.condition_notes.id_for_label }}" class="form-label">
+                                <strong>Condition Notes</strong>
+                            </label>
+                            {{ form.condition_notes }}
+                            {% if form.condition_notes.errors %}
+                                <div class="invalid-feedback d-block">{{ form.condition_notes.errors }}</div>
+                            {% endif %}
+                            <small class="form-text text-muted">
+                                Document the physical condition of the equipment upon return
+                            </small>
+                        </div>
+
+                        <!-- Damage Report Section (shown when status is damaged/lost) -->
+                        <div id="damageSection" style="display: none;">
+                            <div class="alert alert-warning">
+                                <h6><i class="fas fa-exclamation-triangle"></i> Damage/Loss Detected</h6>
+                                <p class="mb-0 small">Please provide detailed information about the damage or loss below.</p>
+                            </div>
+
+                            <div class="mb-4">
+                                <label for="{{ form.damage_report.id_for_label }}" class="form-label">
+                                    <strong>Damage/Loss Report *</strong>
+                                </label>
+                                {{ form.damage_report }}
+                                {% if form.damage_report.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.damage_report.errors }}</div>
+                                {% endif %}
+                                <small class="form-text text-muted">
+                                    Describe what happened, when it was discovered, and the extent of damage/loss
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+                            <a href="{% url 'event_management:equipment_inventory' equipment.event.pk %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                            <div>
+                                <button type="submit" name="action" value="save_draft" class="btn btn-outline-primary">
+                                    <i class="fas fa-save"></i> Save as Draft
+                                </button>
+                                <button type="submit" name="action" value="complete_return" class="btn btn-success">
+                                    <i class="fas fa-check"></i> Complete Return
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Quick Actions Card -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-bolt"></i> Quick Actions</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <button type="button" class="btn btn-outline-success w-100" onclick="setGoodCondition()">
+                                <i class="fas fa-thumbs-up"></i> Mark as Good Condition
+                            </button>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <a href="{% url 'event_management:damage_report_create' equipment.pk %}" class="btn btn-outline-danger w-100">
+                                <i class="fas fa-tools"></i> Create Damage Report
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Previous Damage Reports (if any) -->
+            {% if equipment.damage_reports.exists %}
+            <div class="card mt-4">
+                <div class="card-header bg-warning">
+                    <h6 class="mb-0"><i class="fas fa-history"></i> Previous Damage Reports</h6>
+                </div>
+                <div class="card-body">
+                    {% for report in equipment.damage_reports.all %}
+                    <div class="mb-3 pb-3 {% if not forloop.last %}border-bottom{% endif %}">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong>{{ report.get_damage_type_display }}</strong>
+                                <span class="badge bg-{{ report.severity }}">{{ report.get_severity_display }}</span>
+                                <br>
+                                <small class="text-muted">
+                                    Discovered: {{ report.discovered_date|date:"M d, Y" }}
+                                    {% if report.discovered_by %}by {{ report.discovered_by.get_full_name }}{% endif %}
+                                </small>
+                            </div>
+                            <a href="{% url 'event_management:damage_report_detail' report.pk %}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-eye"></i> View
+                            </a>
+                        </div>
+                        {% if report.description %}
+                        <p class="mb-0 mt-2 small">{{ report.description|truncatewords:20 }}</p>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const statusSelect = document.getElementById('{{ form.status.id_for_label }}');
+        const damageSection = document.getElementById('damageSection');
+        const damageReportField = document.getElementById('{{ form.damage_report.id_for_label }}');
+
+        // Show/hide damage section based on status
+        function toggleDamageSection() {
+            const selectedStatus = statusSelect.value;
+            if (selectedStatus === 'damaged' || selectedStatus === 'lost') {
+                damageSection.style.display = 'block';
+                damageReportField.required = true;
+            } else {
+                damageSection.style.display = 'none';
+                damageReportField.required = false;
+            }
+        }
+
+        statusSelect.addEventListener('change', toggleDamageSection);
+        toggleDamageSection(); // Initial check
+
+        // Form validation
+        document.getElementById('returnForm').addEventListener('submit', function(e) {
+            const action = e.submitter.value;
+            if (action === 'complete_return') {
+                if (!statusSelect.value) {
+                    e.preventDefault();
+                    alert('Please select a return status before completing the return.');
+                    return false;
+                }
+
+                if ((statusSelect.value === 'damaged' || statusSelect.value === 'lost') && !damageReportField.value.trim()) {
+                    e.preventDefault();
+                    alert('Please provide a damage/loss report for equipment marked as damaged or lost.');
+                    return false;
+                }
+
+                // Confirm completion
+                if (!confirm('Are you sure you want to complete this return? This action will update the equipment status.')) {
+                    e.preventDefault();
+                    return false;
+                }
+            }
+        });
+    });
+
+    // Quick action: Mark as good condition
+    function setGoodCondition() {
+        document.getElementById('{{ form.status.id_for_label }}').value = 'returned';
+        document.getElementById('{{ form.condition_notes.id_for_label }}').value = 'Equipment returned in good condition. No visible damage or issues noted.';
+
+        // Trigger change event to update damage section visibility
+        document.getElementById('{{ form.status.id_for_label }}').dispatchEvent(new Event('change'));
+    }
+</script>
+
+<style>
+    .form-select, .form-control {
+        border-radius: 8px;
+    }
+    .card {
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .badge {
+        padding: 6px 12px;
+        font-size: 0.85rem;
+    }
+</style>
+{% endblock %}

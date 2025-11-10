@@ -1,0 +1,282 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{% if reminder %}Edit{% else %}Create{% endif %} Reminder - Krystal Platform{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-section {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    .form-section h5 {
+        color: #0d6efd;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #0d6efd;
+    }
+    .channel-option {
+        padding: 15px;
+        border: 2px solid #dee2e6;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .channel-option:hover {
+        border-color: #0d6efd;
+        background-color: #f8f9fa;
+    }
+    .channel-option.active {
+        border-color: #0d6efd;
+        background-color: #e7f3ff;
+    }
+    .channel-option input[type="checkbox"] {
+        margin-right: 10px;
+    }
+    .channel-icon {
+        font-size: 1.5rem;
+        margin-right: 10px;
+    }
+    .required-field::after {
+        content: " *";
+        color: red;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <h2>
+                <i class="fas fa-{% if reminder %}edit{% else %}plus{% endif %}"></i>
+                {% if reminder %}Edit Reminder{% else %}Create Reminder{% endif %}
+            </h2>
+            <a href="{% url 'event_management:reminder_list' event.pk %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Cancel
+            </a>
+        </div>
+        <p class="text-muted">Event: {{ event.event_number }} - {{ event.customer_company }}</p>
+        <hr>
+    </div>
+</div>
+
+<form method="post">
+    {% csrf_token %}
+
+    <!-- Basic Information -->
+    <div class="form-section">
+        <h5><i class="fas fa-info-circle"></i> Reminder Details</h5>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="id_reminder_type" class="form-label required-field">Reminder Type</label>
+                {{ form.reminder_type }}
+                <small class="text-muted">Choose the type of reminder</small>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="id_send_datetime" class="form-label required-field">Send Date & Time</label>
+                {{ form.send_datetime }}
+                <small class="text-muted">When should this reminder be sent?</small>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-12 mb-3">
+                <label for="id_title" class="form-label required-field">Title</label>
+                {{ form.title }}
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-12 mb-3">
+                <label for="id_message" class="form-label required-field">Message</label>
+                {{ form.message }}
+                <small class="text-muted">The main content of the reminder</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recipients -->
+    <div class="form-section">
+        <h5><i class="fas fa-users"></i> Recipients</h5>
+        <div class="row">
+            <div class="col-md-12 mb-3">
+                <label for="id_recipients" class="form-label required-field">Select Recipients</label>
+                {{ form.recipients }}
+                <small class="text-muted">Hold Ctrl/Cmd to select multiple recipients</small>
+            </div>
+        </div>
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i>
+            <strong>Tip:</strong> The reminder will be sent to all selected recipients via the enabled notification channels.
+        </div>
+    </div>
+
+    <!-- Notification Channels -->
+    <div class="form-section">
+        <h5><i class="fas fa-bell"></i> Notification Channels</h5>
+        <p class="text-muted">Select which channels should be used to send this reminder</p>
+
+        <!-- Email Channel -->
+        <div class="channel-option" onclick="toggleChannel('email')">
+            <div class="d-flex align-items-center">
+                {{ form.send_email }}
+                <i class="fas fa-envelope channel-icon text-primary"></i>
+                <div class="flex-grow-1">
+                    <strong>Email</strong>
+                    <p class="mb-0 text-muted small">Send reminder via email (recommended)</p>
+                </div>
+                <span class="badge bg-success">Available</span>
+            </div>
+        </div>
+
+        <!-- SMS Channel -->
+        <div class="channel-option" onclick="toggleChannel('sms')">
+            <div class="d-flex align-items-center">
+                {{ form.send_sms }}
+                <i class="fas fa-sms channel-icon text-info"></i>
+                <div class="flex-grow-1">
+                    <strong>SMS</strong>
+                    <p class="mb-0 text-muted small">Send reminder via SMS text message</p>
+                </div>
+                <span class="badge bg-warning text-dark">Not Configured</span>
+            </div>
+        </div>
+
+        <!-- WeChat Channel -->
+        <div class="channel-option" onclick="toggleChannel('wechat')">
+            <div class="d-flex align-items-center">
+                {{ form.send_wechat }}
+                <i class="fab fa-weixin channel-icon text-success"></i>
+                <div class="flex-grow-1">
+                    <strong>WeChat</strong>
+                    <p class="mb-0 text-muted small">Send reminder via WeChat notification</p>
+                </div>
+                <span class="badge bg-warning text-dark">Not Configured</span>
+            </div>
+        </div>
+
+        <div class="alert alert-warning mt-3">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>Note:</strong> SMS and WeChat channels require additional configuration in system settings.
+            Only configured channels will actually send notifications.
+        </div>
+    </div>
+
+    <!-- Quick Templates -->
+    {% if not reminder %}
+    <div class="form-section">
+        <h5><i class="fas fa-magic"></i> Quick Templates</h5>
+        <p class="text-muted">Click a template to auto-fill the form</p>
+        <div class="row">
+            <div class="col-md-4 mb-2">
+                <button type="button" class="btn btn-outline-primary w-100" onclick="applyTemplate('checklist')">
+                    <i class="fas fa-tasks"></i> Pre-Departure Checklist
+                </button>
+            </div>
+            <div class="col-md-4 mb-2">
+                <button type="button" class="btn btn-outline-primary w-100" onclick="applyTemplate('equipment')">
+                    <i class="fas fa-toolbox"></i> Equipment Checkout
+                </button>
+            </div>
+            <div class="col-md-4 mb-2">
+                <button type="button" class="btn btn-outline-primary w-100" onclick="applyTemplate('safety')">
+                    <i class="fas fa-hard-hat"></i> Safety Protocol
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Form Actions -->
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'event_management:reminder_list' event.pk %}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> Cancel
+                </a>
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="fas fa-save"></i>
+                    {% if reminder %}Update Reminder{% else %}Create Reminder{% endif %}
+                </button>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Toggle channel option styling
+function toggleChannel(channel) {
+    const checkbox = document.getElementById(`id_send_${channel}`);
+    checkbox.checked = !checkbox.checked;
+    updateChannelStyling();
+}
+
+function updateChannelStyling() {
+    ['email', 'sms', 'wechat'].forEach(channel => {
+        const checkbox = document.getElementById(`id_send_${channel}`);
+        const option = checkbox.closest('.channel-option');
+        if (checkbox.checked) {
+            option.classList.add('active');
+        } else {
+            option.classList.remove('active');
+        }
+    });
+}
+
+// Apply reminder templates
+function applyTemplate(type) {
+    const templates = {
+        'checklist': {
+            type: 'checklist',
+            title: 'Pre-Departure Checklist Reminder',
+            message: 'Please review and complete the pre-departure checklist for this event:\n\n' +
+                     '✓ Verify customer contact information\n' +
+                     '✓ Review equipment requirements\n' +
+                     '✓ Check safety protocols\n' +
+                     '✓ Confirm transportation arrangements\n' +
+                     '✓ Review installation/training materials\n' +
+                     '✓ Verify team member assignments\n\n' +
+                     'Contact your supervisor if you have any questions.'
+        },
+        'equipment': {
+            type: 'equipment',
+            title: 'Equipment Checkout Reminder',
+            message: 'Please ensure all required equipment has been checked out for this event:\n\n' +
+                     '✓ Check equipment list in event details\n' +
+                     '✓ Verify equipment condition\n' +
+                     '✓ Sign equipment checkout form\n' +
+                     '✓ Report any missing or damaged items\n' +
+                     '✓ Load equipment for transport\n\n' +
+                     'All equipment must be checked out at least 1 day before departure.'
+        },
+        'safety': {
+            type: 'safety',
+            title: 'Safety Protocol Review',
+            message: 'Please review the safety protocols for this event:\n\n' +
+                     '✓ Personal protective equipment (PPE) requirements\n' +
+                     '✓ Site safety rules and regulations\n' +
+                     '✓ Emergency procedures and contacts\n' +
+                     '✓ Hazard identification and control measures\n' +
+                     '✓ First aid kit location and procedures\n\n' +
+                     'Safety is our top priority. Report any safety concerns immediately.'
+        }
+    };
+
+    const template = templates[type];
+    if (template) {
+        document.getElementById('id_reminder_type').value = template.type;
+        document.getElementById('id_title').value = template.title;
+        document.getElementById('id_message').value = template.message;
+    }
+}
+
+// Initialize channel styling on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updateChannelStyling();
+});
+</script>
+{% endblock %}

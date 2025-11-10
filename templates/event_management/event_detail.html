@@ -1,0 +1,520 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ event.event_number }} - Event Details{% endblock %}
+
+{% block extra_css %}
+<style>
+    .section-card {
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    .info-label {
+        font-weight: 600;
+        color: #6c757d;
+    }
+    .progress-bar-custom {
+        height: 25px;
+        font-size: 0.875rem;
+    }
+    .prerequisite-item {
+        padding: 10px;
+        border-left: 3px solid #dee2e6;
+        margin-bottom: 10px;
+        transition: all 0.2s;
+    }
+    .prerequisite-item:hover {
+        background-color: #f8f9fa;
+        border-left-color: #0d6efd;
+    }
+    .prerequisite-completed {
+        border-left-color: #198754;
+        background-color: #d1e7dd;
+    }
+    .cost-table th {
+        background-color: #f8f9fa;
+    }
+    .timeline-item {
+        border-left: 2px solid #0d6efd;
+        padding-left: 20px;
+        padding-bottom: 20px;
+        position: relative;
+    }
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: -6px;
+        top: 0;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background-color: #0d6efd;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2>{{ event.event_number }}</h2>
+                <h5 class="text-muted">{{ event.customer_company }}</h5>
+            </div>
+            <div>
+                <a href="{% url 'event_management:event_list' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to List
+                </a>
+                <a href="{% url 'admin:event_management_event_change' event.pk %}" class="btn btn-outline-primary">
+                    <i class="fas fa-edit"></i> Edit
+                </a>
+                {% if event.status == 'planned' %}
+                <button class="btn btn-success" onclick="confirmEvent({{ event.pk }})">
+                    <i class="fas fa-check"></i> Confirm Event
+                </button>
+                {% endif %}
+            </div>
+        </div>
+        <hr>
+    </div>
+</div>
+
+<!-- Status and Overview -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card section-card text-center">
+            <div class="card-body">
+                <h6 class="text-muted">Status</h6>
+                {% if event.status == 'planned' %}
+                    <h3><span class="badge bg-secondary">Planned</span></h3>
+                {% elif event.status == 'confirmed' %}
+                    <h3><span class="badge bg-info">Confirmed</span></h3>
+                {% elif event.status == 'in_progress' %}
+                    <h3><span class="badge bg-warning text-dark">In Progress</span></h3>
+                {% elif event.status == 'completed' %}
+                    <h3><span class="badge bg-success">Completed</span></h3>
+                {% elif event.status == 'cancelled' %}
+                    <h3><span class="badge bg-danger">Cancelled</span></h3>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card section-card text-center">
+            <div class="card-body">
+                <h6 class="text-muted">Event Type</h6>
+                <h5>{{ event.get_event_type_display }}</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card section-card text-center">
+            <div class="card-body">
+                <h6 class="text-muted">Duration</h6>
+                <h5>{{ event.estimated_duration_days }} days</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card section-card text-center">
+            <div class="card-body">
+                <h6 class="text-muted">Estimated Cost</h6>
+                <h5>¥{{ event.estimated_total_cost|floatformat:2 }}</h5>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tab Navigation -->
+<ul class="nav nav-tabs mb-4" id="eventTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview"
+                type="button" role="tab">
+            <i class="fas fa-info-circle"></i> Overview
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="prerequisites-tab" data-bs-toggle="tab" data-bs-target="#prerequisites"
+                type="button" role="tab">
+            <i class="fas fa-tasks"></i> Prerequisites
+            <span class="badge bg-primary">{{ prerequisites|length }}</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="costs-tab" data-bs-toggle="tab" data-bs-target="#costs"
+                type="button" role="tab">
+            <i class="fas fa-dollar-sign"></i> Costs
+            <span class="badge bg-primary">{{ costs|length }}</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="worklogs-tab" data-bs-toggle="tab" data-bs-target="#worklogs"
+                type="button" role="tab">
+            <i class="fas fa-clipboard-list"></i> Work Logs
+            <span class="badge bg-primary">{{ work_logs|length }}</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="equipment-tab" data-bs-toggle="tab" data-bs-target="#equipment"
+                type="button" role="tab">
+            <i class="fas fa-toolbox"></i> Equipment
+            <span class="badge bg-primary">{{ equipment|length }}</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="approvals-tab" data-bs-toggle="tab" data-bs-target="#approvals"
+                type="button" role="tab">
+            <i class="fas fa-check-circle"></i> Approvals
+            <span class="badge bg-primary">{{ approvals|length }}</span>
+        </button>
+    </li>
+</ul>
+
+<!-- Tab Content -->
+<div class="tab-content" id="eventTabsContent">
+    <!-- Overview Tab -->
+    <div class="tab-pane fade show active" id="overview" role="tabpanel">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card section-card">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0"><i class="fas fa-user"></i> Contact Information</h6>
+                    </div>
+                    <div class="card-body">
+                        <p><span class="info-label">Contact Person:</span> {{ event.contact_person }}</p>
+                        <p><span class="info-label">Position:</span> {{ event.contact_position }}</p>
+                        <p><span class="info-label">Phone:</span> {{ event.contact_phone }}</p>
+                        <p><span class="info-label">Email:</span> {{ event.contact_email }}</p>
+                        {% if event.contact_wechat %}
+                        <p><span class="info-label">WeChat:</span> {{ event.contact_wechat }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card section-card">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0"><i class="fas fa-calendar"></i> Schedule</h6>
+                    </div>
+                    <div class="card-body">
+                        <p><span class="info-label">Planned Start:</span> {{ event.planned_start_date|date:"F d, Y" }}</p>
+                        <p><span class="info-label">Planned End:</span> {{ event.planned_end_date|date:"F d, Y" }}</p>
+                        {% if event.actual_start_date %}
+                        <p><span class="info-label">Actual Start:</span> {{ event.actual_start_date|date:"F d, Y" }}</p>
+                        {% endif %}
+                        {% if event.actual_end_date %}
+                        <p><span class="info-label">Actual End:</span> {{ event.actual_end_date|date:"F d, Y" }}</p>
+                        {% endif %}
+                        <p><span class="info-label">Duration:</span> {{ event.estimated_duration_days }} days</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-3">
+            <div class="col-md-12">
+                <div class="card section-card">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0"><i class="fas fa-map-marker-alt"></i> Locations</h6>
+                    </div>
+                    <div class="card-body">
+                        <p><span class="info-label">Delivery Address:</span> {{ event.delivery_address }}</p>
+                        {% if event.installation_address %}
+                        <p><span class="info-label">Installation Address:</span> {{ event.installation_address }}</p>
+                        {% endif %}
+                        {% if event.training_address %}
+                        <p><span class="info-label">Training Address:</span> {{ event.training_address }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-3">
+            <div class="col-md-12">
+                <div class="card section-card">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0"><i class="fas fa-users"></i> Team</h6>
+                    </div>
+                    <div class="card-body">
+                        <p><span class="info-label">Sales Responsible:</span> {{ event.sales_responsible.get_display_name }}</p>
+                        <p><span class="info-label">Assigned Staff:</span>
+                            {% for staff in event.assigned_staff.all %}
+                                <span class="badge bg-secondary">{{ staff.get_display_name }}</span>
+                            {% empty %}
+                                <span class="text-muted">No staff assigned yet</span>
+                            {% endfor %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Prerequisites Tab -->
+    <div class="tab-pane fade" id="prerequisites" role="tabpanel">
+        <div class="card section-card">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="fas fa-tasks"></i> Event Prerequisites</h6>
+                <span class="badge bg-primary">{{ prerequisite_completion|floatformat:0 }}% Complete</span>
+            </div>
+            <div class="card-body">
+                <div class="progress mb-4 progress-bar-custom">
+                    <div class="progress-bar" role="progressbar"
+                         style="width: {{ prerequisite_completion }}%"
+                         aria-valuenow="{{ prerequisite_completion }}" aria-valuemin="0" aria-valuemax="100">
+                        {{ prerequisite_completion|floatformat:0 }}% Complete
+                    </div>
+                </div>
+
+                {% if prerequisites %}
+                    {% regroup prerequisites by category as prerequisites_by_category %}
+                    {% for category_group in prerequisites_by_category %}
+                        <h6 class="mt-3 mb-2">{{ category_group.grouper }}</h6>
+                        {% for prereq in category_group.list %}
+                        <div class="prerequisite-item {% if prereq.status == 'completed' %}prerequisite-completed{% endif %}">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    {% if prereq.status == 'completed' %}
+                                        <i class="fas fa-check-circle text-success"></i>
+                                    {% else %}
+                                        <i class="far fa-circle text-muted"></i>
+                                    {% endif %}
+                                    <strong>{{ prereq.description }}</strong>
+                                    {% if prereq.notes %}
+                                        <br><small class="text-muted">{{ prereq.notes }}</small>
+                                    {% endif %}
+                                </div>
+                                <span class="badge bg-{% if prereq.status == 'completed' %}success{% else %}secondary{% endif %}">
+                                    {{ prereq.get_status_display }}
+                                </span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted text-center py-4">No prerequisites defined yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Costs Tab -->
+    <div class="tab-pane fade" id="costs" role="tabpanel">
+        <div class="card section-card">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="fas fa-dollar-sign"></i> Event Costs</h6>
+            </div>
+            <div class="card-body">
+                {% if costs %}
+                    <table class="table table-hover cost-table">
+                        <thead>
+                            <tr>
+                                <th>Cost Type</th>
+                                <th>Description</th>
+                                <th>Staff</th>
+                                <th class="text-end">Estimated</th>
+                                <th class="text-end">Actual</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cost in costs %}
+                            <tr>
+                                <td>{{ cost.get_cost_type_display }}</td>
+                                <td>{{ cost.description|default:"-" }}</td>
+                                <td>{{ cost.staff_member.get_display_name|default:"-" }}</td>
+                                <td class="text-end">¥{{ cost.estimated_amount|floatformat:2 }}</td>
+                                <td class="text-end">
+                                    {% if cost.actual_amount %}
+                                        ¥{{ cost.actual_amount|floatformat:2 }}
+                                    {% else %}
+                                        <span class="text-muted">Pending</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr class="table-active">
+                                <th colspan="3" class="text-end">Total:</th>
+                                <th class="text-end">¥{{ event.estimated_total_cost|floatformat:2 }}</th>
+                                <th class="text-end">¥{{ event.actual_total_cost|floatformat:2 }}</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                {% else %}
+                    <p class="text-muted text-center py-4">No costs recorded yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Work Logs Tab -->
+    <div class="tab-pane fade" id="worklogs" role="tabpanel">
+        <div class="card section-card">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="fas fa-clipboard-list"></i> Daily Work Logs</h6>
+            </div>
+            <div class="card-body">
+                {% if work_logs %}
+                    {% for log in work_logs %}
+                    <div class="timeline-item">
+                        <h6>{{ log.log_date|date:"F d, Y" }}</h6>
+                        <p class="mb-1"><strong>{{ log.work_description }}</strong></p>
+                        {% if log.tasks_completed %}
+                            <p class="mb-1"><small><strong>Tasks Completed:</strong> {{ log.tasks_completed }}</small></p>
+                        {% endif %}
+                        {% if log.issues_encountered %}
+                            <p class="mb-1 text-warning"><small><strong>Issues:</strong> {{ log.issues_encountered }}</small></p>
+                        {% endif %}
+                        <small class="text-muted">Logged by: {{ log.created_by.get_display_name }}</small>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted text-center py-4">No work logs recorded yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Equipment Tab -->
+    <div class="tab-pane fade" id="equipment" role="tabpanel">
+        <div class="card section-card">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="fas fa-toolbox"></i> Equipment Tracking</h6>
+            </div>
+            <div class="card-body">
+                {% if equipment %}
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Equipment</th>
+                                <th>Quantity</th>
+                                <th>Status</th>
+                                <th>Checked Out By</th>
+                                <th>Checkout Date</th>
+                                <th>Return Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in equipment %}
+                            <tr>
+                                <td>{{ item.equipment_name }}</td>
+                                <td>{{ item.quantity }}</td>
+                                <td><span class="badge bg-info">{{ item.get_status_display }}</span></td>
+                                <td>{{ item.checked_out_by.get_display_name }}</td>
+                                <td>{{ item.checked_out_date|date:"M d, Y" }}</td>
+                                <td>
+                                    {% if item.returned_date %}
+                                        <span class="badge bg-success">Returned</span>
+                                        <small class="text-muted">{{ item.returned_date|date:"M d, Y" }}</small>
+                                    {% else %}
+                                        <span class="badge bg-warning text-dark">Not Returned</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p class="text-muted text-center py-4">No equipment tracked yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Approvals Tab -->
+    <div class="tab-pane fade" id="approvals" role="tabpanel">
+        <div class="card section-card">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="fas fa-check-circle"></i> Approval Workflow</h6>
+            </div>
+            <div class="card-body">
+                {% if approvals %}
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Approval Type</th>
+                                <th>Approver</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                                <th>Comments</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for approval in approvals %}
+                            <tr>
+                                <td>{{ approval.get_approval_role_display }}</td>
+                                <td>{{ approval.approver.get_display_name }}</td>
+                                <td>
+                                    {% if approval.status == 'pending' %}
+                                        <span class="badge bg-warning text-dark">Pending</span>
+                                    {% elif approval.status == 'approved' %}
+                                        <span class="badge bg-success">Approved</span>
+                                    {% elif approval.status == 'rejected' %}
+                                        <span class="badge bg-danger">Rejected</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if approval.approved_date %}
+                                        {{ approval.approved_date|date:"M d, Y" }}
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ approval.comments|default:"-" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p class="text-muted text-center py-4">No approvals required yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if review %}
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card section-card">
+            <div class="card-header bg-success text-white">
+                <h6 class="mb-0"><i class="fas fa-star"></i> Post-Event Review</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 text-center">
+                        <h6>Time Management</h6>
+                        <h3>{{ review.time_management_rating }}/5</h3>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <h6>Technical Quality</h6>
+                        <h3>{{ review.technical_quality_rating }}/5</h3>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <h6>Customer Satisfaction</h6>
+                        <h3>{{ review.customer_satisfaction_rating }}/5</h3>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <h6>Cost Efficiency</h6>
+                        <h3>{{ review.cost_efficiency_rating }}/5</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmEvent(eventId) {
+    if (confirm('Are you sure you want to confirm this event?')) {
+        // AJAX call to update event status
+        alert('Event confirmation will be implemented in future updates.');
+    }
+}
+</script>
+{% endblock %}

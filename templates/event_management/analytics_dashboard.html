@@ -1,0 +1,399 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Analytics Dashboard - Krystal Platform{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card {
+        border-left: 4px solid;
+        transition: transform 0.2s;
+    }
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .chart-container {
+        position: relative;
+        height: 300px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-chart-line"></i> Performance Analytics</h2>
+    <div>
+        <a href="{% url 'event_management:dashboard' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<!-- Date Range Filter -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">Date Range</label>
+                <select name="days" class="form-select" onchange="this.form.submit()">
+                    <option value="30" {% if days == 30 %}selected{% endif %}>Last 30 Days</option>
+                    <option value="60" {% if days == 60 %}selected{% endif %}>Last 60 Days</option>
+                    <option value="90" {% if days == 90 %}selected{% endif %}>Last 90 Days</option>
+                    <option value="180" {% if days == 180 %}selected{% endif %}>Last 6 Months</option>
+                    <option value="365" {% if days == 365 %}selected{% endif %}>Last Year</option>
+                </select>
+            </div>
+            <div class="col-md-9">
+                <p class="text-muted mb-0">
+                    <i class="fas fa-info-circle"></i> Showing data from {{ start_date }} to today
+                </p>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Event Statistics -->
+<h4 class="mb-3"><i class="fas fa-calendar"></i> Event Statistics</h4>
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card stat-card border-primary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="mb-0">{{ total_events }}</h3>
+                        <p class="text-muted mb-0">Total Events</p>
+                    </div>
+                    <i class="fas fa-calendar-alt fa-2x text-primary"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card border-success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="mb-0">{{ completed_events }}</h3>
+                        <p class="text-muted mb-0">Completed</p>
+                    </div>
+                    <i class="fas fa-check-circle fa-2x text-success"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card border-info">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="mb-0">{{ total_feedbacks }}</h3>
+                        <p class="text-muted mb-0">Feedback Received</p>
+                    </div>
+                    <i class="fas fa-comments fa-2x text-info"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card border-warning">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="mb-0">{{ feedback_response_rate|floatformat:0 }}%</h3>
+                        <p class="text-muted mb-0">Response Rate</p>
+                    </div>
+                    <i class="fas fa-percentage fa-2x text-warning"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Customer Satisfaction -->
+<h4 class="mb-3"><i class="fas fa-smile"></i> Customer Satisfaction</h4>
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Average Ratings by Category</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="ratingsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <h6>Overall Average Rating</h6>
+                <h1 class="display-3 {% if overall_avg >= 4 %}text-success{% elif overall_avg >= 3 %}text-warning{% else %}text-danger{% endif %}">
+                    {{ overall_avg|floatformat:1 }}
+                </h1>
+                <p class="mb-0">out of 5.0</p>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-body">
+                <h6>Rating Distribution</h6>
+                <div class="mb-2">
+                    <small>Service Quality: <strong>{{ avg_service_quality|floatformat:1 }}/5</strong></small>
+                </div>
+                <div class="mb-2">
+                    <small>Staff Professionalism: <strong>{{ avg_staff_professionalism|floatformat:1 }}/5</strong></small>
+                </div>
+                <div class="mb-2">
+                    <small>Timeliness: <strong>{{ avg_timeliness|floatformat:1 }}/5</strong></small>
+                </div>
+                <div class="mb-2">
+                    <small>Technical Expertise: <strong>{{ avg_technical_expertise|floatformat:1 }}/5</strong></small>
+                </div>
+                <div class="mb-2">
+                    <small>Communication: <strong>{{ avg_communication|floatformat:1 }}/5</strong></small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Net Promoter Score -->
+<h4 class="mb-3"><i class="fas fa-trophy"></i> Net Promoter Score (NPS)</h4>
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">NPS Distribution</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="npsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6>Net Promoter Score</h6>
+                <h1 class="display-2 {% if nps_score >= 50 %}text-success{% elif nps_score >= 0 %}text-warning{% else %}text-danger{% endif %}">
+                    {{ nps_score|floatformat:0 }}
+                </h1>
+                <p class="text-muted">
+                    {% if nps_score >= 50 %}
+                        <i class="fas fa-smile"></i> Excellent
+                    {% elif nps_score >= 0 %}
+                        <i class="fas fa-meh"></i> Good
+                    {% else %}
+                        <i class="fas fa-frown"></i> Needs Improvement
+                    {% endif %}
+                </p>
+
+                <div class="row mt-4">
+                    <div class="col-4">
+                        <h4 class="text-success">{{ promoters }}</h4>
+                        <small>Promoters</small>
+                    </div>
+                    <div class="col-4">
+                        <h4 class="text-warning">{{ passives }}</h4>
+                        <small>Passives</small>
+                    </div>
+                    <div class="col-4">
+                        <h4 class="text-danger">{{ detractors }}</h4>
+                        <small>Detractors</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Equipment Damage -->
+<h4 class="mb-3"><i class="fas fa-tools"></i> Equipment & Damage</h4>
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card stat-card border-danger">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="mb-0">{{ damage_reports_count }}</h3>
+                        <p class="text-muted mb-0">Damage Reports</p>
+                    </div>
+                    <i class="fas fa-exclamation-triangle fa-2x text-danger"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card border-warning">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="mb-0">¥{{ total_damage_cost|floatformat:0 }}</h3>
+                        <p class="text-muted mb-0">Total Cost</p>
+                    </div>
+                    <i class="fas fa-dollar-sign fa-2x text-warning"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card border-info">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="mb-0">{{ preventable_damage }}</h3>
+                        <p class="text-muted mb-0">Preventable</p>
+                    </div>
+                    <i class="fas fa-shield-alt fa-2x text-info"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card border-primary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="mb-0">{{ avg_review_rating|floatformat:1 }}</h3>
+                        <p class="text-muted mb-0">Internal Review</p>
+                    </div>
+                    <i class="fas fa-star fa-2x text-primary"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="card">
+    <div class="card-header">
+        <h5><i class="fas fa-bolt"></i> Quick Actions</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <a href="{% url 'event_management:feedback_list' %}" class="btn btn-outline-primary btn-block w-100">
+                    <i class="fas fa-comments"></i> View All Feedback
+                </a>
+            </div>
+            <div class="col-md-3">
+                <a href="{% url 'event_management:event_list' %}" class="btn btn-outline-success btn-block w-100">
+                    <i class="fas fa-calendar"></i> View Events
+                </a>
+            </div>
+            <div class="col-md-3">
+                <a href="{% url 'event_management:dashboard' %}" class="btn btn-outline-info btn-block w-100">
+                    <i class="fas fa-tachometer-alt"></i> Main Dashboard
+                </a>
+            </div>
+            <div class="col-md-3">
+                <button class="btn btn-outline-secondary btn-block w-100" onclick="window.print()">
+                    <i class="fas fa-print"></i> Print Report
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+    // Ratings Bar Chart
+    const ratingsCtx = document.getElementById('ratingsChart').getContext('2d');
+    new Chart(ratingsCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ rating_labels|safe }},
+            datasets: [{
+                label: 'Average Rating',
+                data: {{ rating_data|safe }},
+                backgroundColor: [
+                    'rgba(102, 126, 234, 0.6)',
+                    'rgba(118, 75, 162, 0.6)',
+                    'rgba(237, 137, 54, 0.6)',
+                    'rgba(246, 191, 66, 0.6)',
+                    'rgba(72, 187, 120, 0.6)'
+                ],
+                borderColor: [
+                    'rgba(102, 126, 234, 1)',
+                    'rgba(118, 75, 162, 1)',
+                    'rgba(237, 137, 54, 1)',
+                    'rgba(246, 191, 66, 1)',
+                    'rgba(72, 187, 120, 1)'
+                ],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 5,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.parsed.y.toFixed(1) + '/5.0';
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // NPS Pie Chart
+    const npsCtx = document.getElementById('npsChart').getContext('2d');
+    new Chart(npsCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Promoters (9-10)', 'Passives (7-8)', 'Detractors (1-6)'],
+            datasets: [{
+                data: [{{ promoters }}, {{ passives }}, {{ detractors }}],
+                backgroundColor: [
+                    'rgba(72, 187, 120, 0.6)',
+                    'rgba(237, 137, 54, 0.6)',
+                    'rgba(245, 101, 101, 0.6)'
+                ],
+                borderColor: [
+                    'rgba(72, 187, 120, 1)',
+                    'rgba(237, 137, 54, 1)',
+                    'rgba(245, 101, 101, 1)'
+                ],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const total = {{ promoters }} + {{ passives }} + {{ detractors }};
+                            const percentage = total > 0 ? ((context.parsed / total) * 100).toFixed(1) : 0;
+                            return context.label + ': ' + context.parsed + ' (' + percentage + '%)';
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

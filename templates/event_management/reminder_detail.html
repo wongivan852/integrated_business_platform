@@ -1,0 +1,234 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Reminder Details - Krystal Platform{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2><i class="fas fa-bell"></i> Reminder Details</h2>
+                <p class="text-muted">{{ reminder.title }}</p>
+            </div>
+            <div>
+                {% if not reminder.sent %}
+                <a href="{% url 'event_management:reminder_edit' reminder.pk %}" class="btn btn-warning">
+                    <i class="fas fa-edit"></i> Edit
+                </a>
+                {% endif %}
+                <a href="{% url 'event_management:reminder_list' reminder.event.pk %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to List
+                </a>
+            </div>
+        </div>
+        <hr>
+    </div>
+</div>
+
+<!-- Status Banner -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        {% if reminder.sent %}
+        <div class="alert alert-success">
+            <i class="fas fa-check-circle"></i>
+            <strong>Sent:</strong> This reminder was sent on {{ reminder.sent_at|date:"M d, Y g:i A" }}
+        </div>
+        {% elif reminder.send_datetime < now %}
+        <div class="alert alert-danger">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>Overdue:</strong> This reminder was scheduled for {{ reminder.send_datetime|date:"M d, Y g:i A" }} but has not been sent yet.
+        </div>
+        {% else %}
+        <div class="alert alert-warning">
+            <i class="fas fa-clock"></i>
+            <strong>Pending:</strong> This reminder is scheduled to be sent on {{ reminder.send_datetime|date:"M d, Y g:i A" }}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Reminder Information -->
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-3">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fas fa-info-circle"></i> Reminder Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Type:</strong><br>
+                        <span class="badge bg-secondary">{{ reminder.get_reminder_type_display }}</span>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Event:</strong><br>
+                        <a href="{% url 'event_management:event_detail' reminder.event.pk %}">{{ reminder.event.event_number }}</a>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <strong>Message:</strong><br>
+                        <p class="mt-2" style="white-space: pre-wrap;">{{ reminder.message }}</p>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong>Created By:</strong><br>
+                        {{ reminder.created_by.get_full_name }} on {{ reminder.created_at|date:"M d, Y" }}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Scheduled For:</strong><br>
+                        {{ reminder.send_datetime|date:"M d, Y g:i A" }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fas fa-users"></i> Recipients ({{ reminder.recipients.count }})</h5>
+            </div>
+            <div class="card-body">
+                {% if reminder.recipients.all %}
+                <div class="list-group">
+                    {% for recipient in reminder.recipients.all %}
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ recipient.get_full_name }}</strong><br>
+                                <small class="text-muted">
+                                    <i class="fas fa-envelope"></i> {{ recipient.email }}<br>
+                                    {% if recipient.phone_number %}
+                                    <i class="fas fa-phone"></i> {{ recipient.phone_number }}
+                                    {% endif %}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted text-center">No recipients selected</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <!-- Notification Channels -->
+        <div class="card mb-3">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fas fa-bell"></i> Notification Channels</h5>
+            </div>
+            <div class="card-body">
+                <!-- Email -->
+                <div class="mb-3">
+                    <h6>
+                        <i class="fas fa-envelope"></i> Email
+                        {% if reminder.email_sent %}
+                        <span class="badge bg-success float-end">Sent</span>
+                        {% elif reminder.email_error %}
+                        <span class="badge bg-danger float-end">Error</span>
+                        {% elif reminder.send_email %}
+                        <span class="badge bg-info float-end">Enabled</span>
+                        {% else %}
+                        <span class="badge bg-secondary float-end">Disabled</span>
+                        {% endif %}
+                    </h6>
+                    {% if reminder.email_error %}
+                    <small class="text-danger">Error: {{ reminder.email_error }}</small>
+                    {% endif %}
+                </div>
+
+                <!-- SMS -->
+                <div class="mb-3">
+                    <h6>
+                        <i class="fas fa-sms"></i> SMS
+                        {% if reminder.sms_sent %}
+                        <span class="badge bg-success float-end">Sent</span>
+                        {% elif reminder.sms_error %}
+                        <span class="badge bg-danger float-end">Error</span>
+                        {% elif reminder.send_sms %}
+                        <span class="badge bg-info float-end">Enabled</span>
+                        {% else %}
+                        <span class="badge bg-secondary float-end">Disabled</span>
+                        {% endif %}
+                    </h6>
+                    {% if reminder.sms_error %}
+                    <small class="text-danger">Error: {{ reminder.sms_error }}</small>
+                    {% endif %}
+                </div>
+
+                <!-- WeChat -->
+                <div class="mb-3">
+                    <h6>
+                        <i class="fab fa-weixin"></i> WeChat
+                        {% if reminder.wechat_sent %}
+                        <span class="badge bg-success float-end">Sent</span>
+                        {% elif reminder.wechat_error %}
+                        <span class="badge bg-danger float-end">Error</span>
+                        {% elif reminder.send_wechat %}
+                        <span class="badge bg-info float-end">Enabled</span>
+                        {% else %}
+                        <span class="badge bg-secondary float-end">Disabled</span>
+                        {% endif %}
+                    </h6>
+                    {% if reminder.wechat_error %}
+                    <small class="text-danger">Error: {{ reminder.wechat_error }}</small>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        {% if not reminder.sent %}
+        <div class="card">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fas fa-cog"></i> Actions</h5>
+            </div>
+            <div class="card-body">
+                <button type="button" class="btn btn-success w-100 mb-2" onclick="sendReminder()">
+                    <i class="fas fa-paper-plane"></i> Send Now
+                </button>
+                <a href="{% url 'event_management:reminder_edit' reminder.pk %}" class="btn btn-warning w-100 mb-2">
+                    <i class="fas fa-edit"></i> Edit Reminder
+                </a>
+                <a href="{% url 'event_management:reminder_delete' reminder.pk %}" class="btn btn-danger w-100"
+                   onclick="return confirm('Are you sure you want to delete this reminder?')">
+                    <i class="fas fa-trash"></i> Delete Reminder
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function sendReminder() {
+    if (confirm('Send this reminder now to all recipients?')) {
+        fetch("{% url 'event_management:reminder_send_now' reminder.pk %}", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert('Reminder is being sent!');
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            alert('Error sending reminder: ' + error);
+        });
+    }
+}
+</script>
+{% endblock %}

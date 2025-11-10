@@ -58,6 +58,8 @@ LOCAL_APPS = [
     'event_management',
     # Attendance Integration
     'attendance_integration',
+    # Leave Management System
+    'leave_management',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
