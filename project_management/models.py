@@ -7,6 +7,7 @@ from django.db import models
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 import uuid
 
 User = get_user_model()
@@ -21,23 +22,23 @@ class Project(models.Model):
     Main project container - supports both Gantt and Kanban views
     """
     STATUS_CHOICES = [
-        ('planning', 'Planning'),
-        ('active', 'Active'),
-        ('on_hold', 'On Hold'),
-        ('completed', 'Completed'),
-        ('cancelled', 'Cancelled'),
+        ('planning', _('Planning')),
+        ('active', _('Active')),
+        ('on_hold', _('On Hold')),
+        ('completed', _('Completed')),
+        ('cancelled', _('Cancelled')),
     ]
 
     PRIORITY_CHOICES = [
-        ('low', 'Low'),
-        ('medium', 'Medium'),
-        ('high', 'High'),
-        ('critical', 'Critical'),
+        ('low', _('Low')),
+        ('medium', _('Medium')),
+        ('high', _('High')),
+        ('critical', _('Critical')),
     ]
 
     VIEW_CHOICES = [
-        ('gantt', 'Gantt Chart'),
-        ('kanban', 'Kanban Board'),
+        ('gantt', _('Gantt Chart')),
+        ('kanban', _('Kanban Board')),
     ]
 
     # Basic Information
@@ -163,10 +164,10 @@ class ProjectMember(models.Model):
     Through model for project team membership with roles
     """
     ROLE_CHOICES = [
-        ('owner', 'Owner'),
-        ('admin', 'Admin'),
-        ('member', 'Member'),
-        ('viewer', 'Viewer'),
+        ('owner', _('Owner')),
+        ('admin', _('Admin')),
+        ('member', _('Member')),
+        ('viewer', _('Viewer')),
     ]
 
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
@@ -187,18 +188,18 @@ class Task(models.Model):
     Universal task model - works for both Gantt and Kanban
     """
     PRIORITY_CHOICES = [
-        ('low', 'Low'),
-        ('medium', 'Medium'),
-        ('high', 'High'),
-        ('critical', 'Critical'),
+        ('low', _('Low')),
+        ('medium', _('Medium')),
+        ('high', _('High')),
+        ('critical', _('Critical')),
     ]
 
     STATUS_CHOICES = [
-        ('todo', 'To Do'),
-        ('in_progress', 'In Progress'),
-        ('review', 'In Review'),
-        ('blocked', 'Blocked'),
-        ('completed', 'Completed'),
+        ('todo', _('To Do')),
+        ('in_progress', _('In Progress')),
+        ('review', _('In Review')),
+        ('blocked', _('Blocked')),
+        ('completed', _('Completed')),
     ]
 
     # Basic Information
@@ -590,19 +591,19 @@ class TaskActivity(models.Model):
     Activity log for audit trail
     """
     ACTION_CHOICES = [
-        ('created', 'Created'),
-        ('updated', 'Updated'),
-        ('moved', 'Moved'),
-        ('assigned', 'Assigned'),
-        ('unassigned', 'Unassigned'),
-        ('status_changed', 'Status Changed'),
-        ('priority_changed', 'Priority Changed'),
-        ('completed', 'Completed'),
-        ('reopened', 'Reopened'),
-        ('commented', 'Commented'),
-        ('attached_file', 'Attached File'),
-        ('dependency_added', 'Dependency Added'),
-        ('dependency_removed', 'Dependency Removed'),
+        ('created', _('Created')),
+        ('updated', _('Updated')),
+        ('moved', _('Moved')),
+        ('assigned', _('Assigned')),
+        ('unassigned', _('Unassigned')),
+        ('status_changed', _('Status Changed')),
+        ('priority_changed', _('Priority Changed')),
+        ('completed', _('Completed')),
+        ('reopened', _('Reopened')),
+        ('commented', _('Commented')),
+        ('attached_file', _('Attached File')),
+        ('dependency_added', _('Dependency Added')),
+        ('dependency_removed', _('Dependency Removed')),
     ]
 
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='activities')
@@ -784,14 +785,14 @@ class ProjectCost(models.Model):
     Actual costs incurred on a project
     """
     CATEGORY_CHOICES = [
-        ('labor', 'Labor'),
-        ('materials', 'Materials'),
-        ('equipment', 'Equipment'),
-        ('subcontractor', 'Subcontractor'),
-        ('travel', 'Travel'),
-        ('software', 'Software/Licenses'),
-        ('overhead', 'Overhead'),
-        ('other', 'Other'),
+        ('labor', _('Labor')),
+        ('materials', _('Materials')),
+        ('equipment', _('Equipment')),
+        ('subcontractor', _('Subcontractor')),
+        ('travel', _('Travel')),
+        ('software', _('Software/Licenses')),
+        ('overhead', _('Overhead')),
+        ('other', _('Other')),
     ]
 
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='costs')
@@ -915,14 +916,14 @@ class ProjectTemplate(models.Model):
     Reusable project structure template
     """
     CATEGORY_CHOICES = [
-        ('software', 'Software Development'),
-        ('construction', 'Construction'),
-        ('marketing', 'Marketing Campaign'),
-        ('research', 'Research Project'),
-        ('event', 'Event Planning'),
-        ('consulting', 'Consulting Project'),
-        ('design', 'Design Project'),
-        ('other', 'Other'),
+        ('software', _('Software Development')),
+        ('construction', _('Construction')),
+        ('marketing', _('Marketing Campaign')),
+        ('research', _('Research Project')),
+        ('event', _('Event Planning')),
+        ('consulting', _('Consulting Project')),
+        ('design', _('Design Project')),
+        ('other', _('Other')),
     ]
 
     name = models.CharField(max_length=200)
@@ -961,10 +962,10 @@ class TemplateTask(models.Model):
     Task blueprint within a project template
     """
     ROLE_CHOICES = [
-        ('owner', 'Project Owner'),
-        ('manager', 'Project Manager'),
-        ('member', 'Team Member'),
-        ('lead', 'Team Lead'),
+        ('owner', _('Project Owner')),
+        ('manager', _('Project Manager')),
+        ('member', _('Team Member')),
+        ('lead', _('Team Lead')),
     ]
 
     template = models.ForeignKey(ProjectTemplate, on_delete=models.CASCADE, related_name='template_tasks')
@@ -1000,10 +1001,10 @@ class TemplateDependency(models.Model):
     Dependency blueprint between template tasks
     """
     DEPENDENCY_TYPE_CHOICES = [
-        ('FS', 'Finish-to-Start'),
-        ('SS', 'Start-to-Start'),
-        ('FF', 'Finish-to-Finish'),
-        ('SF', 'Start-to-Finish'),
+        ('FS', _('Finish-to-Start')),
+        ('SS', _('Start-to-Start')),
+        ('FF', _('Finish-to-Finish')),
+        ('SF', _('Start-to-Finish')),
     ]
 
     task = models.ForeignKey(
@@ -1130,24 +1131,24 @@ class DashboardWidget(models.Model):
     Customizable dashboard widgets for personalized user experience
     """
     WIDGET_TYPE_CHOICES = [
-        ('project_status', 'Project Status Overview'),
-        ('task_summary', 'Task Summary'),
-        ('budget_tracker', 'Budget Tracker'),
-        ('schedule_timeline', 'Schedule Timeline'),
-        ('team_workload', 'Team Workload'),
-        ('recent_activity', 'Recent Activity'),
-        ('upcoming_deadlines', 'Upcoming Deadlines'),
-        ('performance_metrics', 'Performance Metrics'),
-        ('cost_breakdown', 'Cost Breakdown'),
-        ('velocity_chart', 'Velocity Chart'),
-        ('burndown_chart', 'Burndown Chart'),
-        ('risk_alerts', 'Risk Alerts'),
+        ('project_status', _('Project Status Overview')),
+        ('task_summary', _('Task Summary')),
+        ('budget_tracker', _('Budget Tracker')),
+        ('schedule_timeline', _('Schedule Timeline')),
+        ('team_workload', _('Team Workload')),
+        ('recent_activity', _('Recent Activity')),
+        ('upcoming_deadlines', _('Upcoming Deadlines')),
+        ('performance_metrics', _('Performance Metrics')),
+        ('cost_breakdown', _('Cost Breakdown')),
+        ('velocity_chart', _('Velocity Chart')),
+        ('burndown_chart', _('Burndown Chart')),
+        ('risk_alerts', _('Risk Alerts')),
     ]
 
     SIZE_CHOICES = [
-        ('small', 'Small (1/4 width)'),
-        ('medium', 'Medium (1/2 width)'),
-        ('large', 'Large (Full width)'),
+        ('small', _('Small (1/4 width)')),
+        ('medium', _('Medium (1/2 width)')),
+        ('large', _('Large (Full width)')),
     ]
 
     user = models.ForeignKey(
@@ -1777,9 +1778,9 @@ class PermissionAuditLog(models.Model):
 
     # Status
     SUCCESS_CHOICES = [
-        ('success', 'Success'),
-        ('failure', 'Failure'),
-        ('error', 'Error'),
+        ('success', _('Success')),
+        ('failure', _('Failure')),
+        ('error', _('Error')),
     ]
     status = models.CharField(
         max_length=20,
@@ -2251,9 +2252,9 @@ class IntegrationLog(models.Model):
 
     # Status
     STATUS_CHOICES = [
-        ('success', 'Success'),
-        ('warning', 'Warning'),
-        ('error', 'Error'),
+        ('success', _('Success')),
+        ('warning', _('Warning')),
+        ('error', _('Error')),
     ]
     status = models.CharField(
         max_length=20,
@@ -2694,9 +2695,9 @@ class Workflow(models.Model):
     Workflows automate repetitive tasks and enforce business rules.
     """
     STATUS_CHOICES = [
-        ('active', 'Active'),
-        ('inactive', 'Inactive'),
-        ('draft', 'Draft'),
+        ('active', _('Active')),
+        ('inactive', _('Inactive')),
+        ('draft', _('Draft')),
     ]
 
     name = models.CharField(max_length=200)
@@ -2900,11 +2901,11 @@ class WorkflowExecution(models.Model):
     Tracks success, failure, and execution details.
     """
     STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('running', 'Running'),
-        ('completed', 'Completed'),
-        ('failed', 'Failed'),
-        ('cancelled', 'Cancelled'),
+        ('pending', _('Pending')),
+        ('running', _('Running')),
+        ('completed', _('Completed')),
+        ('failed', _('Failed')),
+        ('cancelled', _('Cancelled')),
     ]
 
     workflow = models.ForeignKey(Workflow, on_delete=models.CASCADE, related_name='executions')

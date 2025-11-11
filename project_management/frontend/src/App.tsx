@@ -3,13 +3,20 @@ import React from 'react';
 
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 
+import { useTranslation } from 'react-i18next';
+
 import IAICCProjectPlan from './pages/iaicc-2025-project-plan';
 
-import { Calendar, Home } from 'lucide-react';
+import { Calendar, Home, Languages } from 'lucide-react';
 
  
 
 function App() {
+  const { t, i18n } = useTranslation();
+
+  const changeLanguage = (lng: string) => {
+    i18n.changeLanguage(lng);
+  };
 
   return (
 
@@ -29,7 +36,7 @@ function App() {
 
                   <Calendar className="h-6 w-6" />
 
-                  <span>IAICC 2025 Project Management</span>
+                  <span>{t('IAICC 2025 Project Management')}</span>
 
                 </Link>
 
@@ -47,9 +54,25 @@ function App() {
 
                   <Home className="h-4 w-4" />
 
-                  <span>Dashboard</span>
+                  <span>{t('Dashboard')}</span>
 
                 </Link>
+
+                <div className="flex items-center space-x-2">
+                  <Languages className="h-4 w-4 text-gray-600" />
+                  <button
+                    onClick={() => changeLanguage('en')}
+                    className={`px-2 py-1 text-sm rounded ${i18n.language === 'en' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                  >
+                    EN
+                  </button>
+                  <button
+                    onClick={() => changeLanguage('zh-hans')}
+                    className={`px-2 py-1 text-sm rounded ${i18n.language === 'zh-hans' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                  >
+                    中文
+                  </button>
+                </div>
 
               </div>
 

@@ -1,20 +1,22 @@
 import React, { useState } from 'react';
 import { Calendar, DollarSign, AlertTriangle, Users, CheckCircle, Target, FileText, TrendingUp, Clock, Award } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import ExportButton from "../components/ExportButton.tsx";
 import { exportGanttToCSV } from '../utils/csvExport';
 
 const IAICCProjectPlan = () => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('gantt');
-  
+
   const tabs = [
-    { id: 'gantt', label: 'Gantt Chart', icon: Calendar },
-    { id: 'wbs', label: 'WBS', icon: FileText },
-    { id: 'deliverables', label: 'Deliverables', icon: CheckCircle },
-    { id: 'milestones', label: 'Milestones', icon: Award },
-    { id: 'financial', label: 'Financial', icon: DollarSign },
-    { id: 'risks', label: 'Risk Management', icon: AlertTriangle },
-    { id: 'quality', label: 'Quality', icon: Target },
-    { id: 'resources', label: 'Resources', icon: Users }
+    { id: 'gantt', label: t('Gantt Chart'), icon: Calendar },
+    { id: 'wbs', label: t('WBS'), icon: FileText },
+    { id: 'deliverables', label: t('Deliverables'), icon: CheckCircle },
+    { id: 'milestones', label: t('Milestones'), icon: Award },
+    { id: 'financial', label: t('Financial'), icon: DollarSign },
+    { id: 'risks', label: t('Risk Management'), icon: AlertTriangle },
+    { id: 'quality', label: t('Quality'), icon: Target },
+    { id: 'resources', label: t('Resources'), icon: Users }
   ];
 
   return (
@@ -23,14 +25,14 @@ const IAICCProjectPlan = () => {
         <header className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-lg mb-6">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-3xl font-bold">IAICC 2025 Project Management Plan</h1>
-              <p className="mt-2">International AI and Creativity Conference | Dec 13-14, 2025</p>
+              <h1 className="text-3xl font-bold">{t('IAICC 2025 Project Management Plan')}</h1>
+              <p className="mt-2">{t('International AI and Creativity Conference | Dec 13-14, 2025')}</p>
             </div>
             <ExportButton
               onClick={() => {
                 alert('CSV Export works! See EXPORT_INTEGRATION_GUIDE.md for full integration');
               }}
-              label="Test Export"
+              label={t('Export CSV')}
               variant="success"
             />
           </div>

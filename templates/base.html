@@ -1,5 +1,6 @@
+{% load i18n %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ LANGUAGE_CODE }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -17,6 +18,35 @@
             </a>
             {% if user.is_authenticated %}
             <div class="navbar-nav ms-auto d-flex align-items-center">
+                <!-- Language Switcher -->
+                <div class="nav-item dropdown me-3">
+                    <a class="nav-link dropdown-toggle" href="#" id="languageDropdown" role="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-globe"></i>
+                        {% if LANGUAGE_CODE == 'zh-hans' %}中文{% else %}English{% endif %}
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li>
+                            <form action="{% url 'set_language' %}" method="post" style="margin: 0;">
+                                {% csrf_token %}
+                                <input name="next" type="hidden" value="{{ request.get_full_path }}" />
+                                <input name="language" type="hidden" value="en" />
+                                <button type="submit" class="dropdown-item">
+                                    <i class="fas fa-flag-usa"></i> English
+                                </button>
+                            </form>
+                        </li>
+                        <li>
+                            <form action="{% url 'set_language' %}" method="post" style="margin: 0;">
+                                {% csrf_token %}
+                                <input name="next" type="hidden" value="{{ request.get_full_path }}" />
+                                <input name="language" type="hidden" value="zh-hans" />
+                                <button type="submit" class="dropdown-item">
+                                    <i class="fas fa-flag"></i> 简体中文
+                                </button>
+                            </form>
+                        </li>
+                    </ul>
+                </div>
                 <!-- User Dropdown -->
                 <div class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">

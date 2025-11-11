@@ -1,23 +1,24 @@
 {% extends 'project_management/base.html' %}
 {% load static %}
+{% load i18n %}
 
-{% block page_title %}All Projects{% endblock %}
+{% block page_title %}{% trans "All Projects" %}{% endblock %}
 
 {% block breadcrumb_items %}
-<li class="breadcrumb-item active" aria-current="page">All Projects</li>
+<li class="breadcrumb-item active" aria-current="page">{% trans "All Projects" %}</li>
 {% endblock %}
 
 {% block page_heading %}
-    <i class="fas fa-project-diagram"></i> All Projects
+    <i class="fas fa-project-diagram"></i> {% trans "All Projects" %}
 {% endblock %}
 
 {% block page_subtitle %}
-<p class="pm-subtitle">Manage all your projects in one place</p>
+<p class="pm-subtitle">{% trans "Manage all your projects in one place" %}</p>
 {% endblock %}
 
 {% block header_actions %}
 <a href="{% url 'project_management:project_create' %}" class="btn btn-primary">
-    <i class="fas fa-plus"></i> New Project
+    <i class="fas fa-plus"></i> {% trans "New Project" %}
 </a>
 {% endblock %}
 
@@ -28,21 +29,21 @@
         <div class="stat-card position-relative">
             <i class="fas fa-folder-open stat-icon"></i>
             <div class="stat-value">{{ total_projects }}</div>
-            <div class="stat-label">Total Projects</div>
+            <div class="stat-label">{% trans "Total Projects" %}</div>
         </div>
     </div>
     <div class="col-md-4">
         <div class="stat-card position-relative">
             <i class="fas fa-play-circle stat-icon"></i>
             <div class="stat-value text-success">{{ active_projects }}</div>
-            <div class="stat-label">Active Projects</div>
+            <div class="stat-label">{% trans "Active Projects" %}</div>
         </div>
     </div>
     <div class="col-md-4">
         <div class="stat-card position-relative">
             <i class="fas fa-check-circle stat-icon"></i>
             <div class="stat-value text-info">{{ completed_projects }}</div>
-            <div class="stat-label">Completed Projects</div>
+            <div class="stat-label">{% trans "Completed Projects" %}</div>
         </div>
     </div>
 </div>
@@ -52,15 +53,15 @@
     <div class="card-body">
         <form method="get" class="row g-3">
             <div class="col-md-4">
-                <label class="form-label"><i class="fas fa-search"></i> Search</label>
+                <label class="form-label"><i class="fas fa-search"></i> {% trans "Search" %}</label>
                 <input type="text" name="q" class="form-control"
-                       placeholder="Search projects..."
+                       placeholder="{% trans 'Search projects...' %}"
                        value="{{ search_query|default:'' }}">
             </div>
             <div class="col-md-3">
-                <label class="form-label"><i class="fas fa-filter"></i> Status</label>
+                <label class="form-label"><i class="fas fa-filter"></i> {% trans "Status" %}</label>
                 <select name="status" class="form-select">
-                    <option value="">All Statuses</option>
+                    <option value="">{% trans "All Statuses" %}</option>
                     {% for value, label in status_choices %}
                     <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>
                         {{ label }}
@@ -69,9 +70,9 @@
                 </select>
             </div>
             <div class="col-md-3">
-                <label class="form-label"><i class="fas fa-exclamation-circle"></i> Priority</label>
+                <label class="form-label"><i class="fas fa-exclamation-circle"></i> {% trans "Priority" %}</label>
                 <select name="priority" class="form-select">
-                    <option value="">All Priorities</option>
+                    <option value="">{% trans "All Priorities" %}</option>
                     {% for value, label in priority_choices %}
                     <option value="{{ value }}" {% if priority_filter == value %}selected{% endif %}>
                         {{ label }}
@@ -81,7 +82,7 @@
             </div>
             <div class="col-md-2 d-flex align-items-end">
                 <button type="submit" class="btn btn-primary w-100">
-                    <i class="fas fa-search"></i> Filter
+                    <i class="fas fa-search"></i> {% trans "Filter" %}
                 </button>
             </div>
         </form>
@@ -128,7 +129,7 @@
                     <!-- Progress Bar -->
                     <div class="mb-3">
                         <div class="d-flex justify-content-between small mb-1">
-                            <span>Progress</span>
+                            <span>{% trans "Progress" %}</span>
                             <span class="fw-bold">{{ project.progress_percentage }}%</span>
                         </div>
                         <div class="progress-bar-container">
@@ -142,14 +143,14 @@
                     <div class="row small text-muted mb-3">
                         <div class="col-6">
                             <i class="fas fa-tasks"></i>
-                            <strong>{{ project.task_count }}</strong> tasks
+                            <strong>{{ project.task_count }}</strong> {% trans "tasks" %}
                             {% if project.completed_tasks > 0 %}
-                            ({{ project.completed_tasks }} done)
+                            ({{ project.completed_tasks }} {% trans "done" %})
                             {% endif %}
                         </div>
                         <div class="col-6">
                             <i class="fas fa-users"></i>
-                            <strong>{{ project.member_count }}</strong> members
+                            <strong>{{ project.member_count }}</strong> {% trans "members" %}
                         </div>
                     </div>
 
@@ -168,12 +169,12 @@
                         {% if project.is_overdue %}
                         <div class="text-danger mt-1">
                             <i class="fas fa-exclamation-triangle"></i>
-                            Overdue
+                            {% trans "Overdue" %}
                         </div>
                         {% elif project.status not in 'completed,cancelled' %}
                         <div class="text-info mt-1">
                             <i class="fas fa-clock"></i>
-                            {{ project.days_remaining }} days remaining
+                            {{ project.days_remaining }} {% trans "days remaining" %}
                         </div>
                         {% endif %}
                     </div>
@@ -181,24 +182,24 @@
                     <!-- Owner -->
                     <div class="small text-muted mb-3">
                         <i class="fas fa-user"></i>
-                        Owner: <strong>{{ project.owner.get_full_name|default:project.owner.email }}</strong>
+                        {% trans "Owner" %}: <strong>{{ project.owner.get_full_name|default:project.owner.email }}</strong>
                     </div>
 
                     <!-- Actions -->
                     <div class="d-flex gap-2">
                         <a href="{% url 'project_management:project_detail' project.pk %}"
                            class="btn btn-sm btn-outline-primary flex-fill">
-                            <i class="fas fa-eye"></i> View
+                            <i class="fas fa-eye"></i> {% trans "View" %}
                         </a>
                         {% if project.default_view == 'kanban' %}
                         <a href="{% url 'project_management:project_kanban' project.pk %}"
                            class="btn btn-sm btn-outline-info">
-                            <i class="fas fa-columns"></i> Board
+                            <i class="fas fa-columns"></i> {% trans "Board" %}
                         </a>
                         {% else %}
                         <a href="{% url 'project_management:project_gantt' project.pk %}"
                            class="btn btn-sm btn-outline-success">
-                            <i class="fas fa-chart-bar"></i> Gantt
+                            <i class="fas fa-chart-bar"></i> {% trans "Gantt" %}
                         </a>
                         {% endif %}
                     </div>
@@ -212,16 +213,16 @@
             <div class="card project-card text-center py-5">
                 <div class="card-body">
                     <i class="fas fa-folder-open" style="font-size: 4rem; color: #e9ecef;"></i>
-                    <h3 class="mt-4">No Projects Found</h3>
+                    <h3 class="mt-4">{% trans "No Projects Found" %}</h3>
                     <p class="text-muted">
                         {% if search_query or status_filter or priority_filter %}
-                            No projects match your search criteria. Try adjusting your filters.
+                            {% trans "No projects match your search criteria. Try adjusting your filters." %}
                         {% else %}
-                            Get started by creating your first project!
+                            {% trans "Get started by creating your first project!" %}
                         {% endif %}
                     </p>
                     <a href="{% url 'project_management:project_create' %}" class="btn btn-primary mt-3">
-                        <i class="fas fa-plus"></i> Create Your First Project
+                        <i class="fas fa-plus"></i> {% trans "Create Your First Project" %}
                     </a>
                 </div>
             </div>
