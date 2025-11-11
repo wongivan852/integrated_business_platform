@@ -514,17 +514,17 @@ const ProcurementList = () => {
     }
   };
 
-  const parseDate = (dateStr) => {
-    const months = {
+  const parseDate = (dateStr: string): number => {
+    const months: { [key: string]: number } = {
       'Nov': 10, 'Dec': 11
     };
     const parts = dateStr.split(' ');
     if (parts.length >= 2) {
       const month = months[parts[0]];
       const day = parseInt(parts[1].replace(',', ''));
-      return new Date(2025, month, day);
+      return new Date(2025, month, day).getTime();
     }
-    return new Date(2025, 11, 31);
+    return new Date(2025, 11, 31).getTime();
   };
 
   const filteredItems = procurementItems.filter(item => {
