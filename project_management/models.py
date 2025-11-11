@@ -10,6 +10,9 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 import uuid
 
+# Import bilingual mixins
+from .mixins import BilingualModel, TimestampMixin, UserTrackingMixin
+
 User = get_user_model()
 
 
@@ -17,9 +20,10 @@ User = get_user_model()
 # CORE MODELS
 # ============================================================================
 
-class Project(models.Model):
+class Project(BilingualModel):
     """
     Main project container - supports both Gantt and Kanban views
+    Now with bilingual support for English and Simplified Chinese
     """
     STATUS_CHOICES = [
         ('planning', _('Planning')),
@@ -41,10 +45,34 @@ class Project(models.Model):
         ('kanban', _('Kanban Board')),
     ]
 
-    # Basic Information
-    name = models.CharField(max_length=200)
-    description = models.TextField(blank=True)
-    project_code = models.CharField(max_length=50, unique=True, db_index=True)
+    # BILINGUAL FIELDS - Separate storage for each language
+    name_en = models.CharField(
+        max_length=200,
+        verbose_name=_('Project Name (English)'),
+        help_text=_('Project name in English'),
+        blank=True  # At least one language required
+    )
+    name_zh = models.CharField(
+        max_length=200,
+        verbose_name=_('项目名称(中文)'),
+        help_text=_('Project name in Chinese'),
+        blank=True  # At least one language required
+    )
+    description_en = models.TextField(
+        blank=True,
+        verbose_name=_('Description (English)'),
+        help_text=_('Project description in English')
+    )
+    description_zh = models.TextField(
+        blank=True,
+        verbose_name=_('描述(中文)'),
+        help_text=_('Project description in Chinese')
+    )
+
+    # LANGUAGE-NEUTRAL FIELDS
+    project_code = models.CharField(max_length=50, unique=True, db_index=True,
+                                     verbose_name=_('Project Code'),
+                                     help_text=_('Unique project identifier (e.g., PROJ-2024-001)'))
 
     # Dates
     start_date = models.DateField()
@@ -115,15 +143,53 @@ class Project(models.Model):
         help_text="Template used to create this project"
     )
 
+    # Language preference for this project
+    primary_language = models.CharField(
+        max_length=10,
+        choices=[('en', 'English'), ('zh-hans', '简体中文')],
+        default='en',
+        verbose_name=_('Primary Language'),
+        help_text=_('Primary language for this project')
+    )
+
     class Meta:
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['status', 'priority']),
             models.Index(fields=['owner', 'status']),
+            models.Index(fields=['project_code']),
         ]
+        verbose_name = _('Project')
+        verbose_name_plural = _('Projects')
 
     def __str__(self):
+        """Return project code and name in current language"""
         return f"{self.project_code} - {self.name}"
+
+    def clean(self):
+        """Validate that at least one language version is provided"""
+        from django.core.exceptions import ValidationError
+        if not self.name_en and not self.name_zh:
+            raise ValidationError({
+                'name_en': _('At least one language version of name is required'),
+                'name_zh': _('At least one language version of name is required'),
+            })
+
+    def save(self, *args, **kwargs):
+        """Auto-fill missing language versions if only one is provided"""
+        # If only one language is provided, copy to the other as placeholder
+        # In production, you might want to use a translation API
+        if self.name_en and not self.name_zh:
+            self.name_zh = self.name_en  # Placeholder
+        elif self.name_zh and not self.name_en:
+            self.name_en = self.name_zh  # Placeholder
+
+        if self.description_en and not self.description_zh:
+            self.description_zh = self.description_en  # Placeholder
+        elif self.description_zh and not self.description_en:
+            self.description_en = self.description_zh  # Placeholder
+
+        super().save(*args, **kwargs)
 
     def get_absolute_url(self):
         from django.urls import reverse
@@ -183,9 +249,10 @@ class ProjectMember(models.Model):
         return f"{self.user.get_full_name()} - {self.project.name} ({self.role})"
 
 
-class Task(models.Model):
+class Task(BilingualModel):
     """
     Universal task model - works for both Gantt and Kanban
+    Now with bilingual support for English and Simplified Chinese
     """
     PRIORITY_CHOICES = [
         ('low', _('Low')),
@@ -202,11 +269,30 @@ class Task(models.Model):
         ('completed', _('Completed')),
     ]
 
-    # Basic Information
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='tasks')
-    title = models.CharField(max_length=300)
-    description = models.TextField(blank=True)
-    task_code = models.CharField(max_length=50, db_index=True)
+    # BILINGUAL FIELDS
+    title_en = models.CharField(
+        max_length=300,
+        verbose_name=_('Task Title (English)'),
+        blank=True
+    )
+    title_zh = models.CharField(
+        max_length=300,
+        verbose_name=_('任务标题(中文)'),
+        blank=True
+    )
+    description_en = models.TextField(
+        blank=True,
+        verbose_name=_('Description (English)')
+    )
+    description_zh = models.TextField(
+        blank=True,
+        verbose_name=_('描述(中文)')
+    )
+
+    # LANGUAGE-NEUTRAL FIELDS
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='tasks',
+                                verbose_name=_('Project'))
+    task_code = models.CharField(max_length=50, db_index=True, verbose_name=_('Task Code'))
 
     # Hierarchy (for WBS in Gantt)
     parent_task = models.ForeignKey(
@@ -276,16 +362,50 @@ class Task(models.Model):
         related_name='created_tasks'
     )
 
+    # Language preference
+    primary_language = models.CharField(
+        max_length=10,
+        choices=[('en', 'English'), ('zh-hans', '简体中文')],
+        default='en',
+        verbose_name=_('Primary Language')
+    )
+
     class Meta:
-        ordering = ['order', 'created_at']
+        ordering = ['project', 'order', 'created_at']
         indexes = [
             models.Index(fields=['project', 'status']),
             models.Index(fields=['project', 'kanban_column']),
             models.Index(fields=['status', 'due_date']),
+            models.Index(fields=['project', 'priority']),
         ]
+        verbose_name = _('Task')
+        verbose_name_plural = _('Tasks')
 
     def __str__(self):
         return f"{self.task_code} - {self.title}"
+
+    def clean(self):
+        """Validate that at least one language version is provided"""
+        from django.core.exceptions import ValidationError
+        if not self.title_en and not self.title_zh:
+            raise ValidationError({
+                'title_en': _('At least one language version of title is required'),
+                'title_zh': _('At least one language version of title is required'),
+            })
+
+    def save(self, *args, **kwargs):
+        """Auto-fill missing language versions"""
+        if self.title_en and not self.title_zh:
+            self.title_zh = self.title_en
+        elif self.title_zh and not self.title_en:
+            self.title_en = self.title_zh
+
+        if self.description_en and not self.description_zh:
+            self.description_zh = self.description_en
+        elif self.description_zh and not self.description_en:
+            self.description_en = self.description_zh
+
+        super().save(*args, **kwargs)
 
     def get_absolute_url(self):
         from django.urls import reverse

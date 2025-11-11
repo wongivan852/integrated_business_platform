@@ -1,25 +1,30 @@
 """
 Forms for Project Management app
+Now with bilingual support for English and Simplified Chinese
 """
 
 from django import forms
 from django.core.exceptions import ValidationError
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext_lazy as _, get_language
 from django.utils import timezone
 
 from .models import Project, Task, ProjectMember
+from .bilingual_forms import BilingualFormMixin
 
 
-class ProjectForm(forms.ModelForm):
+class ProjectForm(BilingualFormMixin, forms.ModelForm):
     """
     Form for creating and editing projects
+    Now with bilingual support - displays fields based on current language
     """
 
     class Meta:
         model = Project
         fields = [
-            'name',
-            'description',
+            'name_en',
+            'name_zh',
+            'description_en',
+            'description_zh',
             'project_code',
             'start_date',
             'end_date',
@@ -27,15 +32,25 @@ class ProjectForm(forms.ModelForm):
             'priority',
             'budget',
             'default_view',
+            'primary_language',
         ]
         widgets = {
-            'name': forms.TextInput(attrs={
+            'name_en': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Enter project name',
+                'placeholder': 'Enter project name (English)',
             }),
-            'description': forms.Textarea(attrs={
+            'name_zh': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Enter project description',
+                'placeholder': '输入项目名称（中文）',
+            }),
+            'description_en': forms.Textarea(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter project description (English)',
+                'rows': 4,
+            }),
+            'description_zh': forms.Textarea(attrs={
+                'class': 'form-control',
+                'placeholder': '输入项目描述（中文）',
                 'rows': 4,
             }),
             'project_code': forms.TextInput(attrs={
@@ -116,17 +131,19 @@ class ProjectForm(forms.ModelForm):
         return cleaned_data
 
 
-class TaskForm(forms.ModelForm):
+class TaskForm(BilingualFormMixin, forms.ModelForm):
     """
     Form for creating and editing tasks
-    TO BE EXPANDED IN PHASE 2
+    Now with bilingual support - displays fields based on current language
     """
 
     class Meta:
         model = Task
         fields = [
-            'title',
-            'description',
+            'title_en',
+            'title_zh',
+            'description_en',
+            'description_zh',
             'parent_task',
             'status',
             'priority',
@@ -138,15 +155,25 @@ class TaskForm(forms.ModelForm):
             'is_milestone',
             'estimated_hours',
             'assigned_to',
+            'primary_language',
         ]
         widgets = {
-            'title': forms.TextInput(attrs={
+            'title_en': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Enter task title',
+                'placeholder': 'Enter task title (English)',
             }),
-            'description': forms.Textarea(attrs={
+            'title_zh': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Enter task description',
+                'placeholder': '输入任务标题（中文）',
+            }),
+            'description_en': forms.Textarea(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter task description (English)',
+                'rows': 3,
+            }),
+            'description_zh': forms.Textarea(attrs={
+                'class': 'form-control',
+                'placeholder': '输入任务描述（中文）',
                 'rows': 3,
             }),
             'parent_task': forms.Select(attrs={
