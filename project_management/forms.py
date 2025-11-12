@@ -126,10 +126,14 @@ class TaskForm(forms.ModelForm):
         model = Task
         fields = [
             'title',
+            'title_cn',
             'description',
             'parent_task',
             'status',
             'priority',
+            'assigned_to',
+            'process_owner',
+            'definition_of_done',
             'start_date',
             'end_date',
             'due_date',
@@ -137,12 +141,15 @@ class TaskForm(forms.ModelForm):
             'progress',
             'is_milestone',
             'estimated_hours',
-            'assigned_to',
         ]
         widgets = {
             'title': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Enter task title',
+            }),
+            'title_cn': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': '输入中文标题',
             }),
             'description': forms.Textarea(attrs={
                 'class': 'form-control',
@@ -190,6 +197,14 @@ class TaskForm(forms.ModelForm):
                 'class': 'form-select',
                 'size': '5',
             }),
+            'process_owner': forms.Select(attrs={
+                'class': 'form-select',
+            }),
+            'definition_of_done': forms.Textarea(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter acceptance criteria and completion requirements',
+                'rows': 4,
+            }),
         }
 
     def __init__(self, *args, project=None, **kwargs):
@@ -209,6 +224,9 @@ class TaskForm(forms.ModelForm):
 
             # Filter assigned_to to only show project members
             self.fields['assigned_to'].queryset = project.team_members.all()
+
+            # Filter process_owner to only show project members
+            self.fields['process_owner'].queryset = project.team_members.all()
 
     def clean(self):
         """

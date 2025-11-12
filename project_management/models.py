@@ -205,6 +205,7 @@ class Task(models.Model):
     # Basic Information
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='tasks')
     title = models.CharField(max_length=300)
+    title_cn = models.CharField(max_length=300, blank=True, verbose_name='Chinese Title')
     description = models.TextField(blank=True)
     task_code = models.CharField(max_length=50, db_index=True)
 
@@ -248,6 +249,24 @@ class Task(models.Model):
     priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default='medium')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='todo')
     assigned_to = models.ManyToManyField(User, related_name='assigned_tasks', blank=True)
+
+    # Process Owner - single accountable person
+    process_owner = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='owned_tasks',
+        verbose_name='Process Owner',
+        help_text='Single accountable owner for this task'
+    )
+
+    # Definition of Done - acceptance criteria
+    definition_of_done = models.TextField(
+        blank=True,
+        verbose_name='Definition of Done',
+        help_text='Acceptance criteria and completion requirements'
+    )
 
     # Time Tracking
     estimated_hours = models.DecimalField(

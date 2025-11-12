@@ -57,6 +57,15 @@
 {% endblock %}
 
 {% block page_content %}
+<style>
+    /* Make Gantt chart page full-width for better date visibility */
+    .container {
+        max-width: 100% !important;
+        padding-left: 15px;
+        padding-right: 15px;
+    }
+</style>
+
 <!-- Gantt Chart Toolbar -->
 <div class="card project-card mb-3">
     <div class="card-body py-2">
@@ -175,7 +184,7 @@
 <!-- Gantt Chart Container -->
 <div class="card project-card">
     <div class="card-body p-0">
-        <div id="gantt_here" style="width:100%; height:600px;"></div>
+        <div id="gantt_here" style="width:100%; height:700px; overflow: hidden;"></div>
     </div>
 </div>
 
@@ -447,6 +456,95 @@
         opacity: 0.5;
         background-color: #6c757d !important;
     }
+
+    /* Lightbox (dialog) positioning and styling */
+    .gantt_cal_light {
+        position: fixed !important;
+        top: 50% !important;
+        left: 50% !important;
+        transform: translate(-50%, -50%) !important;
+        z-index: 10000 !important;
+        max-height: 80vh !important;
+        overflow-y: auto !important;
+    }
+
+    .gantt_cal_cover {
+        z-index: 9999 !important;
+    }
+
+    /* Make textarea fields in lightbox larger */
+    .gantt_cal_light textarea {
+        min-height: 60px !important;
+        font-size: 14px !important;
+    }
+
+    /* Improved grid styling for bilingual text */
+    .gantt_grid_data .gantt_cell {
+        vertical-align: middle !important;
+        padding: 5px 8px !important;
+    }
+
+    .gantt_grid_head_cell {
+        font-weight: 600 !important;
+        background: #f8f9fa !important;
+        border-bottom: 2px solid #dee2e6 !important;
+    }
+
+    /* Better tree indentation */
+    .gantt_tree_indent {
+        width: 20px !important;
+    }
+
+    /* Grid column resizer */
+    .gantt_grid_head_cell .gantt_grid_head_cell_resize {
+        cursor: col-resize !important;
+    }
+
+    /* Scrollbar styling */
+    .gantt_layout_cell_border_right {
+        border-right: 2px solid #dee2e6 !important;
+    }
+
+    /* Task row hover effect */
+    .gantt_grid_data .gantt_row:hover {
+        background-color: #f1f3f5 !important;
+    }
+
+    /* Ensure grid stays fixed during timeline scroll */
+    .gantt_grid {
+        position: relative;
+        overflow-x: hidden !important;
+    }
+
+    .gantt_task {
+        overflow-x: auto !important;
+    }
+
+    /* Make sure horizontal scrollbar only affects timeline */
+    .gantt_hor_scroll {
+        margin-left: 605px;
+    }
+
+    /* Ensure proper scrolling behavior */
+    .gantt_layout_root {
+        height: 100% !important;
+    }
+
+    .gantt_layout_cell {
+        height: 100% !important;
+    }
+
+    /* Vertical scrollbar styling */
+    .gantt_ver_scroll {
+        width: 17px !important;
+    }
+
+    /* Make sure content can scroll */
+    .gantt_grid_data,
+    .gantt_data_area,
+    .gantt_task_bg {
+        position: relative !important;
+    }
 </style>
 
 <script>
@@ -455,9 +553,34 @@
     gantt.config.xml_date = "%Y-%m-%d";
     gantt.config.scale_unit = "month";
     gantt.config.date_scale = "%F %Y";
-    gantt.config.min_column_width = 50;
+    gantt.config.subscales = [
+        {unit: "week", step: 1, date: "Week #%W"}
+    ];
+    gantt.config.min_column_width = 80;
     gantt.config.scale_height = 90;
-    gantt.config.row_height = 40;
+    gantt.config.row_height = 50;  // Increased for bilingual text
+    gantt.config.grid_width = 605;  // Fixed grid width
+    gantt.config.autosize = false;  // Disable auto-sizing
+    gantt.config.readonly = {% if not can_edit %}true{% else %}false{% endif %};
+    gantt.config.scroll_size = 17;  // Scrollbar width
+    gantt.config.scrollable = true;  // Enable scrolling
+
+    // Keep grid fixed when scrolling timeline
+    gantt.config.layout = {
+        css: "gantt_container",
+        rows: [
+            {
+                cols: [
+                    {view: "grid", scrollY: "scrollVer", width: 605},
+                    {resizer: true, width: 1},
+                    {view: "timeline", scrollX: "scrollHor", scrollY: "scrollVer"},
+                    {view: "scrollbar", id: "scrollVer"}
+                ],
+                gravity: 2
+            },
+            {view: "scrollbar", id: "scrollHor", height: 17}
+        ]
+    };
 
     // Enable features
     gantt.config.drag_links = true;
@@ -469,21 +592,95 @@
     gantt.config.auto_scheduling = false;
     gantt.config.highlight_critical_path = {{ show_critical_path|lower }};
 
-    // Grid columns
+    // Helper function to escape HTML
+    function escapeHtml(text) {
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+    }
+
+    // Grid columns - optimized widths with Chinese text support
     gantt.config.columns = [
-        {name: "text", label: "Task name", tree: true, width: 250, resize: true},
-        {name: "task_code", label: "Code", width: 100, align: "center"},
-        {name: "start_date", label: "Start date", width: 100, align: "center"},
-        {name: "duration", label: "Duration", width: 70, align: "center"},
-        {name: "progress", label: "Progress", width: 70, align: "center", template: function(task) {
-            return Math.round(task.progress * 100) + "%";
-        }},
-        {name: "add", label: "", width: 44}
+        {
+            name: "text",
+            label: "Task name",
+            tree: true,
+            width: 280,
+            resize: true,
+            template: function(task) {
+                // Show both English and Chinese if available
+                console.log('Rendering task:', task.id, 'title_cn:', task.title_cn); // Debug
+                if (task.title_cn && task.title_cn.trim() !== '') {
+                    return '<div style="line-height: 1.4; padding: 2px 0;">' +
+                           '<div style="font-weight: 500;">' + escapeHtml(task.text) + '</div>' +
+                           '<div style="color: #0066cc; font-size: 0.85em; margin-top: 2px;">' + escapeHtml(task.title_cn) + '</div>' +
+                           '</div>';
+                }
+                return '<div style="padding: 2px 0; font-weight: 500;">' + escapeHtml(task.text) + '</div>';
+            }
+        },
+        {name: "task_code", label: "Code", width: 90, align: "center", resize: true},
+        {name: "start_date", label: "Start", width: 90, align: "center", resize: true},
+        {name: "duration", label: "Days", width: 55, align: "center", resize: true},
+        {
+            name: "progress",
+            label: "%",
+            width: 55,
+            align: "center",
+            resize: true,
+            template: function(task) {
+                return Math.round(task.progress * 100) + "%";
+            }
+        },
+        {name: "add", label: "", width: 35}
     ];
+
+    // Configure Lightbox (Task Edit Dialog)
+    gantt.config.lightbox.sections = [
+        {name: "description", height: 38, map_to: "text", type: "textarea", focus: true},
+        {name: "chinese_title", height: 38, map_to: "title_cn", type: "textarea", focus: false},
+        {name: "process_owner", height: 38, map_to: "process_owner_id", type: "select", options: [
+            {key: '', label: 'No owner'},
+            {% for member in project.team_members.all %}
+            {key: '{{ member.pk }}', label: '{{ member.get_full_name|default:member.email|escapejs }}'},
+            {% endfor %}
+        ]},
+        {name: "definition_of_done", height: 70, map_to: "definition_of_done", type: "textarea", focus: false},
+        {name: "time", type: "duration", map_to: "auto"}
+    ];
+
+    // Custom labels for lightbox sections
+    gantt.locale.labels.section_description = "Task Title (English)";
+    gantt.locale.labels.section_chinese_title = "Task Title (中文)";
+    gantt.locale.labels.section_process_owner = "Process Owner";
+    gantt.locale.labels.section_definition_of_done = "Definition of Done (DoD)";
+    gantt.locale.labels.section_time = "Time Period";
+
+    // Debug lightbox opening
+    gantt.attachEvent("onLightbox", function(task_id){
+        console.log('=== Lightbox Opened ===');
+        console.log('Task ID:', task_id);
+        const task = gantt.getTask(task_id);
+        console.log('Task title (EN):', task.text);
+        console.log('Task title (CN):', task.title_cn || '(empty)');
+        console.log('Please enter Chinese text in the "Task Title (中文)" field if you want to add it.');
+        return true;
+    });
+
+    // Fix lightbox positioning - center it properly
+    gantt.config.lightbox_additional_height = 100;
 
     // Templates
     gantt.templates.task_text = function(start, end, task) {
-        return task.text;
+        if (task.title_cn && task.title_cn.trim() !== '') {
+            return escapeHtml(task.text) + ' <span style="color: #0099ff;">' + escapeHtml(task.title_cn) + '</span>';
+        }
+        return escapeHtml(task.text);
     };
 
     gantt.templates.rightside_text = function(start, end, task) {
@@ -521,6 +718,7 @@
             {
                 id: {{ task.pk }},
                 text: "{{ task.title|escapejs }}",
+                title_cn: "{{ task.title_cn|escapejs }}",
                 task_code: "{{ task.task_code }}",
                 start_date: {% if task.start_date %}"{{ task.start_date|date:"Y-m-d" }}"{% else %}null{% endif %},
                 duration: {{ task.duration|default:1 }},
@@ -531,6 +729,8 @@
                 is_milestone: {{ task.is_milestone|lower }},
                 critical: {% if task.id in critical_path %}true{% else %}false{% endif %},
                 open: true,
+                process_owner_id: {% if task.process_owner %}"{{ task.process_owner.pk }}"{% else %}""{% endif %},
+                definition_of_done: "{{ task.definition_of_done|escapejs }}",
                 assignees: [
                     {% for user in task.assigned_to.all %}
                     {
@@ -559,6 +759,36 @@
     // Initialize Gantt
     gantt.init("gantt_here");
     gantt.parse(ganttData);
+
+    // Force scroll state update
+    setTimeout(function() {
+        gantt.render();
+        console.log('Gantt chart rendered and scrollbars updated');
+    }, 100);
+
+    // Debug: Log tasks with Chinese titles
+    console.log('=== Gantt Chart Loaded ===');
+    console.log('Total tasks:', ganttData.data.length);
+    let tasksWithChinese = 0;
+    ganttData.data.forEach(function(task) {
+        if (task.title_cn && task.title_cn.trim() !== '') {
+            console.log('✓ Task with Chinese:', task.text, '→', task.title_cn);
+            tasksWithChinese++;
+        }
+    });
+    console.log('Tasks with Chinese titles:', tasksWithChinese);
+
+    if (tasksWithChinese === 0) {
+        console.log('%c⚠️ No Chinese titles found in database. Please add Chinese text by editing tasks.', 'color: orange; font-weight: bold;');
+        console.log('%cHow to add Chinese text:', 'font-weight: bold;');
+        console.log('1. Double-click any task in the Gantt chart');
+        console.log('2. Enter Chinese text in the "Task Title (中文)" field');
+        console.log('3. Click Save');
+        console.log('4. Check console for "Chinese title saved successfully" message');
+    }
+
+    // Log scroll state
+    console.log('Gantt container height:', document.getElementById('gantt_here').offsetHeight);
 
     // CSRF token helper
     function getCookie(name) {
@@ -639,7 +869,7 @@
     });
 
     gantt.attachEvent("onAfterTaskUpdate", function(id, task){
-        // Update task progress
+        // Update task progress, Chinese title, process owner, and DoD
         fetch(`/project-management/{{ project.pk }}/api/gantt/tasks/${id}/update-progress/`, {
             method: 'POST',
             headers: {
@@ -647,15 +877,90 @@
                 'X-CSRFToken': csrftoken
             },
             body: JSON.stringify({
-                progress: Math.round(task.progress * 100)
+                progress: Math.round(task.progress * 100),
+                title_cn: task.title_cn || '',
+                process_owner_id: task.process_owner_id || null,
+                definition_of_done: task.definition_of_done || ''
             })
         })
-        .then(response => response.json())
-        .then(data => {
-            if (!data.success) {
-                console.error('Progress update failed:', data.error);
+        .then(response => {
+            if (!response.ok) {
+                return response.text().then(text => {
+                    console.error('Server error:', text);
+                    throw new Error(`HTTP ${response.status}`);
+                });
             }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // Refresh the task to show updated Chinese text
+                gantt.refreshTask(id);
+                console.log('Task updated successfully');
+            } else {
+                console.error('Task update failed:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error updating task:', error);
         });
+    });
+
+    // Handle lightbox save to update Chinese title, process owner, and DoD
+    gantt.attachEvent("onLightboxSave", function(id, task, is_new){
+        console.log('Lightbox saved for task:', id);
+        console.log('  Chinese title:', task.title_cn);
+        console.log('  Process owner ID:', task.process_owner_id);
+        console.log('  Definition of Done:', task.definition_of_done);
+
+        // Update task with all fields
+        fetch(`/project-management/{{ project.pk }}/api/gantt/tasks/${id}/update-progress/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            },
+            body: JSON.stringify({
+                progress: Math.round(task.progress * 100),
+                title_cn: task.title_cn || '',
+                process_owner_id: task.process_owner_id || null,
+                definition_of_done: task.definition_of_done || ''
+            })
+        })
+        .then(response => {
+            console.log('Response status:', response.status);
+            if (!response.ok) {
+                return response.text().then(text => {
+                    console.error('Server error response:', text);
+                    throw new Error(`HTTP ${response.status}: ${text.substring(0, 200)}`);
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                console.log('%c✓ Chinese title saved successfully!', 'color: green; font-weight: bold;');
+                console.log('Task ID:', id);
+                console.log('Chinese title:', task.title_cn);
+                // Update the task object
+                const taskObj = gantt.getTask(id);
+                taskObj.title_cn = task.title_cn;
+                // Refresh the task display
+                setTimeout(function() {
+                    gantt.refreshTask(id);
+                    gantt.render();
+                }, 100);
+            } else {
+                console.error('Failed to save Chinese title:', data.error);
+                alert('Failed to save Chinese title: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('%c✗ Error saving Chinese title:', 'color: red; font-weight: bold;', error);
+            alert('Error saving Chinese title. Check console for details.');
+        });
+
+        return true;
     });
 
     // View mode change

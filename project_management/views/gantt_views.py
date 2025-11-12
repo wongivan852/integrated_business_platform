@@ -285,9 +285,9 @@ def api_add_dependency(request, project_pk):
     """
     project = get_object_or_404(Project, pk=project_pk)
 
-    has_access, user_role = check_project_access(request.user, project, required_role='member')
+    has_access, user_role = check_project_access(request.user, project)
     if not has_access:
-        return JsonResponse({'error': 'Permission denied'}, status=403)
+        return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
 
     try:
         data = json.loads(request.body)
@@ -354,9 +354,9 @@ def api_remove_dependency(request, project_pk, dependency_id):
     """
     project = get_object_or_404(Project, pk=project_pk)
 
-    has_access, user_role = check_project_access(request.user, project, required_role='member')
+    has_access, user_role = check_project_access(request.user, project)
     if not has_access:
-        return JsonResponse({'error': 'Permission denied'}, status=403)
+        return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
 
     try:
         dependency = get_object_or_404(
@@ -424,9 +424,9 @@ def api_update_task_dates(request, project_pk, task_id):
     project = get_object_or_404(Project, pk=project_pk)
     task = get_object_or_404(Task, pk=task_id, project=project)
 
-    has_access, user_role = check_project_access(request.user, project, required_role='member')
+    has_access, user_role = check_project_access(request.user, project)
     if not has_access:
-        return JsonResponse({'error': 'Permission denied'}, status=403)
+        return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
 
     try:
         data = json.loads(request.body)
@@ -486,13 +486,22 @@ def api_update_task_progress(request, project_pk, task_id):
     project = get_object_or_404(Project, pk=project_pk)
     task = get_object_or_404(Task, pk=task_id, project=project)
 
-    has_access, user_role = check_project_access(request.user, project, required_role='member')
+    has_access, user_role = check_project_access(request.user, project)
     if not has_access:
-        return JsonResponse({'error': 'Permission denied'}, status=403)
+        return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
 
     try:
         data = json.loads(request.body)
         progress = data.get('progress')
+        title_cn = data.get('title_cn', '')
+        process_owner_id = data.get('process_owner_id')
+        definition_of_done = data.get('definition_of_done', '')
+
+        # Log what we received
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Update task {task_id}: progress={progress}, title_cn={title_cn}, "
+                   f"process_owner_id={process_owner_id}, definition_of_done={definition_of_done[:50]}")
 
         if progress is None:
             return JsonResponse({'error': 'Progress value required'}, status=400)
@@ -502,7 +511,23 @@ def api_update_task_progress(request, project_pk, task_id):
             return JsonResponse({'error': 'Progress must be between 0 and 100'}, status=400)
 
         old_progress = task.progress
+        old_title_cn = task.title_cn
         task.progress = progress
+        task.title_cn = title_cn
+        task.definition_of_done = definition_of_done
+
+        # Handle process owner
+        if process_owner_id and process_owner_id != '':
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            try:
+                process_owner = User.objects.get(pk=int(process_owner_id))
+                task.process_owner = process_owner
+            except (User.DoesNotExist, ValueError):
+                logger.warning(f"Invalid process_owner_id: {process_owner_id}")
+                task.process_owner = None
+        else:
+            task.process_owner = None
 
         # Auto-update status based on progress
         if progress == 100 and task.status != 'completed':
@@ -510,28 +535,43 @@ def api_update_task_progress(request, project_pk, task_id):
         elif progress > 0 and task.status == 'todo':
             task.status = 'in_progress'
 
-        task.save(update_fields=['progress', 'status'])
+        task.save(update_fields=['progress', 'status', 'title_cn', 'process_owner', 'definition_of_done'])
 
         # Log activity
-        TaskActivity.objects.create(
-            task=task,
-            user=request.user,
-            action='updated',
-            details={
-                'field': 'progress',
-                'old_value': old_progress,
-                'new_value': progress
-            }
-        )
+        try:
+            TaskActivity.objects.create(
+                task=task,
+                user=request.user,
+                action='updated',
+                details={
+                    'field': 'progress',
+                    'old_value': old_progress,
+                    'new_value': progress
+                }
+            )
+        except Exception as activity_error:
+            logger.warning(f"Failed to create TaskActivity: {activity_error}")
+
+        logger.info(f"Task {task_id} updated successfully: title_cn='{task.title_cn}'")
 
         return JsonResponse({
             'success': True,
             'progress': progress,
-            'status': task.status
+            'status': task.status,
+            'title_cn': task.title_cn,
+            'process_owner_id': task.process_owner.pk if task.process_owner else None,
+            'definition_of_done': task.definition_of_done
         })
 
+    except json.JSONDecodeError as e:
+        return JsonResponse({'success': False, 'error': f'Invalid JSON: {str(e)}'}, status=400)
     except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
+        import traceback
+        error_details = traceback.format_exc()
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error updating task {task_id}: {error_details}")
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 
 # ============================================================================

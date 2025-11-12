@@ -67,7 +67,7 @@
                         <!-- Task Title -->
                         <div class="mb-3">
                             <label for="{{ form.title.id_for_label }}" class="form-label">
-                                <i class="fas fa-heading"></i> Task Title <span class="text-danger">*</span>
+                                <i class="fas fa-heading"></i> Task Title (English) <span class="text-danger">*</span>
                             </label>
                             {{ form.title }}
                             {% if form.title.errors %}
@@ -78,6 +78,20 @@
                             {% if form.title.help_text %}
                             <div class="form-text">{{ form.title.help_text }}</div>
                             {% endif %}
+                        </div>
+
+                        <!-- Chinese Title -->
+                        <div class="mb-3">
+                            <label for="{{ form.title_cn.id_for_label }}" class="form-label">
+                                <i class="fas fa-language"></i> Task Title (中文)
+                            </label>
+                            {{ form.title_cn }}
+                            {% if form.title_cn.errors %}
+                            <div class="text-danger small mt-1">
+                                {{ form.title_cn.errors }}
+                            </div>
+                            {% endif %}
+                            <div class="form-text">Optional: Chinese translation of the task title</div>
                         </div>
 
                         <!-- Task Code (read-only for edit, auto-generated for create) -->
@@ -167,6 +181,26 @@
                             {% endif %}
                             {% if form.assigned_to.help_text %}
                             <div class="form-text">{{ form.assigned_to.help_text }}</div>
+                            {% else %}
+                            <div class="form-text">Team members who will work on this task (can be multiple)</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Process Owner -->
+                        <div class="mb-3">
+                            <label for="{{ form.process_owner.id_for_label }}" class="form-label">
+                                <i class="fas fa-user-shield"></i> Process Owner
+                            </label>
+                            {{ form.process_owner }}
+                            {% if form.process_owner.errors %}
+                            <div class="text-danger small mt-1">
+                                {{ form.process_owner.errors }}
+                            </div>
+                            {% endif %}
+                            {% if form.process_owner.help_text %}
+                            <div class="form-text">{{ form.process_owner.help_text }}</div>
+                            {% else %}
+                            <div class="form-text">Single accountable owner responsible for this task's completion</div>
                             {% endif %}
                         </div>
 
@@ -205,6 +239,31 @@
                                 <div class="form-text">{{ form.estimated_hours.help_text }}</div>
                                 {% endif %}
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Acceptance Criteria Section -->
+                    <div class="mb-4">
+                        <h5 class="border-bottom pb-2 mb-3">
+                            <i class="fas fa-clipboard-check text-info"></i> Acceptance Criteria
+                        </h5>
+
+                        <!-- Definition of Done -->
+                        <div class="mb-3">
+                            <label for="{{ form.definition_of_done.id_for_label }}" class="form-label">
+                                <i class="fas fa-check-double"></i> Definition of Done (DoD)
+                            </label>
+                            {{ form.definition_of_done }}
+                            {% if form.definition_of_done.errors %}
+                            <div class="text-danger small mt-1">
+                                {{ form.definition_of_done.errors }}
+                            </div>
+                            {% endif %}
+                            {% if form.definition_of_done.help_text %}
+                            <div class="form-text">{{ form.definition_of_done.help_text }}</div>
+                            {% else %}
+                            <div class="form-text">List the criteria that must be met for this task to be considered complete</div>
+                            {% endif %}
                         </div>
                     </div>
 
