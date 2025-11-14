@@ -93,6 +93,24 @@
                         <i class="fas fa-expand"></i>
                     </button>
                 </div>
+
+                <!-- Search Box -->
+                <div class="d-inline-block ms-3" style="width: 250px;">
+                    <div class="input-group input-group-sm">
+                        <input type="text"
+                               class="form-control"
+                               id="taskSearch"
+                               placeholder="Search tasks..."
+                               autocomplete="off">
+                        <button class="btn btn-outline-secondary" type="button" id="searchBtn" onclick="searchTasks()">
+                            <i class="fas fa-search"></i>
+                        </button>
+                        <button class="btn btn-outline-secondary" type="button" id="clearSearchBtn" onclick="clearSearch()" style="display:none;">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <small id="searchResults" class="text-muted" style="display:none;"></small>
+                </div>
             </div>
 
             <div class="col-md-6 text-end">
@@ -115,6 +133,19 @@
                     <label class="form-check-label" for="showProgress">
                         <i class="fas fa-tasks"></i> Progress
                     </label>
+                </div>
+
+                <!-- Chart Height Control -->
+                <div class="btn-group btn-group-sm ms-3" role="group">
+                    <button class="btn btn-outline-secondary" type="button" onclick="adjustChartHeight('decrease')" title="Decrease Height">
+                        <i class="fas fa-compress-alt"></i>
+                    </button>
+                    <button class="btn btn-outline-secondary" type="button" id="currentHeightBtn" style="min-width: 80px;">
+                        700px
+                    </button>
+                    <button class="btn btn-outline-secondary" type="button" onclick="adjustChartHeight('increase')" title="Increase Height">
+                        <i class="fas fa-expand-alt"></i>
+                    </button>
                 </div>
 
                 {% if baselines %}
@@ -184,7 +215,7 @@
 <!-- Gantt Chart Container -->
 <div class="card project-card">
     <div class="card-body p-0">
-        <div id="gantt_here" style="width:100%; height:700px; overflow: hidden;"></div>
+        <div id="gantt_here" style="width:100%; height:700px; overflow: hidden; transition: height 0.3s ease;"></div>
     </div>
 </div>
 
@@ -545,9 +576,155 @@
     .gantt_task_bg {
         position: relative !important;
     }
+
+    /* Fix text color on task bars for better readability */
+    .gantt_task_line .gantt_task_content {
+        color: #ffffff !important;
+        font-weight: 500 !important;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.3) !important;
+        font-size: 13px !important;
+    }
+
+    /* Ensure task text is visible on all colored bars */
+    .gantt_task_line {
+        color: #ffffff !important;
+    }
+
+    /* Search result highlighting */
+    .gantt_row.search_match {
+        background-color: #fff3cd !important;
+        border-left: 3px solid #ffc107;
+    }
+
+    .gantt_task_line.search_match {
+        box-shadow: 0 0 8px 2px #ffc107 !important;
+        border: 2px solid #ffc107 !important;
+    }
+
+    .gantt_row.search_selected {
+        background-color: #cfe2ff !important;
+        border-left: 3px solid #0d6efd;
+    }
+
+    .gantt_task_line.search_selected {
+        box-shadow: 0 0 10px 3px #0d6efd !important;
+        border: 2px solid #0d6efd !important;
+    }
 </style>
 
 <script>
+    // ========================================================================
+    // CRITICAL: Override Gantt's date calculation functions FIRST
+    // This must run before ANY lightbox or form configuration
+    // ========================================================================
+    (function() {
+        const originalCalculateEndDate = gantt.calculateEndDate;
+        gantt.calculateEndDate = function(start, duration, unit) {
+            // Validate inputs before calling original function
+            if (!start || !(start instanceof Date) || isNaN(start.getTime())) {
+                console.warn('calculateEndDate called with invalid start date:', start, '- using fallback');
+                return new Date(); // Return current date as fallback
+            }
+            if (!duration || typeof duration !== 'number' || duration <= 0 || isNaN(duration)) {
+                console.warn('calculateEndDate called with invalid duration:', duration, '- defaulting to 1');
+                duration = 1; // Default to 1 day
+            }
+            try {
+                return originalCalculateEndDate.call(this, start, duration, unit);
+            } catch (e) {
+                console.error('Error in calculateEndDate:', e);
+                return gantt.date.add(start, duration || 1, unit || "day");
+            }
+        };
+
+        const originalCalculateDuration = gantt.calculateDuration;
+        gantt.calculateDuration = function(start, end, unit) {
+            // Validate inputs before calling original function
+            if (!start || !(start instanceof Date) || isNaN(start.getTime())) {
+                console.warn('calculateDuration called with invalid start date:', start, '- using fallback');
+                return 1; // Return 1 day as fallback
+            }
+            if (!end || !(end instanceof Date) || isNaN(end.getTime())) {
+                console.warn('calculateDuration called with invalid end date:', end, '- using fallback');
+                return 1; // Return 1 day as fallback
+            }
+            try {
+                const result = originalCalculateDuration.call(this, start, end, unit);
+                // Ensure result is always positive
+                return (result && result > 0) ? result : 1;
+            } catch (e) {
+                console.error('Error in calculateDuration:', e);
+                return 1;
+            }
+        };
+        console.log('Date calculation overrides installed successfully');
+    })();
+
+    // ========================================================================
+    // CRITICAL: Validate and fix task data during loading/parsing
+    // This runs BEFORE Gantt processes each task internally
+    // ========================================================================
+    gantt.attachEvent("onTaskLoading", function(task) {
+        try {
+            console.log('Loading task:', task.id, 'start_date:', task.start_date, 'duration:', task.duration);
+
+            // Fix start_date if missing or invalid
+            if (!task.start_date || task.start_date === null || task.start_date === '' || task.start_date === 'null') {
+                console.warn('Task', task.id, 'has invalid start_date, setting to today');
+                task.start_date = new Date();
+            } else if (typeof task.start_date === 'string') {
+                // Parse string dates
+                try {
+                    const parsed = gantt.date.parseDate(task.start_date, "xml_date");
+                    if (!parsed || isNaN(parsed.getTime())) {
+                        console.warn('Task', task.id, 'has unparseable start_date:', task.start_date);
+                        task.start_date = new Date();
+                    } else {
+                        task.start_date = parsed;
+                    }
+                } catch (e) {
+                    console.error('Error parsing start_date for task', task.id, ':', e);
+                    task.start_date = new Date();
+                }
+            } else if (!(task.start_date instanceof Date) || isNaN(task.start_date.getTime())) {
+                console.warn('Task', task.id, 'has invalid Date object for start_date');
+                task.start_date = new Date();
+            }
+
+            // Fix duration if missing or invalid
+            if (!task.duration || typeof task.duration !== 'number' || task.duration <= 0 || isNaN(task.duration)) {
+                console.warn('Task', task.id, 'has invalid duration:', task.duration, '- defaulting to 1');
+                task.duration = 1;
+            }
+
+            // Calculate end_date if missing
+            if (!task.end_date) {
+                try {
+                    task.end_date = gantt.calculateEndDate(task.start_date, task.duration);
+                    console.log('Calculated end_date for task', task.id, ':', task.end_date);
+                } catch (e) {
+                    console.error('Error calculating end_date for task', task.id, ':', e);
+                    task.end_date = gantt.date.add(task.start_date, 1, "day");
+                }
+            }
+
+            // Ensure progress is valid
+            if (!task.progress || typeof task.progress !== 'number' || task.progress < 0 || task.progress > 1) {
+                task.progress = 0;
+            }
+
+            console.log('Task', task.id, 'validated - start:', task.start_date, 'duration:', task.duration, 'end:', task.end_date);
+        } catch (error) {
+            console.error('CRITICAL ERROR in onTaskLoading for task', task.id, ':', error);
+            // Set safe defaults to prevent crash
+            task.start_date = new Date();
+            task.duration = 1;
+            task.end_date = gantt.date.add(new Date(), 1, "day");
+            task.progress = 0;
+        }
+        return true; // Always return true to allow task to be loaded
+    });
+
     // Initialize Gantt Chart
     gantt.config.date_format = "%Y-%m-%d";
     gantt.config.xml_date = "%Y-%m-%d";
@@ -589,8 +766,28 @@
     gantt.config.drag_move = {% if can_edit %}true{% else %}false{% endif %};
     gantt.config.show_progress = true;
     gantt.config.order_branch = true;
+    gantt.config.order_branch_free = true;  // Allow reordering within branches
     gantt.config.auto_scheduling = false;
     gantt.config.highlight_critical_path = {{ show_critical_path|lower }};
+
+    // Configure drag behavior to maintain hierarchy level
+    gantt.config.round_dnd_dates = false;
+    gantt.config.details_on_dblclick = true;
+
+    // Enable row reordering via drag and drop
+    gantt.config.reorder_grid_columns = false;  // Disable column reorder
+
+    // Enable keyboard navigation and deletion
+    gantt.config.keyboard_navigation = true;
+    gantt.config.keyboard_navigation_cells = true;
+
+    // Custom keyboard shortcuts
+    gantt.keys.edit_save = 13;  // Enter to save
+    gantt.keys.edit_cancel = 27;  // Esc to cancel
+
+    gantt.ext.inlineEditors.attachEvent("onBeforeEditStart", function(state) {
+        return gantt.config.readonly ? false : true;
+    });
 
     // Helper function to escape HTML
     function escapeHtml(text) {
@@ -651,7 +848,10 @@
             {% endfor %}
         ]},
         {name: "definition_of_done", height: 70, map_to: "definition_of_done", type: "textarea", focus: false},
-        {name: "time", type: "duration", map_to: "auto"}
+        {name: "predecessors", height: 120, map_to: "auto", type: "template", focus: false},
+        {name: "start_date", height: 38, map_to: "start_date", type: "date", date_format: "%Y-%m-%d"},
+        {name: "end_date", height: 38, map_to: "end_date", type: "date", date_format: "%Y-%m-%d"},
+        {name: "duration", height: 38, map_to: "duration", type: "duration", readonly: true}
     ];
 
     // Custom labels for lightbox sections
@@ -659,16 +859,463 @@
     gantt.locale.labels.section_chinese_title = "Task Title (中文)";
     gantt.locale.labels.section_process_owner = "Process Owner";
     gantt.locale.labels.section_definition_of_done = "Definition of Done (DoD)";
-    gantt.locale.labels.section_time = "Time Period";
+    gantt.locale.labels.section_predecessors = "Dependencies / Predecessors";
+    gantt.locale.labels.section_start_date = "Start Date";
+    gantt.locale.labels.section_end_date = "End Date";
+    gantt.locale.labels.section_duration = "Duration (days)";
 
-    // Debug lightbox opening
+    // ========================================================================
+    // CUSTOM PREDECESSORS/DEPENDENCIES SECTION
+    // ========================================================================
+
+    // Initialize template form block if it doesn't exist
+    if (!gantt.form_blocks["template"]) {
+        gantt.form_blocks["template"] = {
+            render: function(sns) {
+                // IMPORTANT: This MUST return an HTML STRING, not a DOM element
+                // dhtmlxGantt will convert the string to DOM internally
+                return "<div class='gantt_cal_ltext'></div>";
+            },
+            set_value: function(node, value, task, section) {
+                // node is the DOM element created from the HTML string returned by render
+            },
+            get_value: function(node, task, section) {
+                return "";
+            },
+            focus: function(node) {}
+        };
+    }
+
+    // Store original template handlers
+    const originalTemplateRender = gantt.form_blocks["template"].render;
+    const originalTemplateSetValue = gantt.form_blocks["template"].set_value;
+    const originalTemplateGetValue = gantt.form_blocks["template"].get_value;
+    const originalTemplateFocus = gantt.form_blocks["template"].focus;
+
+    // Template function to render the predecessors UI
+    gantt.form_blocks["template"].render = function(sns) {
+        try {
+            console.log('Template render called for:', sns.name, 'type:', sns.type);
+
+            if (sns.name === "predecessors") {
+                console.log('Rendering predecessors section...');
+
+                // IMPORTANT: Return just the INNER HTML without the gantt_cal_ltext wrapper
+                // dhtmlxGantt will add the wrapper itself
+                const html = `<div id="predecessors_list" style="margin-bottom: 10px;"></div>
+<div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd;">
+    <div style="display: flex; gap: 8px; align-items: center;">
+        <select id="predecessor_select" style="flex: 1; padding: 5px; border: 1px solid #ccc; border-radius: 3px;">
+            <option value="">-- Select Task --</option>
+        </select>
+        <select id="dependency_type_select" style="width: 80px; padding: 5px; border: 1px solid #ccc; border-radius: 3px;">
+            <option value="FS">FS</option>
+            <option value="SS">SS</option>
+            <option value="FF">FF</option>
+            <option value="SF">SF</option>
+        </select>
+        <button type="button" id="add_predecessor_btn" style="padding: 5px 12px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer; white-space: nowrap;">
+            + Add
+        </button>
+    </div>
+    <div style="margin-top: 5px; font-size: 11px; color: #666;">
+        FS=Finish-to-Start, SS=Start-to-Start, FF=Finish-to-Finish, SF=Start-to-Finish
+    </div>
+</div>`;
+
+                console.log('Predecessors HTML generated, length:', html.length);
+                return html; // Return HTML STRING without wrapper
+            }
+            // Call original handler for other template sections
+            if (originalTemplateRender) {
+                console.log('Calling original template render for:', sns.name);
+                return originalTemplateRender(sns);
+            }
+            console.log('No handler for template section:', sns.name, '- returning empty div');
+            return "<div class='gantt_cal_ltext'></div>";
+        } catch (error) {
+            console.error('ERROR in template render:', error);
+            return "<div class='gantt_cal_ltext' style='color: red;'>Error loading section</div>";
+        }
+    };
+
+    // Set value function - populate the predecessors list when opening lightbox
+    gantt.form_blocks["template"].set_value = function(node, value, task, section) {
+        console.log('=== set_value called for section:', section.name);
+        console.log('node type:', typeof node);
+        console.log('node:', node);
+        console.log('node is HTMLElement:', node instanceof HTMLElement);
+        console.log('node.nodeType:', node ? node.nodeType : 'undefined');
+
+        if (section.name === "predecessors") {
+            console.log('=== Setting up predecessors section for task:', task.id);
+            try {
+                // node is just the first element, we need to find siblings in the parent
+                // Get the parent container that has all our elements
+                const parentNode = node.parentNode;
+                console.log('Parent node:', parentNode);
+
+                // Find elements from the parent (they're siblings of node)
+                const listContainer = parentNode.querySelector('#predecessors_list');
+                const predecessorSelect = parentNode.querySelector('#predecessor_select');
+                const addBtn = parentNode.querySelector('#add_predecessor_btn');
+
+                console.log('listContainer:', listContainer);
+                console.log('predecessorSelect:', predecessorSelect);
+                console.log('addBtn:', addBtn);
+
+                if (!listContainer || !predecessorSelect || !addBtn) {
+                    console.error('Predecessors UI elements not found in parent');
+                    console.log('Trying document-wide search...');
+                    // Fallback: search in the whole lightbox
+                    const lightbox = document.querySelector('.gantt_cal_light');
+                    if (lightbox) {
+                        const list2 = lightbox.querySelector('#predecessors_list');
+                        const select2 = lightbox.querySelector('#predecessor_select');
+                        const btn2 = lightbox.querySelector('#add_predecessor_btn');
+                        if (list2 && select2 && btn2) {
+                            console.log('Found elements in lightbox!');
+                            // Use these instead
+                            return setupPredecessors(list2, select2, btn2, task);
+                        }
+                    }
+                    console.error('Could not find predecessors UI elements anywhere');
+                    return;
+                }
+
+                // Setup the predecessors UI
+                setupPredecessors(listContainer, predecessorSelect, addBtn, task);
+
+            } catch (error) {
+                console.error('Error in predecessors section:', error);
+                // Show error message in the UI
+                if (node && node.parentNode) {
+                    const errorDiv = document.createElement('div');
+                    errorDiv.style.cssText = 'color: red; padding: 10px;';
+                    errorDiv.textContent = 'Error loading predecessors. Check console for details.';
+                    node.parentNode.appendChild(errorDiv);
+                }
+            }
+        } else {
+            console.log('Not predecessors section, checking for original handler...');
+            if (originalTemplateSetValue) {
+                console.log('Calling original set_value handler');
+                try {
+                    originalTemplateSetValue(node, value, task, section);
+                } catch (error) {
+                    console.error('Error in original set_value:', error);
+                }
+            } else {
+                console.log('No original set_value handler');
+            }
+        }
+    };
+
+    // Helper function to setup predecessors UI
+    function setupPredecessors(listContainer, predecessorSelect, addBtn, task) {
+        console.log('Setting up predecessors UI for task:', task.id);
+
+        // Get parent node to find other elements
+        const parentNode = listContainer.parentNode;
+        const depTypeSelect = parentNode.querySelector('#dependency_type_select');
+
+        // Check if taskB is a descendant of taskA (with depth limit to prevent infinite loops)
+        function isDescendant(taskId, ancestorId, depth = 0) {
+            if (depth > 20) return false; // Safety limit
+            try {
+                const t = gantt.getTask(taskId);
+                if (!t) return false;
+                if (t.parent === ancestorId) return true;
+                if (t.parent && t.parent !== 0 && t.parent !== gantt.config.root_id) {
+                    return isDescendant(t.parent, ancestorId, depth + 1);
+                }
+                return false;
+            } catch (e) {
+                console.error('Error in isDescendant:', e);
+                return false;
+            }
+        }
+
+        // Populate task dropdown (exclude current task and its descendants)
+        function populateTaskDropdown(currentTaskId) {
+            predecessorSelect.innerHTML = '<option value="">-- Select Task --</option>';
+
+            try {
+                gantt.eachTask(function(t) {
+                    // Exclude current task and its descendants
+                    if (t.id !== currentTaskId && !isDescendant(t.id, currentTaskId)) {
+                        const option = document.createElement('option');
+                        option.value = t.id;
+                        option.textContent = `${t.task_code || t.id} - ${t.text}`;
+                        predecessorSelect.appendChild(option);
+                    }
+                });
+            } catch (e) {
+                console.error('Error populating task dropdown:', e);
+            }
+        }
+
+        // Display current predecessors
+        function displayPredecessors() {
+            const predecessorLinks = gantt.getLinks().filter(link => link.target == task.id);
+
+            if (predecessorLinks.length === 0) {
+                listContainer.innerHTML = '<div style="color: #999; font-style: italic; padding: 5px;">No predecessors defined</div>';
+            } else {
+                let html = '<div style="font-weight: 500; margin-bottom: 5px; color: #333;">Current Predecessors:</div>';
+                predecessorLinks.forEach(link => {
+                    const predTask = gantt.getTask(link.source);
+                    const typeMap = {0: 'FS', 1: 'SS', 2: 'FF', 3: 'SF'};
+                    const depType = typeMap[link.type] || 'FS';
+
+                    html += `
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px; margin-bottom: 4px; background: white; border: 1px solid #ddd; border-radius: 3px;">
+                            <span style="flex: 1;">
+                                <strong>${predTask.task_code || predTask.id}</strong>: ${predTask.text}
+                                <span style="color: #666; font-size: 11px; margin-left: 8px;">[${depType}]</span>
+                            </span>
+                            <button type="button" class="remove_predecessor_btn" data-link-id="${link.id}"
+                                style="padding: 3px 8px; background: #dc3545; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">
+                                Remove
+                            </button>
+                        </div>
+                    `;
+                });
+                listContainer.innerHTML = html;
+
+                // Attach remove handlers
+                parentNode.querySelectorAll('.remove_predecessor_btn').forEach(btn => {
+                    btn.onclick = function(e) {
+                        e.preventDefault();
+                        const linkId = this.getAttribute('data-link-id');
+
+                        if (confirm('Remove this dependency?')) {
+                            // Remove from Gantt
+                            gantt.deleteLink(linkId);
+                            displayPredecessors();
+                        }
+                    };
+                });
+            }
+        }
+
+        // Add predecessor button handler
+        addBtn.onclick = function(e) {
+            e.preventDefault();
+            const predecessorId = predecessorSelect.value;
+            const depType = depTypeSelect ? depTypeSelect.value : 'FS';
+
+            if (!predecessorId) {
+                alert('Please select a task');
+                return;
+            }
+
+            // Check if dependency already exists
+            const existingLink = gantt.getLinks().find(link =>
+                link.source == predecessorId && link.target == task.id
+            );
+
+            if (existingLink) {
+                alert('This dependency already exists');
+                return;
+            }
+
+            // Map dependency type to Gantt link type
+            const typeMap = {FS: "0", SS: "1", FF: "2", SF: "3"};
+
+            // Add link to Gantt (this will trigger onAfterLinkAdd event)
+            const linkId = gantt.addLink({
+                source: predecessorId,
+                target: task.id,
+                type: typeMap[depType]
+            });
+
+            if (linkId) {
+                displayPredecessors();
+                predecessorSelect.value = '';
+            }
+        };
+
+        // Initialize the UI
+        populateTaskDropdown(task.id);
+        displayPredecessors();
+    }
+
+    // Get value function - not needed for template type, but required
+    gantt.form_blocks["template"].get_value = function(node, task, section) {
+        if (section.name === "predecessors") {
+            return ""; // Predecessors section doesn't store a value
+        }
+        if (originalTemplateGetValue) {
+            return originalTemplateGetValue(node, task, section);
+        }
+        return task[section.map_to] || "";
+    };
+
+    // Focus function - optional
+    gantt.form_blocks["template"].focus = function(node) {
+        if (originalTemplateFocus) {
+            originalTemplateFocus(node);
+        }
+    };
+
+    // Debug double-click events
+    gantt.attachEvent("onTaskDblClick", function(id, e){
+        console.log('=== DOUBLE CLICK DETECTED on task:', id);
+        return true; // Allow default behavior
+    });
+
+    // Lightbox opened successfully
     gantt.attachEvent("onLightbox", function(task_id){
-        console.log('=== Lightbox Opened ===');
+        console.log('=== Lightbox SUCCESSFULLY Opened for task:', task_id);
         console.log('Task ID:', task_id);
         const task = gantt.getTask(task_id);
         console.log('Task title (EN):', task.text);
         console.log('Task title (CN):', task.title_cn || '(empty)');
         console.log('Please enter Chinese text in the "Task Title (中文)" field if you want to add it.');
+
+        // Set end_date if not already set (end_date = start_date + duration)
+        // IMPORTANT: Validate ALL parameters before using calculateEndDate
+        if (!task.end_date && task.start_date) {
+            try {
+                // Parse and validate start_date
+                let startDate = task.start_date;
+                if (!(startDate instanceof Date)) {
+                    startDate = gantt.date.parseDate(task.start_date, "xml_date");
+                }
+
+                // Validate duration (must be a positive number)
+                let duration = task.duration;
+                if (!duration || typeof duration !== 'number' || duration <= 0 || isNaN(duration)) {
+                    duration = 1; // Default to 1 day
+                }
+
+                // Only call calculateEndDate if we have valid inputs
+                if (startDate && !isNaN(startDate.getTime()) && duration > 0) {
+                    task.end_date = gantt.calculateEndDate(startDate, duration);
+                }
+            } catch (e) {
+                console.warn('Could not calculate end_date in onLightbox:', e);
+            }
+        }
+
+        return true;
+    });
+
+    // Auto-calculate duration when dates change in lightbox
+    gantt.attachEvent("onBeforeLightbox", function(task_id){
+        console.log('=== onBeforeLightbox triggered for task:', task_id);
+        try {
+            const task = gantt.getTask(task_id);
+            console.log('Task data:', {
+                id: task.id,
+                text: task.text,
+                start_date: task.start_date,
+                end_date: task.end_date,
+                duration: task.duration
+            });
+
+        // Ensure task has valid dates before opening lightbox
+        // This prevents the "Invalid start_date argument for calculateEndDate" error
+        if (!task.start_date || task.start_date === null || task.start_date === '') {
+            // Set default start date to today if missing
+            task.start_date = new Date();
+            console.log('Set default start_date for task', task_id);
+        }
+
+        if (!task.end_date || task.end_date === null) {
+            // Calculate end date based on duration, or default to start_date + 1 day
+            try {
+                // Parse and validate start_date
+                let startDate = task.start_date;
+                if (!(startDate instanceof Date)) {
+                    startDate = gantt.date.parseDate(task.start_date, "xml_date");
+                }
+
+                // Validate duration (must be a positive number)
+                let duration = task.duration;
+                if (!duration || typeof duration !== 'number' || duration <= 0 || isNaN(duration)) {
+                    duration = 1; // Default to 1 day
+                    task.duration = 1; // Update task duration
+                }
+
+                // Only call calculateEndDate with validated parameters
+                if (startDate && !isNaN(startDate.getTime()) && duration > 0) {
+                    task.end_date = gantt.calculateEndDate(startDate, duration);
+                } else {
+                    // Fallback: set end_date = start_date + 1 day
+                    task.end_date = gantt.date.add(task.start_date || new Date(), 1, "day");
+                }
+            } catch (e) {
+                console.warn('Could not calculate end_date in onBeforeLightbox, using default:', e);
+                task.end_date = gantt.date.add(task.start_date || new Date(), 1, "day");
+            }
+        }
+
+        // Calculate duration if not set or invalid
+        if ((!task.duration || task.duration <= 0) && task.start_date && task.end_date) {
+            try {
+                // Parse dates if needed
+                let startDate = task.start_date instanceof Date ? task.start_date : gantt.date.parseDate(task.start_date, "xml_date");
+                let endDate = task.end_date instanceof Date ? task.end_date : gantt.date.parseDate(task.end_date, "xml_date");
+
+                // Validate dates before calculating duration
+                if (startDate && endDate && !isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
+                    task.duration = gantt.calculateDuration(startDate, endDate);
+                    // Ensure duration is at least 1
+                    if (!task.duration || task.duration <= 0) {
+                        task.duration = 1;
+                    }
+                } else {
+                    task.duration = 1; // Default fallback
+                }
+            } catch (e) {
+                console.warn('Could not calculate duration in onBeforeLightbox:', e);
+                task.duration = 1;
+            }
+        }
+
+        // Final safety check: ensure duration is always a positive number
+        if (!task.duration || typeof task.duration !== 'number' || task.duration <= 0 || isNaN(task.duration)) {
+            task.duration = 1;
+        }
+
+        } catch (error) {
+            console.error('CRITICAL ERROR in onBeforeLightbox:', error);
+            // Don't prevent lightbox from opening even if there's an error
+        }
+
+        console.log('=== Returning true from onBeforeLightbox - lightbox should open ===');
+        return true;
+    });
+
+    // Update duration when dates are changed
+    gantt.attachEvent("onLightboxChange", function(task_id, section, value){
+        const task = gantt.getTask(task_id);
+
+        if (section === "start_date" || section === "end_date") {
+            // Recalculate duration based on dates with validation
+            if (task.start_date && task.end_date) {
+                try {
+                    // Parse dates if needed
+                    let startDate = task.start_date instanceof Date ? task.start_date : gantt.date.parseDate(task.start_date, "xml_date");
+                    let endDate = task.end_date instanceof Date ? task.end_date : gantt.date.parseDate(task.end_date, "xml_date");
+
+                    // Validate dates before calculating duration
+                    if (startDate && endDate && !isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
+                        const calculatedDuration = gantt.calculateDuration(startDate, endDate);
+                        // Ensure duration is at least 1
+                        task.duration = (calculatedDuration && calculatedDuration > 0) ? calculatedDuration : 1;
+                    } else {
+                        task.duration = 1;
+                    }
+                } catch (e) {
+                    console.warn('Could not calculate duration in onLightboxChange:', e);
+                    task.duration = 1;
+                }
+            }
+        }
+
         return true;
     });
 
@@ -756,14 +1403,358 @@
         ]
     };
 
+    // ========================================================================
+    // CRITICAL: Sanitize data BEFORE passing to Gantt
+    // This ensures NO tasks with null/invalid dates reach Gantt's parser
+    // ========================================================================
+    console.log('=== Sanitizing ganttData before parsing ===');
+    const today = new Date();
+    ganttData.data.forEach(function(task, index) {
+        // Fix null or invalid start_date
+        if (!task.start_date || task.start_date === null || task.start_date === 'null') {
+            console.warn('Task', task.id, '(' + task.task_code + ') has null start_date, setting to today');
+            task.start_date = today;
+        }
+
+        // Ensure duration is valid
+        if (!task.duration || task.duration <= 0 || isNaN(task.duration)) {
+            console.warn('Task', task.id, '(' + task.task_code + ') has invalid duration:', task.duration, '- setting to 1');
+            task.duration = 1;
+        }
+
+        // Ensure progress is valid (0 to 1)
+        if (typeof task.progress !== 'number' || task.progress < 0 || task.progress > 1 || isNaN(task.progress)) {
+            task.progress = 0;
+        }
+    });
+    console.log('=== Data sanitization complete ===');
+
     // Initialize Gantt
     gantt.init("gantt_here");
     gantt.parse(ganttData);
+
+    // Debug: Log lightbox configuration
+    console.log('=== Gantt initialized successfully ===');
+    console.log('Lightbox sections:', gantt.config.lightbox.sections);
+    console.log('Read-only mode:', gantt.config.readonly);
+    console.log('Double-click to open lightbox should work now. Try clicking a task.');
+
+    // ========================================================================
+    // ENHANCED DELETE FUNCTIONALITY
+    // ========================================================================
+
+    /**
+     * Delete task with enhanced confirmation dialog
+     * Shows subtasks and dependencies before deletion
+     */
+    function deleteTaskWithConfirmation(taskId) {
+        if (!taskId || typeof taskId !== 'number' || taskId <= 0) {
+            console.log('Invalid task ID for deletion:', taskId);
+            return;
+        }
+
+        const task = gantt.getTask(taskId);
+
+        // First, check what will be deleted
+        fetch(`/project-management/{{ project.pk }}/api/gantt/tasks/${taskId}/check-delete/`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                alert('Error checking task deletion: ' + data.error);
+                return;
+            }
+
+            // Build confirmation message
+            let message = `Delete task "${data.task_code}: ${data.task_title}"?\n\n`;
+
+            // Warn about subtasks
+            if (data.subtask_count > 0) {
+                message += `⚠️  WARNING: This will also delete ${data.subtask_count} subtask(s)!\n`;
+                if (data.subtasks.length > 0) {
+                    message += '\nSubtasks to be deleted:\n';
+                    data.subtasks.forEach(st => {
+                        message += `  • ${st.code}: ${st.title}\n`;
+                    });
+                    if (data.has_more_subtasks) {
+                        message += `  ... and ${data.subtask_count - data.subtasks.length} more\n`;
+                    }
+                }
+                message += '\n';
+            }
+
+            // Warn about dependencies
+            if (data.predecessor_count > 0 || data.successor_count > 0) {
+                message += `⚠️  This task has ${data.predecessor_count + data.successor_count} dependency link(s):\n`;
+
+                if (data.predecessors.length > 0) {
+                    message += '\nPredecessors (tasks this depends on):\n';
+                    data.predecessors.forEach(p => {
+                        message += `  ← ${p.code}: ${p.title}\n`;
+                    });
+                }
+
+                if (data.successors.length > 0) {
+                    message += '\nSuccessors (tasks that depend on this):\n';
+                    data.successors.forEach(s => {
+                        message += `  → ${s.code}: ${s.title}\n`;
+                    });
+                }
+                message += '\nThese dependencies will be removed.\n\n';
+            }
+
+            message += '\n⚠️  This action CANNOT be undone!\n\nAre you sure you want to proceed?';
+
+            // Show confirmation dialog
+            if (confirm(message)) {
+                // User confirmed - proceed with deletion
+                gantt.deleteTask(taskId);
+            }
+        })
+        .catch(error => {
+            console.error('Error checking task deletion:', error);
+            // Fallback to simple confirmation if check fails
+            if (confirm(`Delete task "${task.text}"?\n\nWarning: Unable to check subtasks and dependencies.\nThis action cannot be undone.`)) {
+                gantt.deleteTask(taskId);
+            }
+        });
+    }
+
+    // ========================================================================
+    // KEYBOARD SHORTCUTS
+    // ========================================================================
+
+    // Custom keyboard shortcuts for task management
+    gantt.attachEvent("onKeyPress", function(code, e) {
+        const selectedTaskId = gantt.getSelectedId();
+
+        // Delete key (46) or Backspace (8) - Delete task
+        if ((code === 46 || code === 8) && selectedTaskId && !gantt.config.readonly) {
+            e.preventDefault();
+            const task = gantt.getTask(selectedTaskId);
+
+            // Enhanced delete with pre-check
+            deleteTaskWithConfirmation(selectedTaskId);
+            return false;
+        }
+
+        // Ctrl + Up Arrow - Move task up
+        if (code === 38 && e.ctrlKey && selectedTaskId && !gantt.config.readonly) {
+            e.preventDefault();
+            moveTaskUp(selectedTaskId);
+            return false;
+        }
+
+        // Ctrl + Down Arrow - Move task down
+        if (code === 40 && e.ctrlKey && selectedTaskId && !gantt.config.readonly) {
+            e.preventDefault();
+            moveTaskDown(selectedTaskId);
+            return false;
+        }
+
+        // Ctrl + Left Arrow - Decrease indent (promote)
+        if (code === 37 && e.ctrlKey && selectedTaskId && !gantt.config.readonly) {
+            e.preventDefault();
+            changeTaskIndent(selectedTaskId, 'decrease');
+            return false;
+        }
+
+        // Ctrl + Right Arrow - Increase indent (demote)
+        if (code === 39 && e.ctrlKey && selectedTaskId && !gantt.config.readonly) {
+            e.preventDefault();
+            changeTaskIndent(selectedTaskId, 'increase');
+            return false;
+        }
+
+        return true;
+    });
+
+    // Helper functions for task reordering
+    function moveTaskUp(taskId) {
+        const task = gantt.getTask(taskId);
+        const parent = task.parent;
+        const siblings = gantt.getChildren(parent);
+        const currentIndex = siblings.indexOf(taskId);
+
+        if (currentIndex > 0) {
+            const previousTaskId = siblings[currentIndex - 1];
+            const previousTask = gantt.getTask(previousTaskId);
+
+            // Swap orders
+            const tempOrder = task.order;
+            task.order = previousTask.order - 1;
+            gantt.updateTask(taskId);
+
+            // Update on server
+            fetch(`/project-management/{{ project.pk }}/api/gantt/tasks/${taskId}/reorder/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                },
+                body: JSON.stringify({
+                    parent: parent || 0,
+                    target: previousTaskId,
+                    position: 'before'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    gantt.render();
+                    gantt.selectTask(taskId);
+                } else {
+                    console.error('Error moving task:', data.error);
+                    task.order = tempOrder;
+                    gantt.updateTask(taskId);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                task.order = tempOrder;
+                gantt.updateTask(taskId);
+            });
+        }
+    }
+
+    function moveTaskDown(taskId) {
+        const task = gantt.getTask(taskId);
+        const parent = task.parent;
+        const siblings = gantt.getChildren(parent);
+        const currentIndex = siblings.indexOf(taskId);
+
+        if (currentIndex < siblings.length - 1) {
+            const nextTaskId = siblings[currentIndex + 1];
+            const nextTask = gantt.getTask(nextTaskId);
+
+            // Swap orders
+            const tempOrder = task.order;
+            task.order = nextTask.order + 1;
+            gantt.updateTask(taskId);
+
+            // Update on server
+            fetch(`/project-management/{{ project.pk }}/api/gantt/tasks/${taskId}/reorder/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                },
+                body: JSON.stringify({
+                    parent: parent || 0,
+                    target: nextTaskId,
+                    position: 'after'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    gantt.render();
+                    gantt.selectTask(taskId);
+                } else {
+                    console.error('Error moving task:', data.error);
+                    task.order = tempOrder;
+                    gantt.updateTask(taskId);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                task.order = tempOrder;
+                gantt.updateTask(taskId);
+            });
+        }
+    }
+
+    function changeTaskIndent(taskId, direction) {
+        const task = gantt.getTask(taskId);
+        const currentParent = task.parent;
+
+        if (direction === 'decrease' && currentParent) {
+            // Promote task (move to parent's level)
+            const parentTask = gantt.getTask(currentParent);
+            const newParent = parentTask.parent;
+
+            task.parent = newParent;
+            gantt.updateTask(taskId);
+
+            // Update on server
+            fetch(`/project-management/{{ project.pk }}/api/gantt/tasks/${taskId}/reorder/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                },
+                body: JSON.stringify({
+                    parent: newParent || 0,
+                    target: currentParent,
+                    position: 'after'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    gantt.render();
+                    gantt.selectTask(taskId);
+                } else {
+                    console.error('Error changing indent:', data.error);
+                    task.parent = currentParent;
+                    gantt.updateTask(taskId);
+                }
+            });
+        } else if (direction === 'increase') {
+            // Demote task (make it child of previous sibling)
+            const siblings = gantt.getChildren(currentParent);
+            const currentIndex = siblings.indexOf(taskId);
+
+            if (currentIndex > 0) {
+                const newParentId = siblings[currentIndex - 1];
+                task.parent = newParentId;
+                gantt.updateTask(taskId);
+
+                // Update on server
+                fetch(`/project-management/{{ project.pk }}/api/gantt/tasks/${taskId}/reorder/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken
+                    },
+                    body: JSON.stringify({
+                        parent: newParentId,
+                        target: null,
+                        position: 'last'
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        gantt.render();
+                        gantt.selectTask(taskId);
+                    } else {
+                        console.error('Error changing indent:', data.error);
+                        task.parent = currentParent;
+                        gantt.updateTask(taskId);
+                    }
+                });
+            }
+        }
+    }
 
     // Force scroll state update
     setTimeout(function() {
         gantt.render();
         console.log('Gantt chart rendered and scrollbars updated');
+        console.log('');
+        console.log('=== KEYBOARD SHORTCUTS ===');
+        console.log('Delete/Backspace: Delete selected task');
+        console.log('Ctrl + ↑: Move task up');
+        console.log('Ctrl + ↓: Move task down');
+        console.log('Ctrl + ←: Decrease indent (promote)');
+        console.log('Ctrl + →: Increase indent (demote)');
+        console.log('=========================');
     }, 100);
 
     // Debug: Log tasks with Chinese titles
@@ -809,6 +1800,253 @@
     const csrftoken = getCookie('csrftoken');
 
     // Event handlers
+    gantt.attachEvent("onAfterTaskAdd", function(id, item){
+        // Task was created in Gantt - save to database
+        fetch(`/project-management/{{ project.pk }}/api/gantt/tasks/create/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            },
+            body: JSON.stringify({
+                text: item.text,
+                start_date: item.start_date ? gantt.date.date_to_str("%Y-%m-%d")(item.start_date) : null,
+                duration: item.duration || 1,
+                parent: item.parent || 0
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const oldId = id;
+                const newId = data.task.id;
+
+                // Update the temporary ID with the real database ID
+                gantt.changeTaskId(oldId, newId);
+
+                // Update task with all properties
+                const task = gantt.getTask(newId);
+                task.task_code = data.task.task_code;
+
+                // If there was Chinese title or other data in the temporary task, save it now
+                if (item.title_cn || item.process_owner_id || item.definition_of_done) {
+                    console.log('Saving additional data for newly created task...');
+                    fetch(`/project-management/{{ project.pk }}/api/gantt/tasks/${newId}/update-progress/`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrftoken
+                        },
+                        body: JSON.stringify({
+                            progress: Math.round((item.progress || 0) * 100),
+                            title_cn: item.title_cn || '',
+                            process_owner_id: item.process_owner_id || null,
+                            definition_of_done: item.definition_of_done || ''
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            console.log('Additional data saved for new task');
+                            task.title_cn = item.title_cn;
+                            task.process_owner_id = item.process_owner_id;
+                            task.definition_of_done = item.definition_of_done;
+                        }
+                        gantt.refreshTask(newId);
+                    })
+                    .catch(error => {
+                        console.error('Error saving additional data:', error);
+                    });
+                } else {
+                    gantt.refreshTask(newId);
+                }
+
+                console.log('Task created successfully:', data.task);
+            } else {
+                alert('Error creating task: ' + data.error);
+                gantt.deleteTask(id);
+            }
+        })
+        .catch(error => {
+            console.error('Error creating task:', error);
+            alert('Failed to create task. Please try again.');
+            gantt.deleteTask(id);
+        });
+
+        return true;
+    });
+
+    gantt.attachEvent("onAfterTaskDelete", function(id, item){
+        // Task was deleted in Gantt - delete from database
+        // Only delete if it has a valid database ID (not temporary)
+        if (typeof id === 'number' && id > 0) {
+            console.log(`Deleting task ${id} from database...`);
+
+            fetch(`/project-management/{{ project.pk }}/api/gantt/tasks/${id}/delete/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.error || `HTTP ${response.status}`);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    console.log('%c✓ Task deleted successfully!', 'color: green; font-weight: bold;');
+                    console.log('Details:', data.details);
+
+                    // Show success message to user
+                    const msg = data.message +
+                               (data.details.subtasks_deleted > 0 ? ` (including ${data.details.subtasks_deleted} subtasks)` : '');
+
+                    // Create temporary success notification
+                    const notification = document.createElement('div');
+                    notification.style.cssText = `
+                        position: fixed;
+                        top: 20px;
+                        right: 20px;
+                        background: #28a745;
+                        color: white;
+                        padding: 15px 20px;
+                        border-radius: 5px;
+                        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                        z-index: 10000;
+                        font-family: sans-serif;
+                        max-width: 400px;
+                    `;
+                    notification.innerHTML = `
+                        <strong>✓ Deleted Successfully</strong><br>
+                        ${msg}
+                    `;
+                    document.body.appendChild(notification);
+
+                    // Remove notification after 4 seconds
+                    setTimeout(() => {
+                        notification.style.transition = 'opacity 0.5s';
+                        notification.style.opacity = '0';
+                        setTimeout(() => notification.remove(), 500);
+                    }, 4000);
+                } else {
+                    console.error('Error deleting task:', data.error);
+                    alert(`Failed to delete task: ${data.error}\n\nPlease check the console for details.`);
+                }
+            })
+            .catch(error => {
+                console.error('%c✗ Error deleting task:', 'color: red; font-weight: bold;', error);
+                alert(`Failed to delete task from database:\n\n${error.message}\n\nThe task has been removed from the view but may still exist in the database.\nPlease refresh the page and try again.`);
+            });
+        }
+        return true;
+    });
+
+    // ========================================================================
+    // DEPENDENCY/LINK MANAGEMENT EVENTS
+    // ========================================================================
+
+    // When a dependency is added (either through UI or drag-and-drop)
+    gantt.attachEvent("onAfterLinkAdd", function(id, link){
+        console.log('Link added:', link);
+
+        // Map Gantt link type to dependency type string
+        const typeMap = {0: 'FS', 1: 'SS', 2: 'FF', 3: 'SF'};
+        const depType = typeMap[link.type] || 'FS';
+
+        // Save to database
+        fetch(`/project-management/{{ project.pk }}/api/gantt/dependencies/add/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            },
+            body: JSON.stringify({
+                predecessor_id: link.source,
+                successor_id: link.target,
+                dependency_type: depType,
+                lag_days: 0
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.error || `HTTP ${response.status}`);
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                console.log('%c✓ Dependency saved successfully!', 'color: green; font-weight: bold;');
+                console.log('Dependency:', data.dependency);
+
+                // Update link ID with database ID if needed
+                if (data.dependency.id) {
+                    link.db_id = data.dependency.id;
+                }
+            } else {
+                console.error('Error saving dependency:', data.error);
+                alert(`Failed to save dependency: ${data.error || 'Unknown error'}`);
+                // Remove the link from Gantt since it couldn't be saved
+                gantt.deleteLink(id);
+            }
+        })
+        .catch(error => {
+            console.error('%c✗ Error saving dependency:', 'color: red; font-weight: bold;', error);
+            alert(`Failed to save dependency to database:\n\n${error.message}\n\nThe dependency will be removed.`);
+            // Remove the link from Gantt since it couldn't be saved
+            gantt.deleteLink(id);
+        });
+
+        return true;
+    });
+
+    // When a dependency is deleted
+    gantt.attachEvent("onAfterLinkDelete", function(id, link){
+        console.log('Link deleted:', link);
+
+        // Find the dependency in database by predecessor and successor
+        // We need to call the backend to delete it
+        fetch(`/project-management/{{ project.pk }}/api/gantt/dependencies/remove/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            },
+            body: JSON.stringify({
+                predecessor_id: link.source,
+                successor_id: link.target
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.error || `HTTP ${response.status}`);
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                console.log('%c✓ Dependency removed successfully!', 'color: green; font-weight: bold;');
+            } else {
+                console.warn('Warning removing dependency:', data.error);
+                // Don't show alert for delete operations, just log the warning
+            }
+        })
+        .catch(error => {
+            console.error('%c✗ Error removing dependency:', 'color: red; font-weight: bold;', error);
+            // Don't show alert for delete operations, just log the error
+        });
+
+        return true;
+    });
+
     gantt.attachEvent("onAfterTaskDrag", function(id, mode, e){
         const task = gantt.getTask(id);
 
@@ -837,6 +2075,57 @@
                 gantt.undo();
             });
         }
+    });
+
+    // Control drag behavior - keep tasks at the same level by default
+    let originalParent = null;
+
+    gantt.attachEvent("onBeforeTaskMove", function(id, parent, tindex){
+        // Store original parent
+        const task = gantt.getTask(id);
+        if (originalParent === null) {
+            originalParent = task.parent;
+        }
+
+        // Keep the task at its original parent level
+        // Users should use Ctrl+Left/Right to change hierarchy
+        return true;
+    });
+
+    gantt.attachEvent("onRowDragEnd", function(id, target){
+        // Task was reordered/moved in hierarchy
+        const task = gantt.getTask(id);
+
+        // Restore original parent to keep task at same level
+        if (originalParent !== null) {
+            task.parent = originalParent;
+            originalParent = null;  // Reset for next drag
+            gantt.updateTask(id);
+        }
+
+        fetch(`/project-management/{{ project.pk }}/api/gantt/tasks/${id}/reorder/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            },
+            body: JSON.stringify({
+                parent: task.parent || 0,
+                target: target,
+                position: 'after'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                console.error('Error reordering task:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error reordering task:', error);
+        });
+
+        return true;
     });
 
     gantt.attachEvent("onAfterLinkAdd", function(id, link){
@@ -869,6 +2158,12 @@
     });
 
     gantt.attachEvent("onAfterTaskUpdate", function(id, task){
+        // Skip updates for invalid, temporary, or null task IDs
+        if (!id || id === 'null' || id === null || id === undefined || id > 1000000000000) {
+            console.log('Skipping update for invalid/temporary task ID:', id);
+            return true;
+        }
+
         // Update task progress, Chinese title, process owner, and DoD
         fetch(`/project-management/{{ project.pk }}/api/gantt/tasks/${id}/update-progress/`, {
             method: 'POST',
@@ -909,9 +2204,16 @@
     // Handle lightbox save to update Chinese title, process owner, and DoD
     gantt.attachEvent("onLightboxSave", function(id, task, is_new){
         console.log('Lightbox saved for task:', id);
+        console.log('  Is new task:', is_new);
         console.log('  Chinese title:', task.title_cn);
         console.log('  Process owner ID:', task.process_owner_id);
         console.log('  Definition of Done:', task.definition_of_done);
+
+        // Skip updates for invalid, temporary, or null task IDs
+        if (!id || id === 'null' || id === null || id === undefined || id > 1000000000000) {
+            console.log('Skipping lightbox save for invalid/temporary task ID:', id);
+            return true;
+        }
 
         // Update task with all fields
         fetch(`/project-management/{{ project.pk }}/api/gantt/tasks/${id}/update-progress/`, {
@@ -1111,5 +2413,325 @@
             alert('Failed to add dependency');
         });
     }
+
+    // ============================================================================
+    // TASK SEARCH FUNCTIONALITY
+    // ============================================================================
+
+    let searchMatchedTasks = [];
+    let currentSearchIndex = 0;
+
+    function searchTasks() {
+        const searchInput = document.getElementById('taskSearch');
+        const searchTerm = searchInput.value.trim().toLowerCase();
+
+        if (!searchTerm) {
+            clearSearch();
+            return;
+        }
+
+        // Split search term into individual words
+        const searchWords = searchTerm.split(/\s+/).filter(word => word.length > 0);
+
+        // Find matching tasks
+        searchMatchedTasks = [];
+        gantt.eachTask(function(task) {
+            const taskText = task.text.toLowerCase();
+            const taskCode = task.task_code.toLowerCase();
+            const taskCn = task.title_cn ? task.title_cn.toLowerCase() : '';
+
+            // Check if ANY of the search words matches
+            const hasMatch = searchWords.some(word => {
+                return taskText.includes(word) ||
+                       taskCode.includes(word) ||
+                       taskCn.includes(word);
+            });
+
+            if (hasMatch) {
+                searchMatchedTasks.push(task.id);
+            }
+        });
+
+        if (searchMatchedTasks.length > 0) {
+            currentSearchIndex = 0;
+            highlightSearchResults();
+            navigateToSearchResult(0);
+            showSearchResults();
+        } else {
+            clearSearch();
+            alert('No tasks found matching "' + searchInput.value + '"');
+        }
+    }
+
+    function highlightSearchResults() {
+        // Clear previous highlights
+        gantt.eachTask(function(task) {
+            const row = gantt.getTaskNode(task.id);
+            if (row) {
+                row.classList.remove('search_match', 'search_selected');
+            }
+        });
+
+        // Highlight all matches
+        searchMatchedTasks.forEach(function(taskId) {
+            const row = gantt.getTaskNode(taskId);
+            if (row) {
+                row.classList.add('search_match');
+            }
+        });
+
+        // Force refresh to show highlights
+        gantt.render();
+    }
+
+    function navigateToSearchResult(index) {
+        if (searchMatchedTasks.length === 0) return;
+
+        // Remove previous selection
+        gantt.eachTask(function(task) {
+            const row = gantt.getTaskNode(task.id);
+            if (row) {
+                row.classList.remove('search_selected');
+            }
+        });
+
+        // Select current task
+        const taskId = searchMatchedTasks[index];
+        const row = gantt.getTaskNode(taskId);
+        if (row) {
+            row.classList.add('search_selected');
+        }
+
+        // Select in gantt and scroll to it
+        gantt.selectTask(taskId);
+        gantt.showTask(taskId);
+
+        // Update search results display
+        showSearchResults();
+    }
+
+    function showSearchResults() {
+        const resultsDiv = document.getElementById('searchResults');
+        const clearBtn = document.getElementById('clearSearchBtn');
+
+        if (searchMatchedTasks.length > 0) {
+            resultsDiv.textContent = `Found ${searchMatchedTasks.length} task${searchMatchedTasks.length > 1 ? 's' : ''} (${currentSearchIndex + 1}/${searchMatchedTasks.length})`;
+            resultsDiv.style.display = 'block';
+            clearBtn.style.display = 'inline-block';
+        } else {
+            resultsDiv.style.display = 'none';
+            clearBtn.style.display = 'none';
+        }
+    }
+
+    function clearSearch() {
+        // Clear search input
+        document.getElementById('taskSearch').value = '';
+
+        // Clear highlights
+        gantt.eachTask(function(task) {
+            const row = gantt.getTaskNode(task.id);
+            if (row) {
+                row.classList.remove('search_match', 'search_selected');
+            }
+        });
+
+        // Reset search state
+        searchMatchedTasks = [];
+        currentSearchIndex = 0;
+
+        // Hide results
+        document.getElementById('searchResults').style.display = 'none';
+        document.getElementById('clearSearchBtn').style.display = 'none';
+
+        // Unselect task
+        gantt.unselectTask();
+
+        // Force refresh
+        gantt.render();
+    }
+
+    function nextSearchResult() {
+        if (searchMatchedTasks.length === 0) return;
+
+        currentSearchIndex = (currentSearchIndex + 1) % searchMatchedTasks.length;
+        navigateToSearchResult(currentSearchIndex);
+    }
+
+    function previousSearchResult() {
+        if (searchMatchedTasks.length === 0) return;
+
+        currentSearchIndex = (currentSearchIndex - 1 + searchMatchedTasks.length) % searchMatchedTasks.length;
+        navigateToSearchResult(currentSearchIndex);
+    }
+
+    // Add keyboard shortcuts for search
+    document.getElementById('taskSearch').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (searchMatchedTasks.length > 0 && this.value === '') {
+                // If already searching and Enter pressed on empty field, go to next result
+                nextSearchResult();
+            } else {
+                // Otherwise, perform new search
+                searchTasks();
+            }
+        }
+    });
+
+    // Add keyboard shortcuts for navigation when search is active
+    document.addEventListener('keydown', function(e) {
+        if (searchMatchedTasks.length > 0) {
+            if (e.key === 'ArrowDown' && e.ctrlKey) {
+                e.preventDefault();
+                nextSearchResult();
+            } else if (e.key === 'ArrowUp' && e.ctrlKey) {
+                e.preventDefault();
+                previousSearchResult();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                clearSearch();
+            }
+        }
+    });
+
+    // Add navigation buttons if multiple results
+    function addSearchNavigation() {
+        const searchDiv = document.getElementById('taskSearch').parentElement;
+
+        // Check if navigation buttons already exist
+        if (document.getElementById('searchNavButtons')) return;
+
+        const navButtons = document.createElement('div');
+        navButtons.id = 'searchNavButtons';
+        navButtons.className = 'btn-group btn-group-sm ms-2';
+        navButtons.style.display = 'none';
+        navButtons.innerHTML = `
+            <button class="btn btn-outline-secondary" type="button" onclick="previousSearchResult()" title="Previous (Ctrl+↑)">
+                <i class="fas fa-chevron-up"></i>
+            </button>
+            <button class="btn btn-outline-secondary" type="button" onclick="nextSearchResult()" title="Next (Ctrl+↓)">
+                <i class="fas fa-chevron-down"></i>
+            </button>
+        `;
+
+        searchDiv.parentElement.appendChild(navButtons);
+    }
+
+    // Show/hide navigation buttons based on search results
+    function updateSearchNavigation() {
+        const navButtons = document.getElementById('searchNavButtons');
+        if (navButtons) {
+            navButtons.style.display = searchMatchedTasks.length > 1 ? 'inline-flex' : 'none';
+        }
+    }
+
+    // Initialize search navigation on page load
+    setTimeout(function() {
+        addSearchNavigation();
+    }, 500);
+
+    // Update the showSearchResults function to show navigation buttons
+    const originalShowSearchResults = showSearchResults;
+    showSearchResults = function() {
+        originalShowSearchResults();
+        updateSearchNavigation();
+    };
+
+    // ============================================================================
+    // CHART HEIGHT ADJUSTMENT
+    // ============================================================================
+
+    const CHART_HEIGHT_KEY = 'gantt_chart_height';
+    const MIN_HEIGHT = 400;
+    const MAX_HEIGHT = 1600;
+    const HEIGHT_STEP = 100;
+    let currentChartHeight = 700;
+
+    // Load saved height from localStorage
+    function loadChartHeight() {
+        const savedHeight = localStorage.getItem(CHART_HEIGHT_KEY);
+        if (savedHeight) {
+            currentChartHeight = parseInt(savedHeight);
+        } else {
+            currentChartHeight = 700; // Default height
+        }
+        applyChartHeight();
+    }
+
+    // Save height to localStorage
+    function saveChartHeight() {
+        localStorage.setItem(CHART_HEIGHT_KEY, currentChartHeight);
+    }
+
+    // Apply the chart height
+    function applyChartHeight() {
+        const ganttContainer = document.getElementById('gantt_here');
+        if (ganttContainer) {
+            ganttContainer.style.height = currentChartHeight + 'px';
+        }
+
+        // Update button text
+        const heightBtn = document.getElementById('currentHeightBtn');
+        if (heightBtn) {
+            heightBtn.textContent = currentChartHeight + 'px';
+        }
+
+        // Re-render gantt to adjust to new height
+        if (typeof gantt !== 'undefined') {
+            gantt.render();
+        }
+    }
+
+    // Adjust chart height
+    function adjustChartHeight(direction) {
+        if (direction === 'increase') {
+            currentChartHeight = Math.min(currentChartHeight + HEIGHT_STEP, MAX_HEIGHT);
+        } else if (direction === 'decrease') {
+            currentChartHeight = Math.max(currentChartHeight - HEIGHT_STEP, MIN_HEIGHT);
+        }
+
+        applyChartHeight();
+        saveChartHeight();
+    }
+
+    // Reset to default height (optional - can be added as a button if needed)
+    function resetChartHeight() {
+        currentChartHeight = 700;
+        applyChartHeight();
+        saveChartHeight();
+    }
+
+    // Add double-click to reset height
+    document.addEventListener('DOMContentLoaded', function() {
+        const heightBtn = document.getElementById('currentHeightBtn');
+        if (heightBtn) {
+            heightBtn.addEventListener('dblclick', function() {
+                if (confirm('Reset chart height to default (700px)?')) {
+                    resetChartHeight();
+                }
+            });
+            heightBtn.title = 'Double-click to reset to default (700px)';
+        }
+    });
+
+    // Initialize height on page load
+    setTimeout(function() {
+        loadChartHeight();
+    }, 100);
+
+    // Add keyboard shortcuts for height adjustment
+    document.addEventListener('keydown', function(e) {
+        // Ctrl + Shift + Up: Increase height
+        if (e.ctrlKey && e.shiftKey && e.key === 'ArrowUp') {
+            e.preventDefault();
+            adjustChartHeight('increase');
+        }
+        // Ctrl + Shift + Down: Decrease height
+        else if (e.ctrlKey && e.shiftKey && e.key === 'ArrowDown') {
+            e.preventDefault();
+            adjustChartHeight('decrease');
+        }
+    });
 </script>
 {% endblock %}

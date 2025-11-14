@@ -308,8 +308,15 @@ def api_add_dependency(request, project_pk):
         successor = get_object_or_404(Task, pk=successor_id, project=project)
 
         # Check for circular dependency
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Attempting to add dependency: {predecessor.task_code} ({predecessor.id}) -> {successor.task_code} ({successor.id})")
+
         if would_create_circular_dependency(predecessor, successor):
-            return JsonResponse({'error': 'This would create a circular dependency'}, status=400)
+            logger.warning(f"Circular dependency detected when trying to add {predecessor.task_code} -> {successor.task_code}")
+            return JsonResponse({
+                'error': f'This would create a circular dependency. {successor.task_code} already depends on {predecessor.task_code} (directly or indirectly)'
+            }, status=400)
 
         # Create dependency
         dependency = TaskDependency.objects.create(
@@ -384,13 +391,76 @@ def api_remove_dependency(request, project_pk, dependency_id):
         return JsonResponse({'error': str(e)}, status=500)
 
 
+@login_required
+@require_http_methods(["POST"])
+def api_remove_dependency_by_tasks(request, project_pk):
+    """
+    Remove a task dependency by predecessor and successor task IDs
+    This is used when deleting from the lightbox UI
+    """
+    project = get_object_or_404(Project, pk=project_pk)
+
+    has_access, user_role = check_project_access(request.user, project)
+    if not has_access:
+        return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
+
+    try:
+        data = json.loads(request.body)
+        predecessor_id = data.get('predecessor_id')
+        successor_id = data.get('successor_id')
+
+        if not predecessor_id or not successor_id:
+            return JsonResponse({'error': 'Both predecessor_id and successor_id required'}, status=400)
+
+        # Find the dependency
+        dependency = TaskDependency.objects.filter(
+            predecessor_id=predecessor_id,
+            successor_id=successor_id,
+            predecessor__project=project
+        ).first()
+
+        if not dependency:
+            # Dependency doesn't exist - this is OK, just return success
+            return JsonResponse({'success': True, 'message': 'Dependency not found (may have already been deleted)'})
+
+        # Log activity before deleting
+        try:
+            TaskActivity.objects.create(
+                task=dependency.successor,
+                user=request.user,
+                action='dependency_removed',
+                details={
+                    'predecessor': dependency.predecessor.task_code,
+                    'dependency_type': dependency.dependency_type
+                }
+            )
+        except Exception:
+            pass  # Don't fail if activity logging fails
+
+        dependency.delete()
+
+        return JsonResponse({'success': True, 'message': 'Dependency removed successfully'})
+
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error removing dependency: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+
 def would_create_circular_dependency(predecessor, successor):
     """
-    Check if creating this dependency would create a circular dependency
+    Check if creating this dependency would create a circular dependency.
+    We're trying to create: predecessor -> successor
+    This would be circular if there's already a path: successor -> ... -> predecessor
     """
+    import logging
+    logger = logging.getLogger(__name__)
+
     # BFS to check if predecessor is reachable from successor
     visited = set()
     queue = [successor]
+    path = []
 
     while queue:
         current = queue.pop(0)
@@ -399,9 +469,11 @@ def would_create_circular_dependency(predecessor, successor):
             continue
 
         visited.add(current.id)
+        path.append(current.task_code)
 
         # Check if we've reached the predecessor
         if current.id == predecessor.id:
+            logger.info(f"Circular dependency path found: {' -> '.join(path)}")
             return True
 
         # Add all successors of current task
@@ -654,3 +726,334 @@ def api_delete_baseline(request, project_pk, baseline_id):
 
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+# ============================================================================
+# TASK CREATION AND DELETION FROM GANTT
+# ============================================================================
+
+@login_required
+@require_http_methods(["POST"])
+def api_create_task(request, project_pk):
+    """
+    Create a new task from Gantt chart
+    """
+    project = get_object_or_404(Project, pk=project_pk)
+
+    has_access, user_role = check_project_access(request.user, project)
+    if not has_access:
+        return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
+
+    try:
+        data = json.loads(request.body)
+
+        title = data.get('text', 'New Task')
+        start_date_str = data.get('start_date')
+        duration = data.get('duration', 1)
+        parent_id = data.get('parent')
+
+        # Parse start date
+        start_date = None
+        if start_date_str:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+
+        # Calculate end date
+        end_date = None
+        if start_date:
+            end_date = start_date + timedelta(days=int(duration) - 1)
+
+        # Get parent task if specified
+        parent_task = None
+        if parent_id and parent_id != 0:
+            try:
+                parent_task = Task.objects.get(pk=parent_id, project=project)
+            except Task.DoesNotExist:
+                pass
+
+        # Generate task code
+        task_count = project.tasks.count() + 1
+        task_code = f"T{task_count:04d}"
+
+        # Create the task
+        task = Task.objects.create(
+            project=project,
+            title=title,
+            task_code=task_code,
+            start_date=start_date,
+            end_date=end_date,
+            duration=int(duration),
+            parent_task=parent_task,
+            created_by=request.user,
+            status='todo',
+            priority='medium'
+        )
+
+        # Log activity
+        TaskActivity.objects.create(
+            task=task,
+            user=request.user,
+            action='created',
+            details={'source': 'gantt_chart'}
+        )
+
+        return JsonResponse({
+            'success': True,
+            'task': {
+                'id': task.pk,
+                'text': task.title,
+                'task_code': task.task_code,
+                'start_date': str(task.start_date) if task.start_date else None,
+                'duration': task.duration,
+                'parent': parent_task.pk if parent_task else 0,
+                'progress': task.progress / 100,
+                'status': task.status
+            }
+        })
+
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error creating task: {error_details}")
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+@require_http_methods(["GET"])
+def api_check_task_deletion(request, project_pk, task_id):
+    """
+    Check what will be affected when deleting a task
+    Returns information about subtasks and dependencies
+    """
+    project = get_object_or_404(Project, pk=project_pk)
+    task = get_object_or_404(Task, pk=task_id, project=project)
+
+    has_access, user_role = check_project_access(request.user, project)
+    if not has_access:
+        return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
+
+    # Count subtasks (will be cascade deleted)
+    subtasks = Task.objects.filter(parent_task=task)
+    subtask_count = subtasks.count()
+
+    # Get all subtasks recursively
+    def get_all_subtasks(parent):
+        all_subtasks = []
+        direct_subtasks = Task.objects.filter(parent_task=parent)
+        for subtask in direct_subtasks:
+            all_subtasks.append(subtask)
+            all_subtasks.extend(get_all_subtasks(subtask))
+        return all_subtasks
+
+    all_subtasks = get_all_subtasks(task)
+    total_subtask_count = len(all_subtasks)
+
+    # Check dependencies
+    predecessors = TaskDependency.objects.filter(successor=task)
+    successors = TaskDependency.objects.filter(predecessor=task)
+
+    predecessor_tasks = [
+        {'code': dep.predecessor.task_code, 'title': dep.predecessor.title}
+        for dep in predecessors
+    ]
+
+    successor_tasks = [
+        {'code': dep.successor.task_code, 'title': dep.successor.title}
+        for dep in successors
+    ]
+
+    return JsonResponse({
+        'success': True,
+        'task_code': task.task_code,
+        'task_title': task.title,
+        'subtask_count': total_subtask_count,
+        'subtasks': [{'code': st.task_code, 'title': st.title} for st in all_subtasks[:10]],  # First 10
+        'has_more_subtasks': total_subtask_count > 10,
+        'predecessor_count': len(predecessor_tasks),
+        'predecessors': predecessor_tasks,
+        'successor_count': len(successor_tasks),
+        'successors': successor_tasks
+    })
+
+
+@login_required
+@require_http_methods(["POST"])
+def api_delete_task(request, project_pk, task_id):
+    """
+    Delete a task from Gantt chart with enhanced checking and logging
+    """
+    project = get_object_or_404(Project, pk=project_pk)
+    task = get_object_or_404(Task, pk=task_id, project=project)
+
+    has_access, user_role = check_project_access(request.user, project)
+    if not has_access:
+        return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
+
+    try:
+        import logging
+        logger = logging.getLogger(__name__)
+
+        task_code = task.task_code
+        task_title = task.title
+
+        # Count what will be deleted
+        def get_all_subtasks(parent):
+            all_subtasks = []
+            direct_subtasks = Task.objects.filter(parent_task=parent)
+            for subtask in direct_subtasks:
+                all_subtasks.append(subtask)
+                all_subtasks.extend(get_all_subtasks(subtask))
+            return all_subtasks
+
+        all_subtasks = get_all_subtasks(task)
+        subtask_count = len(all_subtasks)
+
+        # Get dependency counts
+        predecessor_count = TaskDependency.objects.filter(successor=task).count()
+        successor_count = TaskDependency.objects.filter(predecessor=task).count()
+
+        logger.info(f"Deleting task {task_code} ({task_title}) - "
+                   f"{subtask_count} subtasks, {predecessor_count} predecessors, {successor_count} successors")
+
+        # Create activity log before deletion
+        try:
+            TaskActivity.objects.create(
+                task=task,
+                user=request.user,
+                activity_type='status_changed',
+                description=f'Deleted task {task_code}: {task_title}' +
+                           (f' (including {subtask_count} subtasks)' if subtask_count > 0 else ''),
+                project=project
+            )
+        except Exception as log_error:
+            logger.warning(f"Failed to create activity log: {log_error}")
+
+        # Perform deletion
+        task.delete()
+
+        logger.info(f"Successfully deleted task {task_code}")
+
+        return JsonResponse({
+            'success': True,
+            'message': f'Task {task_code} deleted successfully',
+            'details': {
+                'task_code': task_code,
+                'subtasks_deleted': subtask_count,
+                'dependencies_removed': predecessor_count + successor_count
+            }
+        })
+
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error deleting task {task_id}: {error_details}")
+
+        return JsonResponse({
+            'success': False,
+            'error': f'Failed to delete task: {str(e)}',
+            'details': str(e)
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def api_reorder_task(request, project_pk, task_id):
+    """
+    Update task order and hierarchy
+    """
+    project = get_object_or_404(Project, pk=project_pk)
+    task = get_object_or_404(Task, pk=task_id, project=project)
+
+    has_access, user_role = check_project_access(request.user, project)
+    if not has_access:
+        return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
+
+    try:
+        data = json.loads(request.body)
+
+        parent_id = data.get('parent')
+        target_id = data.get('target')  # Task to place before/after
+        position = data.get('position', 'after')  # 'before' or 'after'
+
+        # Update parent
+        if parent_id == 0 or parent_id is None:
+            task.parent_task = None
+        else:
+            try:
+                parent_task = Task.objects.get(pk=parent_id, project=project)
+                task.parent_task = parent_task
+            except Task.DoesNotExist:
+                return JsonResponse({'success': False, 'error': 'Parent task not found'}, status=404)
+
+        # Update order
+        if target_id:
+            try:
+                # Handle special dhtmlxGantt identifiers like 'next:459'
+                actual_target_id = target_id
+                if isinstance(target_id, str):
+                    if target_id.startswith('next:'):
+                        # Extract the task ID after 'next:'
+                        actual_target_id = int(target_id.split(':')[1])
+                        position = 'after'  # 'next:' always means after
+                    elif target_id.startswith('prev:'):
+                        # Extract the task ID after 'prev:'
+                        actual_target_id = int(target_id.split(':')[1])
+                        position = 'before'  # 'prev:' always means before
+                    else:
+                        # Try to convert to int
+                        actual_target_id = int(target_id)
+
+                target_task = Task.objects.get(pk=actual_target_id, project=project)
+                if position == 'before':
+                    task.order = target_task.order - 0.5
+                else:
+                    task.order = target_task.order + 0.5
+            except (Task.DoesNotExist, ValueError, IndexError):
+                # If target task doesn't exist or ID is invalid, keep current order
+                pass
+
+        task.save(update_fields=['parent_task', 'order'])
+
+        # Re-normalize orders
+        normalize_task_orders(project)
+
+        # Log activity
+        TaskActivity.objects.create(
+            task=task,
+            user=request.user,
+            action='reordered',
+            details={
+                'parent': parent_id,
+                'position': position
+            }
+        )
+
+        return JsonResponse({
+            'success': True,
+            'task': {
+                'id': task.pk,
+                'parent': task.parent_task.pk if task.parent_task else 0,
+                'order': task.order
+            }
+        })
+
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error reordering task: {error_details}")
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+def normalize_task_orders(project):
+    """
+    Normalize task orders to ensure they're sequential integers
+    """
+    tasks = Task.objects.filter(project=project).order_by('order', 'created_at')
+
+    for index, task in enumerate(tasks):
+        task.order = (index + 1) * 10
+        task.save(update_fields=['order'])

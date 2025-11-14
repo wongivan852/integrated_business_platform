@@ -42,10 +42,15 @@ urlpatterns = [
     path('<int:project_pk>/api/columns/reorder/', kanban_views.api_column_reorder, name='api_column_reorder'),
 
     # Gantt Chart API endpoints
+    path('<int:project_pk>/api/gantt/tasks/create/', gantt_views.api_create_task, name='api_gantt_create_task'),
+    path('<int:project_pk>/api/gantt/tasks/<int:task_id>/check-delete/', gantt_views.api_check_task_deletion, name='api_gantt_check_delete'),
+    path('<int:project_pk>/api/gantt/tasks/<int:task_id>/delete/', gantt_views.api_delete_task, name='api_gantt_delete_task'),
+    path('<int:project_pk>/api/gantt/tasks/<int:task_id>/reorder/', gantt_views.api_reorder_task, name='api_gantt_reorder_task'),
     path('<int:project_pk>/api/gantt/tasks/<int:task_id>/update-dates/', gantt_views.api_update_task_dates, name='api_gantt_update_dates'),
     path('<int:project_pk>/api/gantt/tasks/<int:task_id>/update-progress/', gantt_views.api_update_task_progress, name='api_gantt_update_progress'),
     path('<int:project_pk>/api/gantt/dependencies/add/', gantt_views.api_add_dependency, name='api_gantt_add_dependency'),
     path('<int:project_pk>/api/gantt/dependencies/<int:dependency_id>/remove/', gantt_views.api_remove_dependency, name='api_gantt_remove_dependency'),
+    path('<int:project_pk>/api/gantt/dependencies/remove/', gantt_views.api_remove_dependency_by_tasks, name='api_gantt_remove_dependency_by_tasks'),
     path('<int:project_pk>/api/gantt/baselines/create/', gantt_views.api_create_baseline, name='api_gantt_create_baseline'),
     path('<int:project_pk>/api/gantt/baselines/<int:baseline_id>/delete/', gantt_views.api_delete_baseline, name='api_gantt_delete_baseline'),
 
