@@ -77,73 +77,80 @@ const GanttChart = () => {
   const phases = [
     {
       phase: 'Phase 1: Planning & Setup',
+      phaseCN: '阶段1：规划与准备',
       duration: 'Nov 4 - Nov 10',
       tasks: [
-        { name: 'Venue Confirmation', start: 'Nov 4', end: 'Nov 8', progress: 60, owner: 'Tim/Penny', critical: true },
-        { name: 'Sponsor Outreach', start: 'Nov 4', end: 'Nov 14', progress: 50, owner: 'Penny/Tim', critical: false },
-        { name: 'Partner Agreements', start: 'Nov 4', end: 'Nov 14', progress: 40, owner: 'Ivan/Sabrina', critical: false },
-        { name: 'School Partnerships', start: 'Nov 1', end: 'Nov 28', progress: 30, owner: 'Sean/Celia', critical: false }
+        { name: 'Venue Confirmation', nameCN: '场馆确认', start: 'Nov 4', end: 'Nov 8', progress: 60, owner: 'Tim/Penny', critical: true },
+        { name: 'Sponsor Outreach', nameCN: '赞助商开发', start: 'Nov 4', end: 'Nov 14', progress: 50, owner: 'Penny/Tim', critical: false },
+        { name: 'Partner Agreements', nameCN: '合作伙伴协议', start: 'Nov 4', end: 'Nov 14', progress: 40, owner: 'Ivan/Sabrina', critical: false },
+        { name: 'School Partnerships', nameCN: '学校合作', start: 'Nov 1', end: 'Nov 28', progress: 30, owner: 'Sean/Celia', critical: false }
       ]
     },
     {
       phase: 'Phase 2: Speaker & Content',
+      phaseCN: '阶段2：讲者与内容',
       duration: 'Nov 10 - Nov 30',
       tasks: [
-        { name: 'Speaker Assets Collection', start: 'Nov 10', end: 'Nov 14', progress: 20, owner: 'Tim', critical: true },
-        { name: 'Flight Booking', start: 'Nov 4', end: 'Nov 14', progress: 30, owner: 'Tim', critical: true },
-        { name: 'PPT Submission', start: 'Nov 14', end: 'Nov 30', progress: 0, owner: 'Sabrina', critical: true },
-        { name: 'Content Compliance Review', start: 'Nov 20', end: 'Nov 30', progress: 0, owner: 'Compliance Team', critical: true },
-        { name: 'Hotel Reservations', start: 'Nov 17', end: 'Nov 21', progress: 10, owner: 'Tim', critical: false }
+        { name: 'Speaker Assets Collection', nameCN: '讲者资料收集', start: 'Nov 10', end: 'Nov 14', progress: 20, owner: 'Tim', critical: true },
+        { name: 'Flight Booking', nameCN: '航班预订', start: 'Nov 4', end: 'Nov 14', progress: 30, owner: 'Tim', critical: true },
+        { name: 'PPT Submission', nameCN: 'PPT提交', start: 'Nov 14', end: 'Nov 30', progress: 0, owner: 'Sabrina', critical: true },
+        { name: 'Content Compliance Review', nameCN: '内容合规审查', start: 'Nov 20', end: 'Nov 30', progress: 0, owner: 'Compliance Team', critical: true },
+        { name: 'Hotel Reservations', nameCN: '酒店预订', start: 'Nov 17', end: 'Nov 21', progress: 10, owner: 'Tim', critical: false }
       ]
     },
     {
       phase: 'Phase 3: Marketing & PR',
+      phaseCN: '阶段3：市场营销与公关',
       duration: 'Nov 10 - Dec 10',
       tasks: [
-        { name: 'Media Kit Preparation', start: 'Nov 10', end: 'Nov 14', progress: 60, owner: 'Sabrina/Adrian', critical: false },
-        { name: 'Press Release 1', start: 'Nov 14', end: 'Nov 14', progress: 0, owner: 'Adrian', critical: false },
-        { name: 'Website Updates', start: 'Nov 15', end: 'Nov 29', progress: 0, owner: 'Phil/Celia', critical: false },
-        { name: 'Livestream Setup', start: 'Nov 4', end: 'Nov 12', progress: 40, owner: 'Penny', critical: false }
+        { name: 'Media Kit Preparation', nameCN: '媒体资料包准备', start: 'Nov 10', end: 'Nov 14', progress: 60, owner: 'Sabrina/Adrian', critical: false },
+        { name: 'Press Release 1', nameCN: '新闻稿发布1', start: 'Nov 14', end: 'Nov 14', progress: 0, owner: 'Adrian', critical: false },
+        { name: 'Website Updates', nameCN: '网站更新', start: 'Nov 15', end: 'Nov 29', progress: 0, owner: 'Phil/Celia', critical: false },
+        { name: 'Livestream Setup', nameCN: '直播设置', start: 'Nov 4', end: 'Nov 12', progress: 40, owner: 'Penny', critical: false }
       ]
     },
     {
       phase: 'Phase 4: Operations Setup',
+      phaseCN: '阶段4：运营准备',
       duration: 'Nov 1 - Dec 11',
       tasks: [
-        { name: 'Training Content Development', start: 'Nov 1', end: 'Nov 14', progress: 70, owner: 'Catina', critical: false },
-        { name: 'Translation Equipment', start: 'Oct 21', end: 'Nov 13', progress: 50, owner: 'Ivan', critical: false },
-        { name: 'Materials Design', start: 'Nov 6', end: 'Nov 10', progress: 80, owner: 'Yan/Adrian', critical: false },
-        { name: 'Materials Printing', start: 'Nov 11', end: 'Nov 12', progress: 0, owner: 'Yan/Adrian', critical: false },
-        { name: 'Website UAT', start: 'Nov 20', end: 'Nov 29', progress: 0, owner: 'Phil/Celia/Ivan', critical: true }
+        { name: 'Training Content Development', nameCN: '培训内容开发', start: 'Nov 1', end: 'Nov 14', progress: 70, owner: 'Catina', critical: false },
+        { name: 'Translation Equipment', nameCN: '翻译设备', start: 'Oct 21', end: 'Nov 13', progress: 50, owner: 'Ivan', critical: false },
+        { name: 'Materials Design', nameCN: '物料设计', start: 'Nov 6', end: 'Nov 10', progress: 80, owner: 'Yan/Adrian', critical: false },
+        { name: 'Materials Printing', nameCN: '物料印刷', start: 'Nov 11', end: 'Nov 12', progress: 0, owner: 'Yan/Adrian', critical: false },
+        { name: 'Website UAT', nameCN: '网站用户验收测试', start: 'Nov 20', end: 'Nov 29', progress: 0, owner: 'Phil/Celia/Ivan', critical: true }
       ]
     },
     {
       phase: 'Phase 5: Final Preparations',
+      phaseCN: '阶段5：最后准备',
       duration: 'Dec 1 - Dec 11',
       tasks: [
-        { name: 'Equipment Installation', start: 'Dec 11', end: 'Dec 13', progress: 0, owner: 'Adrian/Ivan', critical: true },
-        { name: 'Materials Installation', start: 'Dec 11', end: 'Dec 14', progress: 0, owner: 'Yan/Adrian', critical: true },
-        { name: 'First Rehearsal', start: 'Dec 5', end: 'Dec 5', progress: 0, owner: 'All', critical: true },
-        { name: 'Full Rehearsal', start: 'Dec 12', end: 'Dec 12', progress: 0, owner: 'All', critical: true },
-        { name: 'Staff Training', start: 'Dec 10', end: 'Dec 11', progress: 0, owner: 'Jacky', critical: false }
+        { name: 'Equipment Installation', nameCN: '设备安装', start: 'Dec 11', end: 'Dec 13', progress: 0, owner: 'Adrian/Ivan', critical: true },
+        { name: 'Materials Installation', nameCN: '物料安装', start: 'Dec 11', end: 'Dec 14', progress: 0, owner: 'Yan/Adrian', critical: true },
+        { name: 'First Rehearsal', nameCN: '第一次彩排', start: 'Dec 5', end: 'Dec 5', progress: 0, owner: 'All', critical: true },
+        { name: 'Full Rehearsal', nameCN: '全程彩排', start: 'Dec 12', end: 'Dec 12', progress: 0, owner: 'All', critical: true },
+        { name: 'Staff Training', nameCN: '员工培训', start: 'Dec 10', end: 'Dec 11', progress: 0, owner: 'Jacky', critical: false }
       ]
     },
     {
       phase: 'Phase 6: Event Execution',
+      phaseCN: '阶段6：活动执行',
       duration: 'Dec 12 - Dec 14',
       tasks: [
-        { name: 'Pre-Conference Visits', start: 'Dec 12', end: 'Dec 12', progress: 0, owner: 'Guest Team', critical: false },
-        { name: 'Main Event Day 1', start: 'Dec 13', end: 'Dec 13', progress: 0, owner: 'All', critical: true },
-        { name: 'Main Event Day 2', start: 'Dec 14', end: 'Dec 14', progress: 0, owner: 'All', critical: true }
+        { name: 'Pre-Conference Visits', nameCN: '会前参观', start: 'Dec 12', end: 'Dec 12', progress: 0, owner: 'Guest Team', critical: false },
+        { name: 'Main Event Day 1', nameCN: '主活动第1天', start: 'Dec 13', end: 'Dec 13', progress: 0, owner: 'All', critical: true },
+        { name: 'Main Event Day 2', nameCN: '主活动第2天', start: 'Dec 14', end: 'Dec 14', progress: 0, owner: 'All', critical: true }
       ]
     },
     {
       phase: 'Phase 7: Wrap-up',
+      phaseCN: '阶段7：收尾',
       duration: 'Dec 15 - Dec 30',
       tasks: [
-        { name: 'Event Documentation', start: 'Dec 15', end: 'Dec 20', progress: 0, owner: 'Celia', critical: false },
-        { name: 'Final Payments', start: 'Dec 15', end: 'Dec 25', progress: 0, owner: 'Tim', critical: false },
-        { name: 'Post-Event Report', start: 'Dec 20', end: 'Dec 30', progress: 0, owner: 'Tim', critical: false }
+        { name: 'Event Documentation', nameCN: '活动文档', start: 'Dec 15', end: 'Dec 20', progress: 0, owner: 'Celia', critical: false },
+        { name: 'Final Payments', nameCN: '最终付款', start: 'Dec 15', end: 'Dec 25', progress: 0, owner: 'Tim', critical: false },
+        { name: 'Post-Event Report', nameCN: '活动后报告', start: 'Dec 20', end: 'Dec 30', progress: 0, owner: 'Tim', critical: false }
       ]
     }
   ];
@@ -172,18 +179,24 @@ const GanttChart = () => {
       {phases.map((phase, idx) => (
         <div key={idx} className="border rounded-lg overflow-hidden">
           <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-3">
-            <h3 className="font-bold">{phase.phase}</h3>
+            <h3 className="font-bold">
+              {phase.phase}
+              <span className="ml-2 text-blue-100">{phase.phaseCN}</span>
+            </h3>
             <p className="text-sm opacity-90">{phase.duration}</p>
           </div>
-          
+
           <div className="divide-y">
             {phase.tasks.map((task, taskIdx) => (
               <div key={taskIdx} className="p-4 hover:bg-gray-50">
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className={`font-medium ${task.critical ? 'text-red-600' : 'text-gray-800'}`}>
                         {task.name}
+                      </span>
+                      <span className="text-blue-600 font-medium">
+                        {task.nameCN}
                       </span>
                       {task.critical && (
                         <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">
@@ -199,7 +212,7 @@ const GanttChart = () => {
                     {task.progress}%
                   </span>
                 </div>
-                
+
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
                     className={`h-2 rounded-full transition-all ${
@@ -222,128 +235,140 @@ const WBS = () => {
     {
       code: '1.0',
       name: 'Venue Management',
+      nameCN: '场地管理',
       children: [
-        { code: '1.1', name: 'Venue Selection & Contract', owner: 'Tim/Penny', deadline: 'Nov 8' },
-        { code: '1.2', name: 'Space Mapping & Allocation', owner: 'Tim/Penny', deadline: 'Nov 8' },
-        { code: '1.3', name: 'Permits & Licenses', owner: 'Tim/Penny', deadline: 'Nov 8' },
-        { code: '1.4', name: 'Parking & Transportation', owner: 'TBD', deadline: 'Nov 14' }
+        { code: '1.1', name: 'Venue Selection & Contract', nameCN: '场地选择与合同', owner: 'Tim/Penny', deadline: 'Nov 8' },
+        { code: '1.2', name: 'Space Mapping & Allocation', nameCN: '空间规划与分配', owner: 'Tim/Penny', deadline: 'Nov 8' },
+        { code: '1.3', name: 'Permits & Licenses', nameCN: '许可证与执照', owner: 'Tim/Penny', deadline: 'Nov 8' },
+        { code: '1.4', name: 'Parking & Transportation', nameCN: '停车与交通', owner: 'TBD', deadline: 'Nov 14' }
       ]
     },
     {
       code: '2.0',
       name: 'Guest Management',
+      nameCN: '嘉宾管理',
       children: [
-        { code: '2.1', name: 'Guest List & Invitations', owner: '周玉花', deadline: 'Nov 10' },
-        { code: '2.2', name: 'Flight Booking', owner: 'Tim', deadline: 'Nov 14' },
-        { code: '2.3', name: 'Hotel Accommodation', owner: 'Tim', deadline: 'Nov 21' },
-        { code: '2.4', name: 'Transportation Arrangements', owner: 'Guest Escort Team', deadline: 'Nov 17' },
-        { code: '2.5', name: 'Meal Arrangements', owner: 'Logistics', deadline: 'Nov 5' },
-        { code: '2.6', name: 'Speaker Handbook', owner: 'Tim/Sabrina', deadline: 'Nov 7' },
-        { code: '2.7', name: 'Gifts & Welcome Packages', owner: 'Cloudy/Penny', deadline: 'Dec 10' }
+        { code: '2.1', name: 'Guest List & Invitations', nameCN: '嘉宾名单与邀请', owner: '周玉花', deadline: 'Nov 10' },
+        { code: '2.2', name: 'Flight Booking', nameCN: '航班预订', owner: 'Tim', deadline: 'Nov 14' },
+        { code: '2.3', name: 'Hotel Accommodation', nameCN: '酒店住宿', owner: 'Tim', deadline: 'Nov 21' },
+        { code: '2.4', name: 'Transportation Arrangements', nameCN: '交通安排', owner: 'Guest Escort Team', deadline: 'Nov 17' },
+        { code: '2.5', name: 'Meal Arrangements', nameCN: '餐饮安排', owner: 'Logistics', deadline: 'Nov 5' },
+        { code: '2.6', name: 'Speaker Handbook', nameCN: '讲者手册', owner: 'Tim/Sabrina', deadline: 'Nov 7' },
+        { code: '2.7', name: 'Gifts & Welcome Packages', nameCN: '礼品与欢迎礼包', owner: 'Cloudy/Penny', deadline: 'Dec 10' }
       ]
     },
     {
       code: '3.0',
       name: 'Sponsorship & Partnerships',
+      nameCN: '赞助与合作',
       children: [
-        { code: '3.1', name: 'Sponsor Acquisition', owner: 'Penny/Tim', deadline: 'Nov 14' },
-        { code: '3.2', name: 'Partnership Agreements', owner: 'Ivan/Sabrina', deadline: 'Nov 14' },
-        { code: '3.3', name: 'School Partnerships (22+)', owner: 'Sean/Celia/Tim/Sabrina', deadline: 'Nov 28' },
-        { code: '3.4', name: 'Benefits Fulfillment', owner: 'Multiple', deadline: 'Dec 14' }
+        { code: '3.1', name: 'Sponsor Acquisition', nameCN: '赞助商开发', owner: 'Penny/Tim', deadline: 'Nov 14' },
+        { code: '3.2', name: 'Partnership Agreements', nameCN: '合作协议', owner: 'Ivan/Sabrina', deadline: 'Nov 14' },
+        { code: '3.3', name: 'School Partnerships (22+)', nameCN: '学校合作 (22+)', owner: 'Sean/Celia/Tim/Sabrina', deadline: 'Nov 28' },
+        { code: '3.4', name: 'Benefits Fulfillment', nameCN: '权益履行', owner: 'Multiple', deadline: 'Dec 14' }
       ]
     },
     {
       code: '4.0',
       name: 'Content & Programming',
+      nameCN: '内容与节目',
       children: [
-        { code: '4.1', name: 'Speaker Asset Collection', owner: 'Tim', deadline: 'Nov 10' },
-        { code: '4.2', name: 'PPT Collection & Review', owner: 'Sabrina', deadline: 'Nov 30' },
-        { code: '4.3', name: 'Content Compliance', owner: 'Compliance Team', deadline: 'Nov 30' },
-        { code: '4.4', name: 'Training Content (90min)', owner: 'Catina', deadline: 'Nov 14' },
-        { code: '4.5', name: 'Host Script Preparation', owner: 'Penny', deadline: 'Nov 14' }
+        { code: '4.1', name: 'Speaker Asset Collection', nameCN: '讲者资料收集', owner: 'Tim', deadline: 'Nov 10' },
+        { code: '4.2', name: 'PPT Collection & Review', nameCN: 'PPT收集与审核', owner: 'Sabrina', deadline: 'Nov 30' },
+        { code: '4.3', name: 'Content Compliance', nameCN: '内容合规', owner: 'Compliance Team', deadline: 'Nov 30' },
+        { code: '4.4', name: 'Training Content (90min)', nameCN: '培训内容 (90分钟)', owner: 'Catina', deadline: 'Nov 14' },
+        { code: '4.5', name: 'Host Script Preparation', nameCN: '主持人脚本准备', owner: 'Penny', deadline: 'Nov 14' }
       ]
     },
     {
       code: '5.0',
       name: 'Marketing & Communications',
+      nameCN: '营销与传播',
       children: [
-        { code: '5.1', name: 'Media Kit Development', owner: 'Sabrina/Adrian', deadline: 'Nov 14' },
-        { code: '5.2', name: 'Press Releases', owner: 'Adrian/Sabrina', deadline: 'Nov 14+' },
-        { code: '5.3', name: 'Website Updates', owner: 'Phil/Celia', deadline: 'Nov 29' },
-        { code: '5.4', name: 'Social Media Campaign', owner: 'Yan', deadline: 'Ongoing' },
-        { code: '5.5', name: 'Livestream Setup', owner: 'Penny', deadline: 'Nov 12' }
+        { code: '5.1', name: 'Media Kit Development', nameCN: '媒体资料包开发', owner: 'Sabrina/Adrian', deadline: 'Nov 14' },
+        { code: '5.2', name: 'Press Releases', nameCN: '新闻稿', owner: 'Adrian/Sabrina', deadline: 'Nov 14+' },
+        { code: '5.3', name: 'Website Updates', nameCN: '网站更新', owner: 'Phil/Celia', deadline: 'Nov 29' },
+        { code: '5.4', name: 'Social Media Campaign', nameCN: '社交媒体活动', owner: 'Yan', deadline: 'Ongoing' },
+        { code: '5.5', name: 'Livestream Setup', nameCN: '直播设置', owner: 'Penny', deadline: 'Nov 12' }
       ]
     },
     {
       code: '6.0',
       name: 'Technical Infrastructure',
+      nameCN: '技术基础设施',
       children: [
-        { code: '6.1', name: 'AV Equipment Setup', owner: 'Adrian', deadline: 'Nov 13' },
-        { code: '6.2', name: 'Translation Equipment (4 rooms)', owner: 'Ivan', deadline: 'Nov 13' },
-        { code: '6.3', name: 'Registration System', owner: 'Phil/Celia/Ivan', deadline: 'Nov 29' },
-        { code: '6.4', name: 'Ticketing System', owner: 'Yeung/Tom/Jeff', deadline: 'Nov 29' },
-        { code: '6.5', name: 'Network & Connectivity', owner: 'IT Team', deadline: 'Dec 11' }
+        { code: '6.1', name: 'AV Equipment Setup', nameCN: '音视频设备设置', owner: 'Adrian', deadline: 'Nov 13' },
+        { code: '6.2', name: 'Translation Equipment (4 rooms)', nameCN: '翻译设备 (4个房间)', owner: 'Ivan', deadline: 'Nov 13' },
+        { code: '6.3', name: 'Registration System', nameCN: '注册系统', owner: 'Phil/Celia/Ivan', deadline: 'Nov 29' },
+        { code: '6.4', name: 'Ticketing System', nameCN: '票务系统', owner: 'Yeung/Tom/Jeff', deadline: 'Nov 29' },
+        { code: '6.5', name: 'Network & Connectivity', nameCN: '网络与连接', owner: 'IT Team', deadline: 'Dec 11' }
       ]
     },
     {
       code: '7.0',
       name: 'Event Materials',
+      nameCN: '活动物料',
       children: [
-        { code: '7.1', name: 'Materials Design', owner: 'Yan/Adrian', deadline: 'Nov 10' },
-        { code: '7.2', name: 'Materials Proofreading', owner: 'Timothy/Milne/Cloudy', deadline: 'Nov 10' },
-        { code: '7.3', name: 'Materials Printing', owner: 'Yan/Adrian', deadline: 'Nov 12' },
-        { code: '7.4', name: 'Materials Installation', owner: 'Yan/Adrian', deadline: 'Dec 14' },
-        { code: '7.5', name: 'Signage & Wayfinding', owner: 'Yan/Adrian', deadline: 'Dec 12' }
+        { code: '7.1', name: 'Materials Design', nameCN: '物料设计', owner: 'Yan/Adrian', deadline: 'Nov 10' },
+        { code: '7.2', name: 'Materials Proofreading', nameCN: '物料校对', owner: 'Timothy/Milne/Cloudy', deadline: 'Nov 10' },
+        { code: '7.3', name: 'Materials Printing', nameCN: '物料印刷', owner: 'Yan/Adrian', deadline: 'Nov 12' },
+        { code: '7.4', name: 'Materials Installation', nameCN: '物料安装', owner: 'Yan/Adrian', deadline: 'Dec 14' },
+        { code: '7.5', name: 'Signage & Wayfinding', nameCN: '标识与导向', owner: 'Yan/Adrian', deadline: 'Dec 12' }
       ]
     },
     {
       code: '8.0',
       name: 'Logistics & Operations',
+      nameCN: '后勤与运营',
       children: [
-        { code: '8.1', name: 'Work Uniforms', owner: 'Milne/Cloudy', deadline: 'Nov 11' },
-        { code: '8.2', name: 'Catering Arrangements', owner: 'Cloudy', deadline: 'Nov 8' },
-        { code: '8.3', name: 'Equipment Procurement', owner: 'Cloudy', deadline: 'Nov 8' },
-        { code: '8.4', name: 'Insurance', owner: 'Penny', deadline: 'Registration close' },
-        { code: '8.5', name: 'Emergency Planning', owner: 'All', deadline: 'Dec 10' }
+        { code: '8.1', name: 'Work Uniforms', nameCN: '工作服', owner: 'Milne/Cloudy', deadline: 'Nov 11' },
+        { code: '8.2', name: 'Catering Arrangements', nameCN: '餐饮安排', owner: 'Cloudy', deadline: 'Nov 8' },
+        { code: '8.3', name: 'Equipment Procurement', nameCN: '设备采购', owner: 'Cloudy', deadline: 'Nov 8' },
+        { code: '8.4', name: 'Insurance', nameCN: '保险', owner: 'Penny', deadline: 'Registration close' },
+        { code: '8.5', name: 'Emergency Planning', nameCN: '应急计划', owner: 'All', deadline: 'Dec 10' }
       ]
     },
     {
       code: '9.0',
       name: 'Exhibition Area',
+      nameCN: '展览区域',
       children: [
-        { code: '9.1', name: 'Exhibitor Coordination', owner: 'Ivan/徐思奇', deadline: 'Nov 6' },
-        { code: '9.2', name: 'Booth Setup', owner: 'Cloudy', deadline: 'Dec 13' }
+        { code: '9.1', name: 'Exhibitor Coordination', nameCN: '展商协调', owner: 'Ivan/徐思奇', deadline: 'Nov 6' },
+        { code: '9.2', name: 'Booth Setup', nameCN: '展位搭建', owner: 'Cloudy', deadline: 'Dec 13' }
       ]
     },
     {
       code: '10.0',
       name: 'Training & Rehearsal',
+      nameCN: '培训与彩排',
       children: [
-        { code: '10.1', name: 'Staff Training', owner: 'Jacky', deadline: 'Dec 11' },
-        { code: '10.2', name: 'Equipment Testing', owner: 'Ivan', deadline: 'Nov 13' },
-        { code: '10.3', name: 'First Rehearsal', owner: 'All', deadline: 'Dec 5' },
-        { code: '10.4', name: 'Full Rehearsal', owner: 'All', deadline: 'Dec 12' }
+        { code: '10.1', name: 'Staff Training', nameCN: '员工培训', owner: 'Jacky', deadline: 'Dec 11' },
+        { code: '10.2', name: 'Equipment Testing', nameCN: '设备测试', owner: 'Ivan', deadline: 'Nov 13' },
+        { code: '10.3', name: 'First Rehearsal', nameCN: '第一次彩排', owner: 'All', deadline: 'Dec 5' },
+        { code: '10.4', name: 'Full Rehearsal', nameCN: '全程彩排', owner: 'All', deadline: 'Dec 12' }
       ]
     },
     {
       code: '11.0',
       name: 'Event Execution',
+      nameCN: '活动执行',
       children: [
-        { code: '11.1', name: 'Registration Operations', owner: '陈晓敏/Emily', deadline: 'Dec 13-14' },
-        { code: '11.2', name: 'Session Management', owner: 'Jacky', deadline: 'Dec 13-14' },
-        { code: '11.3', name: 'Training Coordination', owner: 'Catina/Ivan', deadline: 'Dec 13-14' },
-        { code: '11.4', name: 'Photography/Video', owner: 'Molly/杨静怡', deadline: 'Dec 13-14' },
-        { code: '11.5', name: 'Guest Services', owner: 'Guest Team', deadline: 'Dec 12-14' }
+        { code: '11.1', name: 'Registration Operations', nameCN: '注册运营', owner: '陈晓敏/Emily', deadline: 'Dec 13-14' },
+        { code: '11.2', name: 'Session Management', nameCN: '会议管理', owner: 'Jacky', deadline: 'Dec 13-14' },
+        { code: '11.3', name: 'Training Coordination', nameCN: '培训协调', owner: 'Catina/Ivan', deadline: 'Dec 13-14' },
+        { code: '11.4', name: 'Photography/Video', nameCN: '摄影摄像', owner: 'Molly/杨静怡', deadline: 'Dec 13-14' },
+        { code: '11.5', name: 'Guest Services', nameCN: '嘉宾服务', owner: 'Guest Team', deadline: 'Dec 12-14' }
       ]
     },
     {
       code: '12.0',
       name: 'Post-Event',
+      nameCN: '活动后',
       children: [
-        { code: '12.1', name: 'Certificate Distribution', owner: 'Yeung/Tom/Jeff', deadline: 'Dec 20' },
-        { code: '12.2', name: 'Final Payments', owner: 'Tim', deadline: 'Dec 25' },
-        { code: '12.3', name: 'Post-Event Report', owner: 'Tim', deadline: 'Dec 30' },
-        { code: '12.4', name: 'Asset Archive', owner: 'Celia', deadline: 'Dec 30' }
+        { code: '12.1', name: 'Certificate Distribution', nameCN: '证书分发', owner: 'Yeung/Tom/Jeff', deadline: 'Dec 20' },
+        { code: '12.2', name: 'Final Payments', nameCN: '最终付款', owner: 'Tim', deadline: 'Dec 25' },
+        { code: '12.3', name: 'Post-Event Report', nameCN: '活动后报告', owner: 'Tim', deadline: 'Dec 30' },
+        { code: '12.4', name: 'Asset Archive', nameCN: '资产归档', owner: 'Celia', deadline: 'Dec 30' }
       ]
     }
   ];
@@ -351,18 +376,22 @@ const WBS = () => {
   return (
     <div className="space-y-4">
       <h2 className="text-2xl font-bold text-gray-800 mb-4">Work Breakdown Structure</h2>
-      
+
       <div className="space-y-3">
         {wbs.map((item, idx) => (
           <div key={idx} className="border rounded-lg overflow-hidden">
             <div className="bg-blue-600 text-white p-3">
-              <h3 className="font-bold">{item.code} {item.name}</h3>
+              <h3 className="font-bold">
+                {item.code} {item.name}
+                <span className="ml-2 text-blue-100">{item.nameCN}</span>
+              </h3>
             </div>
             <div className="divide-y">
               {item.children.map((child, childIdx) => (
                 <div key={childIdx} className="p-3 hover:bg-gray-50 flex justify-between items-center">
                   <div className="flex-1">
                     <span className="font-medium text-gray-800">{child.code} {child.name}</span>
+                    <span className="ml-2 text-blue-600">{child.nameCN}</span>
                   </div>
                   <div className="text-right text-sm">
                     <div className="text-gray-600">{child.owner}</div>

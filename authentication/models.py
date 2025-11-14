@@ -125,6 +125,29 @@ class CompanyUser(AbstractUser):
         help_text=_('User must change password on next login')
     )
 
+    # Approval workflow
+    is_approved = models.BooleanField(
+        _('Is Approved'),
+        default=False,
+        help_text=_('Whether user registration has been approved by superadmin')
+    )
+
+    approved_by = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='approved_users',
+        verbose_name=_('Approved By')
+    )
+
+    approved_at = models.DateTimeField(
+        _('Approved At'),
+        null=True,
+        blank=True,
+        help_text=_('When user was approved')
+    )
+
     # Audit fields
     created_by = models.ForeignKey(
         'self',

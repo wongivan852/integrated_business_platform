@@ -365,6 +365,41 @@ def home_redirect(request):
 
 
 @login_required
+def change_password(request):
+    """
+    View for users to voluntarily change their password from their profile.
+    """
+    from django.contrib.auth.forms import PasswordChangeForm
+    from django.contrib.auth import update_session_auth_hash
+
+    if request.method == 'POST':
+        form = PasswordChangeForm(request.user, request.POST)
+        if form.is_valid():
+            user = form.save()
+
+            # Update the session to prevent logout after password change
+            update_session_auth_hash(request, user)
+
+            messages.success(
+                request,
+                _('Your password has been changed successfully!')
+            )
+            return redirect('authentication:profile')
+        else:
+            messages.error(
+                request,
+                _('Please correct the errors below.')
+            )
+    else:
+        form = PasswordChangeForm(request.user)
+
+    return render(request, 'authentication/change_password.html', {
+        'form': form,
+        'page_title': _('Change Password'),
+    })
+
+
+@login_required
 def change_password_required(request):
     """
     Forced password change view for users with password_change_required=True.

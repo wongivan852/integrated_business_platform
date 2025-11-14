@@ -565,6 +565,7 @@ def api_update_task_progress(request, project_pk, task_id):
     try:
         data = json.loads(request.body)
         progress = data.get('progress')
+        title = data.get('title', data.get('text'))  # Accept both 'title' and 'text'
         title_cn = data.get('title_cn', '')
         process_owner_id = data.get('process_owner_id')
         definition_of_done = data.get('definition_of_done', '')
@@ -572,8 +573,8 @@ def api_update_task_progress(request, project_pk, task_id):
         # Log what we received
         import logging
         logger = logging.getLogger(__name__)
-        logger.info(f"Update task {task_id}: progress={progress}, title_cn={title_cn}, "
-                   f"process_owner_id={process_owner_id}, definition_of_done={definition_of_done[:50]}")
+        logger.info(f"Update task {task_id}: progress={progress}, title={title}, title_cn={title_cn}, "
+                   f"process_owner_id={process_owner_id}, definition_of_done={definition_of_done[:50] if definition_of_done else ''}")
 
         if progress is None:
             return JsonResponse({'error': 'Progress value required'}, status=400)
@@ -583,8 +584,14 @@ def api_update_task_progress(request, project_pk, task_id):
             return JsonResponse({'error': 'Progress must be between 0 and 100'}, status=400)
 
         old_progress = task.progress
+        old_title = task.title
         old_title_cn = task.title_cn
         task.progress = progress
+
+        # Update title if provided
+        if title and title.strip():
+            task.title = title.strip()
+
         task.title_cn = title_cn
         task.definition_of_done = definition_of_done
 
@@ -607,7 +614,7 @@ def api_update_task_progress(request, project_pk, task_id):
         elif progress > 0 and task.status == 'todo':
             task.status = 'in_progress'
 
-        task.save(update_fields=['progress', 'status', 'title_cn', 'process_owner', 'definition_of_done'])
+        task.save(update_fields=['title', 'progress', 'status', 'title_cn', 'process_owner', 'definition_of_done'])
 
         # Log activity
         try:

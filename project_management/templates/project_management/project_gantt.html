@@ -17,6 +17,7 @@
 {% block page_subtitle %}
 <div class="d-flex align-items-center gap-3">
     <span class="badge bg-light text-dark">Gantt Chart View</span>
+    <span class="badge bg-success text-white">✓ Updated 16:45</span>
     <span class="status-badge {{ project.status }}">{{ project.get_status_display }}</span>
     {% if timeline_stats %}
     <span class="text-muted small">
@@ -509,6 +510,15 @@
         font-size: 14px !important;
     }
 
+    /* Ensure predecessors section content is fully visible and scrollable */
+    .gantt_cal_ltext {
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        max-height: 100% !important;
+        padding: 10px !important;
+        box-sizing: border-box !important;
+    }
+
     /* Improved grid styling for bilingual text */
     .gantt_grid_data .gantt_cell {
         vertical-align: middle !important;
@@ -666,11 +676,15 @@
     // ========================================================================
     gantt.attachEvent("onTaskLoading", function(task) {
         try {
-            console.log('Loading task:', task.id, 'start_date:', task.start_date, 'duration:', task.duration);
+            console.log('Loading task:', task.id, 'start_date:', task.start_date, 'type:', typeof task.start_date, 'duration:', task.duration);
 
             // Fix start_date if missing or invalid
             if (!task.start_date || task.start_date === null || task.start_date === '' || task.start_date === 'null') {
-                console.warn('Task', task.id, 'has invalid start_date, setting to today');
+                console.warn('Task', task.id, 'has null/empty start_date, setting to today');
+                task.start_date = new Date();
+            } else if (typeof task.start_date === 'number') {
+                // If it's a number (like 1), it's invalid - set to today
+                console.warn('Task', task.id, 'has NUMERIC start_date:', task.start_date, '- setting to today');
                 task.start_date = new Date();
             } else if (typeof task.start_date === 'string') {
                 // Parse string dates
@@ -837,6 +851,188 @@
         {name: "add", label: "", width: 35}
     ];
 
+    // ========================================================================
+    // CUSTOM DURATION FORM BLOCK - FIX FOR DATE HANDLING
+    // ========================================================================
+    // Override the built-in duration control to ensure dates are always Date objects
+    // This fixes the "k.getDate is not a function" error
+    // IMPORTANT: This must be defined BEFORE the lightbox configuration
+    (function() {
+        // Store the original duration form block
+        const originalDuration = gantt.form_blocks["duration"];
+
+        if (originalDuration) {
+            // Create a wrapper that validates dates before calling the original
+            gantt.form_blocks["duration"] = {
+                render: originalDuration.render,
+
+                set_value: function(node, value, task, section) {
+                    console.log('Duration control set_value called with:', { value, task_id: task.id, task });
+
+                    // CRITICAL FIX: The duration control uses the 'value' parameter, not just task
+                    // We need to ensure both value.start_date and task.start_date are valid Date objects
+
+                    // Fix value.start_date if it exists and is invalid
+                    if (value && typeof value === 'object') {
+                        if (value.start_date !== undefined && !(value.start_date instanceof Date)) {
+                            console.warn('Duration control: value.start_date is', typeof value.start_date, '- converting to Date');
+                            if (typeof value.start_date === 'string') {
+                                value.start_date = gantt.date.parseDate(value.start_date, "xml_date") || new Date();
+                            } else if (typeof value.start_date === 'number') {
+                                // If it's a number like 1, it's definitely wrong - use task's actual start_date
+                                value.start_date = task.start_date instanceof Date ? task.start_date : new Date();
+                            } else {
+                                value.start_date = new Date();
+                            }
+                        }
+
+                        if (value.end_date !== undefined && !(value.end_date instanceof Date)) {
+                            console.warn('Duration control: value.end_date is', typeof value.end_date, '- converting to Date');
+                            if (typeof value.end_date === 'string') {
+                                value.end_date = gantt.date.parseDate(value.end_date, "xml_date") || new Date();
+                            } else {
+                                value.end_date = task.end_date instanceof Date ? task.end_date : new Date();
+                            }
+                        }
+                    }
+
+                    // Also fix task.start_date
+                    if (task.start_date && !(task.start_date instanceof Date)) {
+                        console.warn('Duration control: task.start_date is', typeof task.start_date, '- converting to Date');
+                        try {
+                            if (typeof task.start_date === 'string') {
+                                task.start_date = gantt.date.parseDate(task.start_date, "xml_date") || new Date();
+                            } else {
+                                task.start_date = new Date();
+                            }
+                        } catch (e) {
+                            console.error('Duration control: Error converting start_date:', e);
+                            task.start_date = new Date();
+                        }
+                    } else if (!task.start_date || isNaN(task.start_date.getTime())) {
+                        console.warn('Duration control: Invalid start_date, setting to today');
+                        task.start_date = new Date();
+                    }
+
+                    // Also ensure end_date is a valid Date object
+                    if (task.end_date && !(task.end_date instanceof Date)) {
+                        console.warn('Duration control: Converting end_date from', typeof task.end_date, 'to Date');
+                        try {
+                            if (typeof task.end_date === 'string') {
+                                task.end_date = gantt.date.parseDate(task.end_date, "xml_date") || gantt.date.add(task.start_date, 1, "day");
+                            } else {
+                                task.end_date = gantt.date.add(task.start_date, 1, "day");
+                            }
+                        } catch (e) {
+                            console.error('Duration control: Error converting end_date:', e);
+                            task.end_date = gantt.date.add(task.start_date, 1, "day");
+                        }
+                    } else if (!task.end_date || isNaN(task.end_date.getTime())) {
+                        console.warn('Duration control: Invalid end_date, calculating from start_date');
+                        task.end_date = gantt.date.add(task.start_date, task.duration || 1, "day");
+                    }
+
+                    // Ensure duration is a valid number
+                    if (!task.duration || typeof task.duration !== 'number' || task.duration <= 0 || isNaN(task.duration)) {
+                        console.warn('Duration control: Invalid duration, calculating from dates');
+                        task.duration = gantt.calculateDuration(task.start_date, task.end_date) || 1;
+                    }
+
+                    // Add logging to debug what we're passing
+                    console.log('Duration control set_value - About to call original with:', {
+                        start_date: task.start_date,
+                        end_date: task.end_date,
+                        duration: task.duration,
+                        start_is_date: task.start_date instanceof Date,
+                        end_is_date: task.end_date instanceof Date
+                    });
+
+                    // Now call the original set_value with validated data
+                    // Wrap in try-catch to handle any internal errors
+                    try {
+                        return originalDuration.set_value.call(this, node, value, task, section);
+                    } catch (e) {
+                        console.error('Duration control: Error in original set_value:', e);
+                        console.error('Task data was:', task);
+
+                        // Fallback: manually set the duration display
+                        if (node && node.querySelector) {
+                            const durationInput = node.querySelector('input[type="text"]');
+                            if (durationInput) {
+                                durationInput.value = task.duration || 1;
+                            }
+                        }
+
+                        // Return without error to prevent crash
+                        return;
+                    }
+                },
+
+                get_value: originalDuration.get_value,
+                focus: originalDuration.focus
+            };
+
+            console.log('Custom duration form block installed successfully');
+        } else {
+            console.warn('Original duration form block not found - cannot override');
+        }
+    })();
+
+    // ========================================================================
+    // CUSTOM DATE FORM BLOCK - ADDITIONAL DATE VALIDATION
+    // ========================================================================
+    // Override the built-in date control to ensure dates are always Date objects
+    (function() {
+        // Store the original date form block
+        const originalDate = gantt.form_blocks["date"];
+
+        if (originalDate) {
+            // Create a wrapper that validates dates before calling the original
+            gantt.form_blocks["date"] = {
+                render: originalDate.render,
+
+                set_value: function(node, value, task, section) {
+                    // Ensure the value being set is a valid Date object
+                    let dateValue = value;
+
+                    if (dateValue && !(dateValue instanceof Date)) {
+                        console.warn('Date control: Converting value from', typeof dateValue, 'to Date');
+                        try {
+                            if (typeof dateValue === 'string') {
+                                dateValue = gantt.date.parseDate(dateValue, section.date_format || "xml_date") || new Date();
+                            } else {
+                                dateValue = new Date();
+                            }
+                        } catch (e) {
+                            console.error('Date control: Error converting value:', e);
+                            dateValue = new Date();
+                        }
+                    } else if (!dateValue || isNaN(dateValue.getTime())) {
+                        console.warn('Date control: Invalid date value, setting to today');
+                        dateValue = new Date();
+                    }
+
+                    // Update the task's date field
+                    if (section.map_to === 'start_date') {
+                        task.start_date = dateValue;
+                    } else if (section.map_to === 'end_date') {
+                        task.end_date = dateValue;
+                    }
+
+                    // Now call the original set_value with validated data
+                    return originalDate.set_value.call(this, node, dateValue, task, section);
+                },
+
+                get_value: originalDate.get_value,
+                focus: originalDate.focus
+            };
+
+            console.log('Custom date form block installed successfully');
+        } else {
+            console.warn('Original date form block not found - cannot override');
+        }
+    })();
+
     // Configure Lightbox (Task Edit Dialog)
     gantt.config.lightbox.sections = [
         {name: "description", height: 38, map_to: "text", type: "textarea", focus: true},
@@ -848,7 +1044,7 @@
             {% endfor %}
         ]},
         {name: "definition_of_done", height: 70, map_to: "definition_of_done", type: "textarea", focus: false},
-        {name: "predecessors", height: 120, map_to: "auto", type: "template", focus: false},
+        {name: "predecessors", height: 350, map_to: "auto", type: "template", focus: false},
         {name: "start_date", height: 38, map_to: "start_date", type: "date", date_format: "%Y-%m-%d"},
         {name: "end_date", height: 38, map_to: "end_date", type: "date", date_format: "%Y-%m-%d"},
         {name: "duration", height: 38, map_to: "duration", type: "duration", readonly: true}
@@ -904,22 +1100,30 @@
                 // dhtmlxGantt will add the wrapper itself
                 const html = `<div id="predecessors_list" style="margin-bottom: 10px;"></div>
 <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd;">
-    <div style="display: flex; gap: 8px; align-items: center;">
-        <select id="predecessor_select" style="flex: 1; padding: 5px; border: 1px solid #ccc; border-radius: 3px;">
+    <div style="margin-bottom: 8px;">
+        <label style="display: block; margin-bottom: 4px; font-weight: 500; font-size: 12px;">Select Predecessor Task:</label>
+        <select id="predecessor_select" style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 3px; font-size: 13px;">
             <option value="">-- Select Task --</option>
         </select>
-        <select id="dependency_type_select" style="width: 80px; padding: 5px; border: 1px solid #ccc; border-radius: 3px;">
-            <option value="FS">FS</option>
-            <option value="SS">SS</option>
-            <option value="FF">FF</option>
-            <option value="SF">SF</option>
-        </select>
-        <button type="button" id="add_predecessor_btn" style="padding: 5px 12px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer; white-space: nowrap;">
-            + Add
-        </button>
     </div>
-    <div style="margin-top: 5px; font-size: 11px; color: #666;">
-        FS=Finish-to-Start, SS=Start-to-Start, FF=Finish-to-Finish, SF=Start-to-Finish
+    <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
+        <div style="flex: 1;">
+            <label style="display: block; margin-bottom: 4px; font-weight: 500; font-size: 12px;">Dependency Type:</label>
+            <select id="dependency_type_select" style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 3px; font-size: 13px;">
+                <option value="FS">FS - Finish to Start</option>
+                <option value="SS">SS - Start to Start</option>
+                <option value="FF">FF - Finish to Finish</option>
+                <option value="SF">SF - Start to Finish</option>
+            </select>
+        </div>
+        <div style="padding-top: 24px;">
+            <button type="button" id="add_predecessor_btn" style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer; white-space: nowrap; font-weight: 500; font-size: 13px;">
+                + Add Dependency
+            </button>
+        </div>
+    </div>
+    <div style="margin-top: 5px; padding: 6px; background: #f8f9fa; border-radius: 3px; font-size: 11px; color: #666;">
+        <strong>Types:</strong> FS=Finish-to-Start, SS=Start-to-Start, FF=Finish-to-Finish, SF=Start-to-Finish
     </div>
 </div>`;
 
@@ -1101,11 +1305,17 @@
 
         // Add predecessor button handler
         addBtn.onclick = function(e) {
+            console.log('%c=== ADD PREDECESSOR BUTTON CLICKED ===', 'color: blue; font-weight: bold;');
             e.preventDefault();
             const predecessorId = predecessorSelect.value;
             const depType = depTypeSelect ? depTypeSelect.value : 'FS';
 
+            console.log('Selected predecessor ID:', predecessorId);
+            console.log('Selected dependency type:', depType);
+            console.log('Target task ID:', task.id);
+
             if (!predecessorId) {
+                console.warn('No predecessor selected');
                 alert('Please select a task');
                 return;
             }
@@ -1116,23 +1326,37 @@
             );
 
             if (existingLink) {
+                console.warn('Dependency already exists:', existingLink);
                 alert('This dependency already exists');
                 return;
             }
 
             // Map dependency type to Gantt link type
             const typeMap = {FS: "0", SS: "1", FF: "2", SF: "3"};
+            const linkType = typeMap[depType];
+
+            console.log('Creating link with type:', linkType);
+            console.log('Link data:', {
+                source: predecessorId,
+                target: task.id,
+                type: linkType
+            });
 
             // Add link to Gantt (this will trigger onAfterLinkAdd event)
             const linkId = gantt.addLink({
                 source: predecessorId,
                 target: task.id,
-                type: typeMap[depType]
+                type: linkType
             });
 
+            console.log('Link created with ID:', linkId);
+
             if (linkId) {
+                console.log('Refreshing predecessors display...');
                 displayPredecessors();
                 predecessorSelect.value = '';
+            } else {
+                console.error('Failed to create link - linkId is:', linkId);
             }
         };
 
@@ -1220,7 +1444,19 @@
         if (!task.start_date || task.start_date === null || task.start_date === '') {
             // Set default start date to today if missing
             task.start_date = new Date();
-            console.log('Set default start_date for task', task_id);
+            console.log('Set default start_date for task', task_id, '(was null/empty)');
+        } else if (typeof task.start_date === 'number') {
+            // If it's a number (like 1), it's invalid - set to today
+            console.warn('Task', task_id, 'has NUMERIC start_date:', task.start_date, '- fixing to today');
+            task.start_date = new Date();
+        } else if (!(task.start_date instanceof Date)) {
+            // Try to parse it
+            console.warn('Task', task_id, 'start_date is not a Date object, type:', typeof task.start_date, '- fixing');
+            task.start_date = new Date();
+        } else if (isNaN(task.start_date.getTime())) {
+            // It's a Date object but invalid
+            console.warn('Task', task_id, 'has invalid Date object for start_date - fixing');
+            task.start_date = new Date();
         }
 
         if (!task.end_date || task.end_date === null) {
@@ -1408,12 +1644,41 @@
     // This ensures NO tasks with null/invalid dates reach Gantt's parser
     // ========================================================================
     console.log('=== Sanitizing ganttData before parsing ===');
+    console.log('Total tasks:', ganttData.data.length);
+    console.log('Total links:', ganttData.links.length);
+    console.log('Links data:', ganttData.links);
     const today = new Date();
     ganttData.data.forEach(function(task, index) {
         // Fix null or invalid start_date
-        if (!task.start_date || task.start_date === null || task.start_date === 'null') {
-            console.warn('Task', task.id, '(' + task.task_code + ') has null start_date, setting to today');
-            task.start_date = today;
+        // Check for: null, 'null', undefined, numbers, invalid dates
+        let needsDefaultDate = false;
+
+        if (!task.start_date || task.start_date === null || task.start_date === 'null' || task.start_date === undefined) {
+            needsDefaultDate = true;
+        } else if (typeof task.start_date === 'number') {
+            // If it's a number like 1, it's invalid
+            console.warn('Task', task.id, '(' + task.task_code + ') has numeric start_date:', task.start_date);
+            needsDefaultDate = true;
+        } else if (typeof task.start_date === 'string') {
+            // Try to parse the string
+            const parsed = gantt.date.parseDate(task.start_date, "%Y-%m-%d");
+            if (!parsed || isNaN(parsed.getTime())) {
+                console.warn('Task', task.id, '(' + task.task_code + ') has unparseable start_date:', task.start_date);
+                needsDefaultDate = true;
+            } else {
+                task.start_date = parsed;
+            }
+        } else if (task.start_date instanceof Date) {
+            // Check if it's a valid Date object
+            if (isNaN(task.start_date.getTime())) {
+                console.warn('Task', task.id, '(' + task.task_code + ') has invalid Date object');
+                needsDefaultDate = true;
+            }
+        }
+
+        if (needsDefaultDate) {
+            console.warn('Task', task.id, '(' + task.task_code + ') - setting start_date to today');
+            task.start_date = new Date(today);
         }
 
         // Ensure duration is valid
@@ -1432,6 +1697,48 @@
     // Initialize Gantt
     gantt.init("gantt_here");
     gantt.parse(ganttData);
+
+    // ========================================================================
+    // SET EXPLICIT DATE RANGE TO PREVENT SINGLE DAY FROM FILLING ENTIRE WIDTH
+    // ========================================================================
+    (function() {
+        // Calculate the actual date range from all tasks
+        let minDate = null;
+        let maxDate = null;
+
+        gantt.eachTask(function(task) {
+            if (task.start_date) {
+                const taskStart = new Date(task.start_date);
+                const taskEnd = task.end_date ? new Date(task.end_date) : gantt.calculateEndDate(taskStart, task.duration || 1, "day");
+
+                if (!minDate || taskStart < minDate) {
+                    minDate = taskStart;
+                }
+                if (!maxDate || taskEnd > maxDate) {
+                    maxDate = taskEnd;
+                }
+            }
+        });
+
+        // If we found dates, set explicit range with padding
+        if (minDate && maxDate) {
+            // Add 1 month padding before and 3 months padding after
+            const paddedStart = gantt.date.add(minDate, -1, "month");
+            const paddedEnd = gantt.date.add(maxDate, 3, "month");
+
+            gantt.config.start_date = paddedStart;
+            gantt.config.end_date = paddedEnd;
+
+            console.log('=== Timeline Date Range Set ===');
+            console.log('Task date range:', minDate.toISOString().split('T')[0], 'to', maxDate.toISOString().split('T')[0]);
+            console.log('Display range:', paddedStart.toISOString().split('T')[0], 'to', paddedEnd.toISOString().split('T')[0]);
+
+            // Re-render to apply the new date range
+            gantt.render();
+        } else {
+            console.warn('No valid task dates found - using default timeline range');
+        }
+    })();
 
     // Debug: Log lightbox configuration
     console.log('=== Gantt initialized successfully ===');
@@ -2201,10 +2508,11 @@
         });
     });
 
-    // Handle lightbox save to update Chinese title, process owner, and DoD
+    // Handle lightbox save to update task title, Chinese title, process owner, and DoD
     gantt.attachEvent("onLightboxSave", function(id, task, is_new){
         console.log('Lightbox saved for task:', id);
         console.log('  Is new task:', is_new);
+        console.log('  Task title:', task.text);
         console.log('  Chinese title:', task.title_cn);
         console.log('  Process owner ID:', task.process_owner_id);
         console.log('  Definition of Done:', task.definition_of_done);
@@ -2223,6 +2531,7 @@
                 'X-CSRFToken': csrftoken
             },
             body: JSON.stringify({
+                text: task.text || '',  // Send the main task title
                 progress: Math.round(task.progress * 100),
                 title_cn: task.title_cn || '',
                 process_owner_id: task.process_owner_id || null,
@@ -2241,11 +2550,13 @@
         })
         .then(data => {
             if (data.success) {
-                console.log('%c✓ Chinese title saved successfully!', 'color: green; font-weight: bold;');
+                console.log('%c✓ Task data saved successfully!', 'color: green; font-weight: bold;');
                 console.log('Task ID:', id);
+                console.log('Task title:', task.text);
                 console.log('Chinese title:', task.title_cn);
                 // Update the task object
                 const taskObj = gantt.getTask(id);
+                taskObj.text = task.text;
                 taskObj.title_cn = task.title_cn;
                 // Refresh the task display
                 setTimeout(function() {
@@ -2253,13 +2564,13 @@
                     gantt.render();
                 }, 100);
             } else {
-                console.error('Failed to save Chinese title:', data.error);
-                alert('Failed to save Chinese title: ' + data.error);
+                console.error('Failed to save task data:', data.error);
+                alert('Failed to save task data: ' + data.error);
             }
         })
         .catch(error => {
-            console.error('%c✗ Error saving Chinese title:', 'color: red; font-weight: bold;', error);
-            alert('Error saving Chinese title. Check console for details.');
+            console.error('%c✗ Error saving task data:', 'color: red; font-weight: bold;', error);
+            alert('Error saving task data. Check console for details.');
         });
 
         return true;

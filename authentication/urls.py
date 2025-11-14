@@ -13,8 +13,9 @@ urlpatterns = [
     path('logout/', views.EmailLogoutView.as_view(), name='logout'),
     path('register/', views.UserRegistrationView.as_view(), name='register'),
     path('profile/', views.UserProfileView.as_view(), name='profile'),
+    path('profile/change-password/', views.change_password, name='change_password'),
     path('refresh-token/', views.refresh_sso_token, name='refresh_token'),
-    path('change-password/', views.change_password_required, name='change_password'),
+    path('change-password-required/', views.change_password_required, name='change_password_required'),
 
     # SSO API URLs
     path('api/sso/validate/', views.sso_validate_token, name='sso_validate'),

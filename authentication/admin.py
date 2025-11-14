@@ -15,12 +15,12 @@ class CompanyUserAdmin(UserAdmin):
     # Fields to display in list view
     list_display = [
         'email', 'get_full_name', 'employee_id', 'region',
-        'department', 'is_active', 'is_staff', 'date_joined'
+        'department', 'is_approved', 'is_active', 'is_staff', 'date_joined'
     ]
 
     # Fields to filter by
     list_filter = [
-        'region', 'department', 'is_active', 'is_staff',
+        'is_approved', 'region', 'department', 'is_active', 'is_staff',
         'is_superuser', 'date_joined', 'last_login'
     ]
 
@@ -40,6 +40,9 @@ class CompanyUserAdmin(UserAdmin):
         }),
         (_('Company info'), {
             'fields': ('region', 'department', 'apps_access')
+        }),
+        (_('Approval'), {
+            'fields': ('is_approved', 'approved_by', 'approved_at')
         }),
         (_('Permissions'), {
             'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions'),
@@ -71,6 +74,9 @@ class CompanyUserAdmin(UserAdmin):
         (_('Company info'), {
             'fields': ('region', 'department', 'apps_access')
         }),
+        (_('Approval'), {
+            'fields': ('is_approved',)
+        }),
         (_('Permissions'), {
             'fields': ('is_active', 'is_staff', 'is_superuser'),
         }),
@@ -79,11 +85,33 @@ class CompanyUserAdmin(UserAdmin):
     # Read-only fields
     readonly_fields = [
         'sso_token', 'last_sso_login', 'date_joined',
-        'created_at', 'updated_at', 'last_login'
+        'created_at', 'updated_at', 'last_login', 'approved_at'
     ]
 
+    def save_model(self, request, obj, form, change):
+        """Override save to ensure username is set to email."""
+        if not change:  # Creating new user
+            obj.username = obj.email
+        elif obj.email and obj.username != obj.email:
+            # Update username if email changed
+            obj.username = obj.email
+        super().save_model(request, obj, form, change)
+
     # Actions
-    actions = ['refresh_sso_tokens', 'grant_all_apps_access']
+    actions = ['approve_users', 'refresh_sso_tokens', 'grant_all_apps_access']
+
+    def approve_users(self, request, queryset):
+        """Approve selected users."""
+        from django.utils import timezone
+        count = 0
+        for user in queryset.filter(is_approved=False):
+            user.is_approved = True
+            user.approved_by = request.user
+            user.approved_at = timezone.now()
+            user.save(update_fields=['is_approved', 'approved_by', 'approved_at'])
+            count += 1
+        self.message_user(request, f'Approved {count} users.')
+    approve_users.short_description = _('Approve selected users')
 
     def refresh_sso_tokens(self, request, queryset):
         """Refresh SSO tokens for selected users."""
