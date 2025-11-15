@@ -1630,11 +1630,35 @@
                 console.warn('Task', task.id, '(' + task.task_code + ') has invalid Date object');
                 needsDefaultDate = true;
             }
+        } else if (typeof task.start_date === 'object') {
+            // It's an object but not a Date - invalid
+            console.warn('Task', task.id, '(' + task.task_code + ') has object start_date:', task.start_date);
+            needsDefaultDate = true;
         }
 
         if (needsDefaultDate) {
             console.warn('Task', task.id, '(' + task.task_code + ') - setting start_date to today');
             task.start_date = new Date(today);
+        }
+
+        // Validate and fix end_date
+        if (task.end_date) {
+            let validEndDate = false;
+
+            if (typeof task.end_date === 'string') {
+                const parsed = gantt.date.parseDate(task.end_date, "%Y-%m-%d");
+                if (parsed && !isNaN(parsed.getTime())) {
+                    task.end_date = parsed;
+                    validEndDate = true;
+                }
+            } else if (task.end_date instanceof Date && !isNaN(task.end_date.getTime())) {
+                validEndDate = true;
+            }
+
+            if (!validEndDate) {
+                console.warn('Task', task.id, '(' + task.task_code + ') has invalid end_date - removing it');
+                delete task.end_date;
+            }
         }
 
         // Ensure duration is valid
