@@ -994,23 +994,36 @@
             ]
         });
 
-        // CRITICAL: Use onAfterZoom event to force date range AFTER zoom level changes
-        gantt.attachEvent("onAfterZoom", function(level, config) {
-            console.log('onAfterZoom triggered - Level:', level);
+        // CRITICAL: Override zoom.setLevel to force date range after zoom changes
+        // Note: onAfterZoom event doesn't exist - must override setLevel directly
+        if (gantt.ext && gantt.ext.zoom) {
+            const originalSetLevel = gantt.ext.zoom.setLevel;
+            gantt.ext.zoom.setLevel = function(level) {
+                console.log('zoom.setLevel called with level:', level);
 
-            const fixedStart = new Date(2025, 0, 1);
-            const fixedEnd = new Date(2025, 11, 31, 23, 59, 59);
+                // Call original setLevel first
+                const result = originalSetLevel.apply(this, arguments);
 
-            gantt.config.start_date = fixedStart;
-            gantt.config.end_date = fixedEnd;
-            gantt.config.fit_tasks = false;
+                // CRITICAL: Force date range AFTER zoom has changed
+                const fixedStart = new Date(2025, 0, 1);
+                const fixedEnd = new Date(2025, 11, 31, 23, 59, 59);
 
-            console.log('onAfterZoom: Forced date range to Jan 1 - Dec 31, 2025');
-            console.log('onAfterZoom: fit_tasks =', gantt.config.fit_tasks);
+                gantt.config.start_date = fixedStart;
+                gantt.config.end_date = fixedEnd;
+                gantt.config.fit_tasks = false;
 
-            // Force re-render with new date range
-            gantt.render();
-        });
+                console.log('After zoom.setLevel: Forced date range to Jan 1 - Dec 31, 2025');
+
+                // Force re-render with new date range
+                setTimeout(function() {
+                    gantt.render();
+                    console.log('Re-rendered after zoom change');
+                }, 10);
+
+                return result;
+            };
+            console.log('✓ zoom.setLevel overridden to force date range');
+        }
 
         // CRITICAL: Attach event to force dates when gantt renders
         gantt.attachEvent("onBeforeGanttRender", function() {
