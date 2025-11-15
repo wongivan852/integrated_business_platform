@@ -994,7 +994,27 @@
             console.log('onAfterZoom: Forced date range to Jan 1 - Dec 31, 2025');
             console.log('onAfterZoom: fit_tasks =', gantt.config.fit_tasks);
 
-            // The zoom extension will handle the render - don't call it here to avoid recursion
+            // CRITICAL FOR DAY/WEEK VIEWS: Force timeline to generate columns to December
+            // by scrolling to December which triggers column generation
+            setTimeout(function() {
+                try {
+                    // Scroll to mid-December to force column generation
+                    const decemberDate = new Date(2025, 11, 15);
+                    gantt.showDate(decemberDate);
+                    console.log('onAfterZoom: Forced scroll to December to generate columns');
+
+                    // Scroll back to show first task after brief delay
+                    setTimeout(function() {
+                        const firstTask = gantt.getTaskByIndex(0);
+                        if (firstTask && firstTask.id !== 999998 && firstTask.id !== 999999) {
+                            gantt.showTask(firstTask.id);
+                            console.log('onAfterZoom: Scrolled back to first task');
+                        }
+                    }, 200);
+                } catch(e) {
+                    console.warn('onAfterZoom: Could not force December scroll:', e);
+                }
+            }, 100);
         });
 
         // CRITICAL: Attach event to force dates when gantt renders
