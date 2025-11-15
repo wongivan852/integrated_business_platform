@@ -1613,6 +1613,7 @@
                 title_cn: "{{ task.title_cn|escapejs }}",
                 task_code: "{{ task.task_code }}",
                 start_date: {% if task.start_date %}"{{ task.start_date|date:"Y-m-d" }}"{% else %}null{% endif %},
+                end_date: {% if task.end_date %}"{{ task.end_date|date:"Y-m-d" }}"{% else %}null{% endif %},
                 duration: {{ task.duration|default:1 }},
                 progress: {{ task.progress|default:0 }} / 100,
                 parent: {% if task.parent_task %}{{ task.parent_task.pk }}{% else %}0{% endif %},
