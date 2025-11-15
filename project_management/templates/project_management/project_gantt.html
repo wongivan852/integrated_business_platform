@@ -784,6 +784,15 @@
     gantt.config.auto_scheduling = false;
     gantt.config.highlight_critical_path = {{ show_critical_path|lower }};
 
+    // Allow editing of past tasks - override DHTMLX Gantt's default behavior
+    // By default, DHTMLX Gantt prevents editing tasks whose end_date is in the past
+    // This function returns false to allow editing all tasks regardless of their dates
+    gantt.config.readonly_form = function(task) {
+        // Return false to make ALL tasks editable
+        // Return true would make a task read-only
+        return false;
+    };
+
     // Configure drag behavior to maintain hierarchy level
     gantt.config.round_dnd_dates = false;
     gantt.config.details_on_dblclick = true;
