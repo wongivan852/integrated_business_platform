@@ -205,8 +205,46 @@
                         </div>
 
                         <div class="row">
-                            <!-- Due Date -->
+                            <!-- Start Date -->
                             <div class="col-md-6 mb-3">
+                                <label for="{{ form.start_date.id_for_label }}" class="form-label">
+                                    <i class="fas fa-calendar-plus"></i> Start Date
+                                </label>
+                                {{ form.start_date }}
+                                {% if form.start_date.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.start_date.errors }}
+                                </div>
+                                {% endif %}
+                                {% if form.start_date.help_text %}
+                                <div class="form-text">{{ form.start_date.help_text }}</div>
+                                {% else %}
+                                <div class="form-text">When this task should begin</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- End Date -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.end_date.id_for_label }}" class="form-label">
+                                    <i class="fas fa-calendar-minus"></i> End Date
+                                </label>
+                                {{ form.end_date }}
+                                {% if form.end_date.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.end_date.errors }}
+                                </div>
+                                {% endif %}
+                                {% if form.end_date.help_text %}
+                                <div class="form-text">{{ form.end_date.help_text }}</div>
+                                {% else %}
+                                <div class="form-text">When this task should be completed</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <!-- Due Date -->
+                            <div class="col-md-4 mb-3">
                                 <label for="{{ form.due_date.id_for_label }}" class="form-label">
                                     <i class="fas fa-calendar-check"></i> Due Date
                                 </label>
@@ -218,11 +256,34 @@
                                 {% endif %}
                                 {% if form.due_date.help_text %}
                                 <div class="form-text">{{ form.due_date.help_text }}</div>
+                                {% else %}
+                                <div class="form-text">Hard deadline for completion</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Duration -->
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.duration.id_for_label }}" class="form-label">
+                                    <i class="fas fa-hourglass-half"></i> Duration
+                                </label>
+                                <div class="input-group">
+                                    {{ form.duration }}
+                                    <span class="input-group-text">days</span>
+                                </div>
+                                {% if form.duration.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.duration.errors }}
+                                </div>
+                                {% endif %}
+                                {% if form.duration.help_text %}
+                                <div class="form-text">{{ form.duration.help_text }}</div>
+                                {% else %}
+                                <div class="form-text">Number of working days</div>
                                 {% endif %}
                             </div>
 
                             <!-- Estimated Hours -->
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-4 mb-3">
                                 <label for="{{ form.estimated_hours.id_for_label }}" class="form-label">
                                     <i class="fas fa-clock"></i> Estimated Hours
                                 </label>
@@ -237,6 +298,54 @@
                                 {% endif %}
                                 {% if form.estimated_hours.help_text %}
                                 <div class="form-text">{{ form.estimated_hours.help_text }}</div>
+                                {% else %}
+                                <div class="form-text">Total effort required</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Progress -->
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.progress.id_for_label }}" class="form-label">
+                                    <i class="fas fa-tasks"></i> Progress
+                                </label>
+                                <div class="input-group">
+                                    {{ form.progress }}
+                                    <span class="input-group-text">%</span>
+                                </div>
+                                {% if form.progress.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.progress.errors }}
+                                </div>
+                                {% endif %}
+                                {% if form.progress.help_text %}
+                                <div class="form-text">{{ form.progress.help_text }}</div>
+                                {% else %}
+                                <div class="form-text">Completion percentage (0-100)</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Is Milestone -->
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label d-block">
+                                    <i class="fas fa-flag-checkered"></i> Milestone
+                                </label>
+                                <div class="form-check">
+                                    {{ form.is_milestone }}
+                                    <label class="form-check-label" for="{{ form.is_milestone.id_for_label }}">
+                                        Mark this task as a milestone
+                                    </label>
+                                </div>
+                                {% if form.is_milestone.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.is_milestone.errors }}
+                                </div>
+                                {% endif %}
+                                {% if form.is_milestone.help_text %}
+                                <div class="form-text">{{ form.is_milestone.help_text }}</div>
+                                {% else %}
+                                <div class="form-text">Milestones represent key deliverables or project phases</div>
                                 {% endif %}
                             </div>
                         </div>
@@ -384,8 +493,59 @@
 {% block page_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        const startDateInput = document.getElementById('{{ form.start_date.id_for_label }}');
+        const endDateInput = document.getElementById('{{ form.end_date.id_for_label }}');
         const dueDateInput = document.getElementById('{{ form.due_date.id_for_label }}');
+        const durationInput = document.getElementById('{{ form.duration.id_for_label }}');
         const today = new Date().toISOString().split('T')[0];
+
+        // Auto-calculate duration when start and end dates change
+        function calculateDuration() {
+            if (startDateInput && endDateInput && durationInput) {
+                const startDate = startDateInput.value;
+                const endDate = endDateInput.value;
+
+                if (startDate && endDate) {
+                    const start = new Date(startDate);
+                    const end = new Date(endDate);
+                    const diffTime = end - start;
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+                    if (diffDays > 0) {
+                        durationInput.value = diffDays;
+                    }
+                }
+            }
+        }
+
+        // Validate end date is after start date
+        function validateDates() {
+            if (startDateInput && endDateInput) {
+                const startDate = startDateInput.value;
+                const endDate = endDateInput.value;
+
+                if (startDate && endDate && endDate < startDate) {
+                    alert('End date must be after or equal to start date');
+                    endDateInput.value = '';
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        if (startDateInput) {
+            startDateInput.addEventListener('change', function() {
+                validateDates();
+                calculateDuration();
+            });
+        }
+
+        if (endDateInput) {
+            endDateInput.addEventListener('change', function() {
+                validateDates();
+                calculateDuration();
+            });
+        }
 
         // Warn if due date is in the past
         if (dueDateInput) {
@@ -410,6 +570,12 @@
                 return false;
             }
 
+            // Validate dates
+            if (!validateDates()) {
+                event.preventDefault();
+                return false;
+            }
+
             // Check estimated hours is positive if provided
             const estimatedHoursInput = document.getElementById('{{ form.estimated_hours.id_for_label }}');
             if (estimatedHoursInput && estimatedHoursInput.value) {
@@ -418,6 +584,17 @@
                     event.preventDefault();
                     alert('Estimated hours cannot be negative');
                     estimatedHoursInput.focus();
+                    return false;
+                }
+            }
+
+            // Check duration is positive if provided
+            if (durationInput && durationInput.value) {
+                const duration = parseInt(durationInput.value);
+                if (duration < 0) {
+                    event.preventDefault();
+                    alert('Duration cannot be negative');
+                    durationInput.focus();
                     return false;
                 }
             }
