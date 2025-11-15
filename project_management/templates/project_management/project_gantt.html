@@ -2496,6 +2496,9 @@
         console.log('  Chinese title:', task.title_cn);
         console.log('  Process owner ID:', task.process_owner_id);
         console.log('  Definition of Done:', task.definition_of_done);
+        console.log('  Start date:', task.start_date);
+        console.log('  End date:', task.end_date);
+        console.log('  Duration:', task.duration);
 
         // Skip updates for invalid, temporary, or null task IDs
         if (!id || id === 'null' || id === null || id === undefined || id > 1000000000000) {
@@ -2503,7 +2506,33 @@
             return true;
         }
 
-        // Update task with all fields
+        // Update task dates first (start_date, end_date)
+        if (task.start_date && task.end_date) {
+            fetch(`/project-management/{{ project.pk }}/api/gantt/tasks/${id}/update-dates/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                },
+                body: JSON.stringify({
+                    start_date: gantt.date.date_to_str("%Y-%m-%d")(task.start_date),
+                    end_date: gantt.date.date_to_str("%Y-%m-%d")(task.end_date)
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log('%c✓ Task dates saved successfully!', 'color: green; font-weight: bold;');
+                } else {
+                    console.error('Failed to save task dates:', data.error);
+                }
+            })
+            .catch(error => {
+                console.error('%c✗ Error saving task dates:', 'color: red; font-weight: bold;', error);
+            });
+        }
+
+        // Update task with all other fields
         fetch(`/project-management/{{ project.pk }}/api/gantt/tasks/${id}/update-progress/`, {
             method: 'POST',
             headers: {
