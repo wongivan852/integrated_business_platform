@@ -755,23 +755,11 @@
     gantt.config.readonly = {% if not can_edit %}true{% else %}false{% endif %};
     gantt.config.scroll_size = 17;  // Scrollbar width
     gantt.config.scrollable = true;  // Enable scrolling
+    gantt.config.show_chart = true;  // Ensure timeline chart is shown
+    gantt.config.show_grid = true;   // Ensure grid is shown
 
-    // Keep grid fixed when scrolling timeline
-    gantt.config.layout = {
-        css: "gantt_container",
-        rows: [
-            {
-                cols: [
-                    {view: "grid", scrollY: "scrollVer", width: 605},
-                    {resizer: true, width: 1},
-                    {view: "timeline", scrollX: "scrollHor", scrollY: "scrollVer"},
-                    {view: "scrollbar", id: "scrollVer"}
-                ],
-                gravity: 2
-            },
-            {view: "scrollbar", id: "scrollHor", height: 17}
-        ]
-    };
+    // Use default layout to ensure scale header displays properly
+    // Custom layouts can sometimes hide the scale header
 
     // Enable features
     gantt.config.drag_links = true;
