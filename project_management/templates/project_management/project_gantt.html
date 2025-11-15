@@ -1689,25 +1689,32 @@
 
         // If we found dates, set explicit range with padding
         if (minDate && maxDate) {
-            // Add 2 months padding before and 6 months padding after
+            // Add 2 months padding before tasks
             const paddedStart = gantt.date.add(minDate, -2, "month");
+
+            // Ensure timeline extends to at least end of December 2025
+            const endOfDec2025 = new Date(2025, 11, 31); // Month is 0-indexed, so 11 = December
             const paddedEnd = gantt.date.add(maxDate, 6, "month");
 
+            // Use whichever is later: calculated end or Dec 31, 2025
+            const finalEnd = paddedEnd > endOfDec2025 ? paddedEnd : endOfDec2025;
+
             gantt.config.start_date = paddedStart;
-            gantt.config.end_date = paddedEnd;
+            gantt.config.end_date = finalEnd;
 
             console.log('=== Timeline Date Range Set ===');
             console.log('Task date range:', minDate.toISOString().split('T')[0], 'to', maxDate.toISOString().split('T')[0]);
-            console.log('Display range:', paddedStart.toISOString().split('T')[0], 'to', paddedEnd.toISOString().split('T')[0]);
+            console.log('Display range:', paddedStart.toISOString().split('T')[0], 'to', finalEnd.toISOString().split('T')[0]);
 
             // Re-render to apply the new date range
             gantt.render();
         } else {
             console.warn('No valid task dates found - using default timeline range');
-            // Set a default 12-month range if no tasks found
+            // Set timeline to end of December 2025
             const today = new Date();
+            const endOfDec2025 = new Date(2025, 11, 31);
             gantt.config.start_date = gantt.date.add(today, -2, "month");
-            gantt.config.end_date = gantt.date.add(today, 10, "month");
+            gantt.config.end_date = endOfDec2025;
             gantt.render();
         }
     })();
