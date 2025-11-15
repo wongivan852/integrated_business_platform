@@ -630,6 +630,18 @@
     (function() {
         const originalCalculateEndDate = gantt.calculateEndDate;
         gantt.calculateEndDate = function(start, duration, unit) {
+            // CRITICAL: Check if start is an object with a start_date property
+            // This happens when time control passes config object instead of Date
+            if (start && typeof start === 'object' && !(start instanceof Date)) {
+                if (start.start_date && start.start_date instanceof Date) {
+                    console.warn('calculateEndDate: Received object with start_date property, extracting Date');
+                    start = start.start_date;
+                } else {
+                    console.warn('calculateEndDate called with invalid object:', start, '- using fallback');
+                    return new Date();
+                }
+            }
+
             // Validate inputs before calling original function
             if (!start || !(start instanceof Date) || isNaN(start.getTime())) {
                 console.warn('calculateEndDate called with invalid start date:', start, '- using fallback');
