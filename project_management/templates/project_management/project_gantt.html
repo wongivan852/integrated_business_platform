@@ -621,51 +621,56 @@
         border: 2px solid #0d6efd !important;
     }
 
-    /* Hide the marker tasks (ID 9999998 and 9999999) used to extend timeline */
-    .gantt_row[task_id="9999999"],
-    .gantt_task_row[task_id="9999999"],
-    .gantt_task_line[task_id="9999999"],
-    .gantt_task_bar[data-task-id="9999999"],
-    .gantt_side_content[data-task-id="9999999"],
-    div[task_id="9999999"],
-    .gantt_row[task_id="9999998"],
-    .gantt_task_row[task_id="9999998"],
-    .gantt_task_line[task_id="9999998"],
-    .gantt_task_bar[data-task-id="9999998"],
-    .gantt_side_content[data-task-id="9999998"],
-    div[task_id="9999998"] {
-        display: none !important;
-        visibility: hidden !important;
+    /* Hide the marker tasks (ID 999998 and 999999) used to extend timeline
+       CRITICAL: Use opacity instead of display:none to keep tasks in DOM for timeline calculation */
+    .gantt_row[task_id="999999"],
+    .gantt_task_row[task_id="999999"],
+    .gantt_task_line[task_id="999999"],
+    .gantt_task_bar[data-task-id="999999"],
+    .gantt_side_content[data-task-id="999999"],
+    div[task_id="999999"],
+    .gantt_row[task_id="999998"],
+    .gantt_task_row[task_id="999998"],
+    .gantt_task_line[task_id="999998"],
+    .gantt_task_bar[data-task-id="999998"],
+    .gantt_side_content[data-task-id="999998"],
+    div[task_id="999998"] {
+        opacity: 0 !important;
         height: 0 !important;
         max-height: 0 !important;
         overflow: hidden !important;
+        pointer-events: none !important;
     }
 
     /* Also hide the grid rows for the marker tasks */
-    .gantt_grid_data .gantt_row[task_id="9999999"],
-    .gantt_grid_data .gantt_row[task_id="9999998"] {
+    .gantt_grid_data .gantt_row[task_id="999999"],
+    .gantt_grid_data .gantt_row[task_id="999998"] {
         height: 0 !important;
         line-height: 0 !important;
+        opacity: 0 !important;
+        overflow: hidden !important;
     }
 
-    /* Hide tasks with the gantt_hidden_task class */
+    /* Hide tasks with the gantt_hidden_task class - use opacity not display:none */
     .gantt_hidden_task,
     .gantt_task_line.gantt_hidden_task,
     .gantt_task_row.gantt_hidden_row {
-        display: none !important;
-        visibility: hidden !important;
+        opacity: 0 !important;
         height: 0 !important;
         max-height: 0 !important;
+        overflow: hidden !important;
+        pointer-events: none !important;
     }
 
     /* Hide the row in grid for hidden tasks */
     .gantt_row.gantt_hidden_row {
         height: 0 !important;
         line-height: 0 !important;
-        display: none !important;
+        opacity: 0 !important;
+        overflow: hidden !important;
     }
 
-    /* Hide boundary tasks completely */
+    /* Hide boundary tasks completely - use opacity not display:none */
     .gantt_boundary_hidden,
     .gantt_task_line.gantt_boundary_hidden,
     .gantt_row.gantt_boundary_hidden {
@@ -942,9 +947,7 @@
                     scales: [
                         {unit: "day", step: 1, format: "%d %M"},
                         {unit: "hour", step: 6, format: "%H"}
-                    ],
-                    start_date: new Date(2025, 0, 1),
-                    end_date: new Date(2025, 11, 31, 23, 59, 59)
+                    ]
                 },
                 {
                     name: "week",
@@ -953,9 +956,7 @@
                     scales: [
                         {unit: "week", step: 1, format: "Week #%W"},
                         {unit: "day", step: 1, format: "%d %M"}
-                    ],
-                    start_date: new Date(2025, 0, 1),
-                    end_date: new Date(2025, 11, 31, 23, 59, 59)
+                    ]
                 },
                 {
                     name: "month",
@@ -964,9 +965,7 @@
                     scales: [
                         {unit: "month", step: 1, format: "%F %Y"},
                         {unit: "week", step: 1, format: "Week #%W"}
-                    ],
-                    start_date: new Date(2025, 0, 1),
-                    end_date: new Date(2025, 11, 31, 23, 59, 59)
+                    ]
                 },
                 {
                     name: "year",
@@ -975,14 +974,30 @@
                     scales: [
                         {unit: "year", step: 1, format: "%Y"},
                         {unit: "month", step: 1, format: "%M"}
-                    ],
-                    start_date: new Date(2025, 0, 1),
-                    end_date: new Date(2025, 11, 31, 23, 59, 59)
+                    ]
                 }
             ]
         });
 
-        // CRITICAL: Attach event to force dates when zoom level changes
+        // CRITICAL: Use onAfterZoom event to force date range AFTER zoom level changes
+        // This is the correct way to extend timeline when using zoom extension
+        gantt.attachEvent("onAfterZoom", function(level, config) {
+            console.log('onAfterZoom triggered - Level:', level);
+
+            const fixedStart = new Date(2025, 0, 1);
+            const fixedEnd = new Date(2025, 11, 31, 23, 59, 59);
+
+            gantt.config.start_date = fixedStart;
+            gantt.config.end_date = fixedEnd;
+            gantt.config.fit_tasks = false;
+
+            console.log('onAfterZoom: Forced date range to Jan 1 - Dec 31, 2025');
+            console.log('onAfterZoom: fit_tasks =', gantt.config.fit_tasks);
+
+            // The zoom extension will handle the render - don't call it here to avoid recursion
+        });
+
+        // CRITICAL: Attach event to force dates when gantt renders
         gantt.attachEvent("onBeforeGanttRender", function() {
             const fixedStart = new Date(2025, 0, 1);
             const fixedEnd = new Date(2025, 11, 31, 23, 59, 59);
@@ -3134,78 +3149,8 @@
             console.log('View mode applied. End date:', gantt.config.end_date.toISOString());
             console.log('fit_tasks:', gantt.config.fit_tasks);
 
-            // AGGRESSIVE FIX: Force the timeline to generate all columns
-            // by temporarily adding tasks at the boundaries if they don't exist
-            const allTasks = gantt.getTaskByTime();
-            let hasJanTask = false;
-            let hasDecTask = false;
-
-            allTasks.forEach(function(task) {
-                const taskDate = task.start_date;
-                if (taskDate.getFullYear() === 2025) {
-                    if (taskDate.getMonth() === 0) hasJanTask = true;
-                    if (taskDate.getMonth() === 11) hasDecTask = true;
-                }
-            });
-
-            // Temporarily add boundary tasks if they don't exist
-            const tempTasks = [];
-            if (!hasJanTask) {
-                const janTask = {
-                    id: 'temp_jan_' + Date.now(),
-                    text: '',
-                    start_date: new Date(2025, 0, 1),
-                    duration: 1,
-                    parent: 0,
-                    $virtual: true
-                };
-                gantt.addTask(janTask);
-                tempTasks.push(janTask.id);
-                console.log('Added temporary January task for timeline extension');
-            }
-
-            if (!hasDecTask) {
-                const decTask = {
-                    id: 'temp_dec_' + Date.now(),
-                    text: '',
-                    start_date: new Date(2025, 11, 31),
-                    duration: 1,
-                    parent: 0,
-                    $virtual: true
-                };
-                gantt.addTask(decTask);
-                tempTasks.push(decTask.id);
-                console.log('Added temporary December task for timeline extension');
-            }
-
-            // Force Gantt to render with the temporary tasks
+            // Force Gantt to render with the new scale and date range
             gantt.render();
-
-            // Remove temporary tasks after render completes
-            if (tempTasks.length > 0) {
-                setTimeout(function() {
-                    tempTasks.forEach(function(taskId) {
-                        if (gantt.isTaskExists(taskId)) {
-                            gantt.deleteTask(taskId);
-                            console.log('Removed temporary task:', taskId);
-                        }
-                    });
-                    // Re-render without the temporary tasks
-                    gantt.render();
-                }, 100);
-            }
-
-            // WORKAROUND: Scroll to show that the end date exists in the timeline
-            // This forces Gantt to render columns all the way to Dec 31
-            setTimeout(() => {
-                gantt.showDate(endOfDec2025);
-                // Then scroll back to show tasks
-                setTimeout(() => {
-                    if (gantt.getTaskByIndex(0)) {
-                        gantt.showTask(gantt.getTaskByIndex(0).id);
-                    }
-                }, 100);
-            }, 100);
         });
     });
 
