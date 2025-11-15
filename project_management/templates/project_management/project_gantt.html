@@ -1654,6 +1654,12 @@
     gantt.init("gantt_here");
     gantt.parse(ganttData);
 
+    // Ensure month view is applied after initialization
+    gantt.config.scale_unit = "month";
+    gantt.config.date_scale = "%F %Y";
+    gantt.config.subscales = [{unit: "week", step: 1, date: "Week #%W"}];
+    gantt.render();
+
     // ========================================================================
     // SET EXPLICIT DATE RANGE TO PREVENT SINGLE DAY FROM FILLING ENTIRE WIDTH
     // ========================================================================
