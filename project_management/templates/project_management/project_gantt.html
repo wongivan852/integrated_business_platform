@@ -2513,23 +2513,33 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': csrftoken
+                    'X-CSRFToken': getCookie('csrftoken')
                 },
                 body: JSON.stringify({
                     start_date: gantt.date.date_to_str("%Y-%m-%d")(task.start_date),
                     end_date: gantt.date.date_to_str("%Y-%m-%d")(task.end_date)
                 })
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        console.error('Server error response (HTTP ' + response.status + '):', text.substring(0, 500));
+                        throw new Error('HTTP ' + response.status + ': Failed to save dates');
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.success) {
                     console.log('%c✓ Task dates saved successfully!', 'color: green; font-weight: bold;');
                 } else {
                     console.error('Failed to save task dates:', data.error);
+                    alert('Failed to save task dates: ' + data.error);
                 }
             })
             .catch(error => {
                 console.error('%c✗ Error saving task dates:', 'color: red; font-weight: bold;', error);
+                alert('Error saving task dates: ' + error.message);
             });
         }
 
