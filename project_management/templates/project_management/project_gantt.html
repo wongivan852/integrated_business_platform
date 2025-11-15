@@ -621,12 +621,58 @@
         border: 2px solid #0d6efd !important;
     }
 
-    /* Hide the marker task (ID 9999999) used to extend timeline */
+    /* Hide the marker tasks (ID 9999998 and 9999999) used to extend timeline */
     .gantt_row[task_id="9999999"],
     .gantt_task_row[task_id="9999999"],
-    .gantt_task_line[task_id="9999999"] {
+    .gantt_task_line[task_id="9999999"],
+    .gantt_task_bar[data-task-id="9999999"],
+    .gantt_side_content[data-task-id="9999999"],
+    div[task_id="9999999"],
+    .gantt_row[task_id="9999998"],
+    .gantt_task_row[task_id="9999998"],
+    .gantt_task_line[task_id="9999998"],
+    .gantt_task_bar[data-task-id="9999998"],
+    .gantt_side_content[data-task-id="9999998"],
+    div[task_id="9999998"] {
         display: none !important;
         visibility: hidden !important;
+        height: 0 !important;
+        max-height: 0 !important;
+        overflow: hidden !important;
+    }
+
+    /* Also hide the grid rows for the marker tasks */
+    .gantt_grid_data .gantt_row[task_id="9999999"],
+    .gantt_grid_data .gantt_row[task_id="9999998"] {
+        height: 0 !important;
+        line-height: 0 !important;
+    }
+
+    /* Hide tasks with the gantt_hidden_task class */
+    .gantt_hidden_task,
+    .gantt_task_line.gantt_hidden_task,
+    .gantt_task_row.gantt_hidden_row {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        max-height: 0 !important;
+    }
+
+    /* Hide the row in grid for hidden tasks */
+    .gantt_row.gantt_hidden_row {
+        height: 0 !important;
+        line-height: 0 !important;
+        display: none !important;
+    }
+
+    /* Hide boundary tasks completely */
+    .gantt_boundary_hidden,
+    .gantt_task_line.gantt_boundary_hidden,
+    .gantt_row.gantt_boundary_hidden {
+        opacity: 0 !important;
+        height: 1px !important;
+        min-height: 0 !important;
+        pointer-events: none !important;
     }
 </style>
 
@@ -779,6 +825,183 @@
     gantt.config.show_chart = true;  // Ensure timeline chart is shown
     gantt.config.show_grid = true;   // Ensure grid is shown
 
+    // CRITICAL: Override DHTMLX's automatic date range calculation
+    // Force the timeline to always show Jan 1 - Dec 31, 2025
+    gantt.config.start_date = new Date(2025, 0, 1);
+    gantt.config.end_date = new Date(2025, 11, 31, 23, 59, 59);
+
+    console.log('CONFIG: Set fixed date range:', gantt.config.start_date, 'to', gantt.config.end_date);
+
+    // CRITICAL: Since getScale() is not called in modern DHTMLX Gantt, we need to use events
+    // The onBeforeDataRender event fires before each render and allows us to force the date range
+    gantt.attachEvent("onBeforeDataRender", function() {
+        const fixedStart = new Date(2025, 0, 1);
+        const fixedEnd = new Date(2025, 11, 31, 23, 59, 59);
+
+        // Force the config every single time before render
+        if (!gantt.config.start_date || gantt.config.start_date.getTime() !== fixedStart.getTime()) {
+            console.log('onBeforeDataRender: Forcing start_date to Jan 1, 2025');
+            gantt.config.start_date = fixedStart;
+        }
+        if (!gantt.config.end_date || gantt.config.end_date.getTime() !== fixedEnd.getTime()) {
+            console.log('onBeforeDataRender: Forcing end_date to Dec 31, 2025');
+            gantt.config.end_date = fixedEnd;
+        }
+        if (gantt.config.fit_tasks !== false) {
+            console.log('onBeforeDataRender: Forcing fit_tasks = false');
+            gantt.config.fit_tasks = false;
+        }
+
+        return true;
+    });
+
+    // Also use onGanttRender to enforce after render
+    gantt.attachEvent("onGanttRender", function() {
+        const fixedStart = new Date(2025, 0, 1);
+        const fixedEnd = new Date(2025, 11, 31, 23, 59, 59);
+
+        // Verify config is still correct after render
+        if (!gantt.config.start_date || gantt.config.start_date.getTime() !== fixedStart.getTime()) {
+            console.warn('onGanttRender: start_date was modified during render, will fix on next render');
+        }
+        if (!gantt.config.end_date || gantt.config.end_date.getTime() !== fixedEnd.getTime()) {
+            console.warn('onGanttRender: end_date was modified during render, will fix on next render');
+        }
+
+        return true;
+    });
+
+    console.log('✓ Date range enforcement events installed (onBeforeDataRender, onGanttRender)');
+
+    // NUCLEAR OPTION: Override DHTMLX's internal date range calculation
+    // Explore what methods are available for overriding
+    console.log('Exploring gantt internals...');
+    console.log('gantt._scale_helpers:', typeof gantt._scale_helpers);
+    console.log('gantt.getSubtaskDates:', typeof gantt.getSubtaskDates);
+    console.log('gantt.getSubtaskDuration:', typeof gantt.getSubtaskDuration);
+    console.log('gantt._get_scales:', typeof gantt._get_scales);
+    console.log('gantt._init_tasks_range:', typeof gantt._init_tasks_range);
+
+    // Try multiple override strategies
+    let overrideSuccess = false;
+
+    // Strategy 1: Override getSubtaskDates (calculates date range from tasks)
+    if (typeof gantt.getSubtaskDates === 'function') {
+        const originalGetSubtaskDates = gantt.getSubtaskDates;
+        gantt.getSubtaskDates = function() {
+            // Return our fixed date range instead of calculating from tasks
+            const fixedStart = new Date(2025, 0, 1);
+            const fixedEnd = new Date(2025, 11, 31, 23, 59, 59);
+
+            console.log('✓ getSubtaskDates override ACTIVE - returning fixed range');
+
+            return {
+                start_date: fixedStart,
+                end_date: fixedEnd
+            };
+        };
+        console.log('✓ gantt.getSubtaskDates overridden');
+        overrideSuccess = true;
+    }
+
+    // Strategy 2: Override _init_tasks_range (initializes task date range)
+    if (typeof gantt._init_tasks_range === 'function') {
+        const original_init_tasks_range = gantt._init_tasks_range;
+        gantt._init_tasks_range = function() {
+            const result = original_init_tasks_range.apply(this, arguments);
+
+            // Force our date range
+            const fixedStart = new Date(2025, 0, 1);
+            const fixedEnd = new Date(2025, 11, 31, 23, 59, 59);
+
+            this._min_date = fixedStart;
+            this._max_date = fixedEnd;
+
+            console.log('✓ _init_tasks_range override ACTIVE - forcing _min_date and _max_date');
+
+            return result;
+        };
+        console.log('✓ gantt._init_tasks_range overridden');
+        overrideSuccess = true;
+    }
+
+    if (!overrideSuccess) {
+        console.error('✗ Could not find any methods to override for date range control');
+    }
+
+    // FINAL SOLUTION: Use gantt.ext.zoom to define custom zoom levels with fixed dates
+    if (gantt.ext && gantt.ext.zoom) {
+        console.log('✓ gantt.ext.zoom is available - configuring zoom levels with fixed date range');
+
+        gantt.ext.zoom.init({
+            levels: [
+                {
+                    name: "day",
+                    scale_height: 90,
+                    min_column_width: 40,
+                    scales: [
+                        {unit: "day", step: 1, format: "%d %M"},
+                        {unit: "hour", step: 6, format: "%H"}
+                    ],
+                    start_date: new Date(2025, 0, 1),
+                    end_date: new Date(2025, 11, 31, 23, 59, 59)
+                },
+                {
+                    name: "week",
+                    scale_height: 90,
+                    min_column_width: 60,
+                    scales: [
+                        {unit: "week", step: 1, format: "Week #%W"},
+                        {unit: "day", step: 1, format: "%d %M"}
+                    ],
+                    start_date: new Date(2025, 0, 1),
+                    end_date: new Date(2025, 11, 31, 23, 59, 59)
+                },
+                {
+                    name: "month",
+                    scale_height: 90,
+                    min_column_width: 80,
+                    scales: [
+                        {unit: "month", step: 1, format: "%F %Y"},
+                        {unit: "week", step: 1, format: "Week #%W"}
+                    ],
+                    start_date: new Date(2025, 0, 1),
+                    end_date: new Date(2025, 11, 31, 23, 59, 59)
+                },
+                {
+                    name: "year",
+                    scale_height: 90,
+                    min_column_width: 100,
+                    scales: [
+                        {unit: "year", step: 1, format: "%Y"},
+                        {unit: "month", step: 1, format: "%M"}
+                    ],
+                    start_date: new Date(2025, 0, 1),
+                    end_date: new Date(2025, 11, 31, 23, 59, 59)
+                }
+            ]
+        });
+
+        // CRITICAL: Attach event to force dates when zoom level changes
+        gantt.attachEvent("onBeforeGanttRender", function() {
+            const fixedStart = new Date(2025, 0, 1);
+            const fixedEnd = new Date(2025, 11, 31, 23, 59, 59);
+
+            gantt.config.start_date = fixedStart;
+            gantt.config.end_date = fixedEnd;
+            gantt.config.fit_tasks = false;
+
+            console.log('onBeforeGanttRender: Enforcing Jan 1 - Dec 31, 2025 range');
+            return true;
+        });
+
+        // Set to month view by default
+        gantt.ext.zoom.setLevel("month");
+        console.log('✓ Zoom extension configured with fixed date ranges for all levels');
+    } else {
+        console.warn('✗ gantt.ext.zoom not available');
+    }
+
     // Use default layout to ensure scale header displays properly
     // Custom layouts can sometimes hide the scale header
 
@@ -842,6 +1065,10 @@
             width: 280,
             resize: true,
             template: function(task) {
+                // Hide boundary tasks completely in the grid
+                if (task.is_boundary === true || task.id == 999998 || task.id == 999999) {
+                    return '';
+                }
                 // Show both English and Chinese if available
                 console.log('Rendering task:', task.id, 'title_cn:', task.title_cn); // Debug
                 if (task.title_cn && task.title_cn.trim() !== '') {
@@ -1576,17 +1803,18 @@
             {% for task in tasks %}
             {
                 id: {{ task.pk }},
-                text: "{{ task.title|escapejs }}",
-                title_cn: "{{ task.title_cn|escapejs }}",
-                task_code: "{{ task.task_code }}",
+                text: "{{ task.text|escapejs }}",
+                title_cn: "{{ task.title_cn|default:""|escapejs }}",
+                task_code: "{{ task.task_code|default:"" }}",
                 start_date: {% if task.start_date %}"{{ task.start_date|date:"Y-m-d" }}"{% else %}null{% endif %},
                 end_date: {% if task.end_date %}"{{ task.end_date|date:"Y-m-d" }}"{% else %}null{% endif %},
                 duration: {{ task.duration|default:1 }},
-                progress: {{ task.progress|default:0 }} / 100,
+                progress: {{ task.progress|default:0 }}{% if not task.is_boundary %} / 100{% endif %},
                 parent: {% if task.parent_task %}{{ task.parent_task.pk }}{% else %}0{% endif %},
-                priority: "{{ task.priority }}",
-                status: "{{ task.status }}",
-                is_milestone: {{ task.is_milestone|lower }},
+                priority: "{{ task.priority|default:"medium" }}",
+                status: "{{ task.status|default:"pending" }}",
+                is_milestone: {% if task.is_milestone %}{{ task.is_milestone|lower }}{% else %}false{% endif %},
+                is_boundary: {% if task.is_boundary %}true{% else %}false{% endif %},
                 critical: {% if task.id in critical_path %}true{% else %}false{% endif %},
                 open: true,
                 process_owner_id: {% if task.process_owner %}"{{ task.process_owner.pk }}"{% else %}""{% endif %},
@@ -1695,27 +1923,124 @@
     });
     console.log('=== Data sanitization complete ===');
 
-    // WORKAROUND: Add an invisible marker task at Dec 31, 2025
-    // This forces the timeline to extend to the end of the year
-    ganttData.data.push({
-        id: 9999999,
-        text: "",
-        title_cn: "",
-        start_date: new Date(2025, 11, 31),
-        duration: 1,
-        progress: 0,
-        parent: 0,
-        type: gantt.config.types.task,
-        readonly: true,
-        unscheduled: false,
-        $no_start: false,
-        $no_end: false,
-        $rendered_type: gantt.config.types.task
-    });
+    // WORKAROUND: Add invisible marker tasks to force timeline extension
+    // This forces the timeline to extend through the entire year 2025
+    console.log('=== Adding timeline marker tasks ===');
+
+    // NOTE: After extensive testing, marker tasks cause calculateDuration errors
+    // and DHTMLX Gantt still ignores the fixed date range.
+    // The proper solution is to use start_date/end_date config (set above in line 820-821)
+    // combined with forcing the scale to render via attachEvent
+
+    // DO NOT add marker tasks - they cause errors and don't work as intended
+    console.log('=== Skipping marker tasks - using config-based approach instead ===');
+
+
+    // Add template to completely hide boundary tasks from rendering
+    gantt.templates.task_class = function(start, end, task) {
+        if (task.is_boundary === true || task.id == 999998 || task.id == 999999) {
+            return "gantt_boundary_hidden";
+        }
+        return "";
+    };
+
+    // Prevent boundary tasks from being displayed in the grid rows
+    gantt.templates.grid_row_class = function(start, end, task) {
+        if (task.is_boundary === true || task.id == 999998 || task.id == 999999) {
+            return "gantt_hidden_row";
+        }
+        return "";
+    };
+
+    // Return empty string for task text of boundary tasks
+    gantt.templates.task_text = function(start, end, task) {
+        if (task.is_boundary === true || task.id == 999998 || task.id == 999999) {
+            return "";
+        }
+        return task.text;
+    };
+
+    // CRITICAL: Set start_date and end_date BEFORE initialization
+    // Force the timeline range to include the full year 2025
+    gantt.config.start_date = new Date(2025, 0, 1);
+    gantt.config.end_date = new Date(2025, 11, 31, 23, 59, 59);
+    console.log('BEFORE INIT - start_date:', gantt.config.start_date);
+    console.log('BEFORE INIT - end_date:', gantt.config.end_date);
+    console.log('BEFORE INIT - fit_tasks:', gantt.config.fit_tasks);
 
     // Initialize Gantt
     gantt.init("gantt_here");
     gantt.parse(ganttData);
+
+    console.log('=== Gantt initialized and data parsed ===');
+    console.log('Total tasks loaded:', gantt.getTaskCount());
+
+    // Boundary tasks are now added server-side in the view
+    console.log('=== Boundary tasks loaded from server - checking... ===');
+    let boundaryTaskCount = 0;
+    let firstTask = null;
+    let lastTask = null;
+
+    ganttData.data.forEach(function(task) {
+        if (task.is_boundary === true) {
+            boundaryTaskCount++;
+            console.log('Found boundary task:', task.id, 'at', task.start_date);
+        }
+
+        // Track the earliest and latest tasks
+        if (task.start_date) {
+            const taskDate = new Date(task.start_date);
+            if (!firstTask || taskDate < new Date(firstTask.start_date)) {
+                firstTask = task;
+            }
+            if (!lastTask || taskDate > new Date(lastTask.start_date)) {
+                lastTask = task;
+            }
+        }
+    });
+
+    console.log('Total boundary tasks from server:', boundaryTaskCount);
+    console.log('Earliest task:', firstTask ? firstTask.id + ' at ' + firstTask.start_date : 'none');
+    console.log('Latest task:', lastTask ? lastTask.id + ' at ' + lastTask.start_date : 'none');
+
+    // CRITICAL: If boundary tasks are not present, add them client-side
+    if (boundaryTaskCount < 2) {
+        console.error('WARNING: Boundary tasks not found from server! Adding them client-side...');
+
+        // Add start boundary
+        ganttData.data.push({
+            id: 999998,
+            text: "",
+            title_cn: "",
+            task_code: "BOUNDARY_START",
+            start_date: "2025-01-01",
+            end_date: "2025-01-02",
+            duration: 1,
+            progress: 0,
+            parent: 0,
+            is_boundary: true,
+            priority: "low",
+            status: "pending"
+        });
+
+        // Add end boundary
+        ganttData.data.push({
+            id: 999999,
+            text: "",
+            title_cn: "",
+            task_code: "BOUNDARY_END",
+            start_date: "2025-12-31",
+            end_date: "2025-12-31",
+            duration: 1,
+            progress: 0,
+            parent: 0,
+            is_boundary: true,
+            priority: "low",
+            status: "pending"
+        });
+
+        console.log('Added client-side boundary tasks');
+    }
 
     // Ensure month view is applied after initialization
     console.log('=== Setting Month View ===');
@@ -1738,44 +2063,62 @@
     // SET EXPLICIT DATE RANGE - ALWAYS EXTEND TO DEC 31, 2025
     // ========================================================================
     (function() {
-        // Calculate the earliest task date to determine start
-        let minDate = null;
+        // CRITICAL FIX: Do NOT recalculate start_date from tasks
+        // Keep the fixed range: Jan 1, 2025 to Dec 31, 2025
+        // This prevents DHTMLX from auto-fitting the timeline
 
-        gantt.eachTask(function(task) {
-            if (task.start_date) {
-                const taskStart = new Date(task.start_date);
-
-                if (!minDate || taskStart < minDate) {
-                    minDate = taskStart;
-                }
-            }
-        });
-
-        // Set start date with padding
-        if (minDate) {
-            const paddedStart = gantt.date.add(minDate, -2, "month");
-            gantt.config.start_date = paddedStart;
-            console.log('=== Timeline Start Date Set ===');
-            console.log('First task date:', minDate.toISOString().split('T')[0]);
-            console.log('Display start:', paddedStart.toISOString().split('T')[0]);
-        } else {
-            // Default to 2 months before today
-            const today = new Date();
-            gantt.config.start_date = gantt.date.add(today, -2, "month");
-            console.log('No tasks found - using default start date');
-        }
-
-        // ALWAYS set end date to December 31, 2025 (already set above, but ensure it stays)
-        const endOfDec2025 = new Date(2025, 11, 31, 23, 59, 59);
-        gantt.config.end_date = endOfDec2025;
-        gantt.config.fit_tasks = false;  // Ensure fit_tasks stays disabled
-
-        console.log('=== Timeline End Date LOCKED to Dec 31, 2025 ===');
-        console.log('Display end:', endOfDec2025.toISOString().split('T')[0]);
+        console.log('=== LOCKING Timeline to Full Year 2025 ===');
+        console.log('Start: 2025-01-01');
+        console.log('End: 2025-12-31');
         console.log('fit_tasks:', gantt.config.fit_tasks);
 
-        // Re-render to apply the date range
-        gantt.render();
+        // Verify the configuration is still correct
+        if (!gantt.config.start_date || gantt.config.start_date.getFullYear() !== 2025 || gantt.config.start_date.getMonth() !== 0) {
+            console.warn('start_date was modified, resetting to Jan 1, 2025');
+            gantt.config.start_date = new Date(2025, 0, 1);
+        }
+        if (!gantt.config.end_date || gantt.config.end_date.getFullYear() !== 2025 || gantt.config.end_date.getMonth() !== 11) {
+            console.warn('end_date was modified, resetting to Dec 31, 2025');
+            gantt.config.end_date = new Date(2025, 11, 31, 23, 59, 59);
+        }
+
+        // Ensure fit_tasks is false
+        gantt.config.fit_tasks = false;
+
+        console.log('Final start_date (UTC):', gantt.config.start_date.toISOString().split('T')[0]);
+        console.log('Final start_date (local):', gantt.config.start_date.toString());
+        console.log('Final start_date (components):', {
+            year: gantt.config.start_date.getFullYear(),
+            month: gantt.config.start_date.getMonth(),
+            date: gantt.config.start_date.getDate()
+        });
+        console.log('Final end_date:', gantt.config.end_date.toISOString().split('T')[0]);
+
+        // DISABLED: These renders were overriding our boundary tasks!
+        // The render() in the boundary task section is sufficient
+        console.log('Skipping extra renders - boundary tasks should handle timeline extension');
+
+        // CRITICAL: Force Gantt to render columns all the way to Dec 31
+        // by temporarily showing that date, which forces column generation
+        setTimeout(function() {
+            console.log('Forcing timeline to render Dec 31, 2025 columns...');
+            try {
+                // Scroll to end date to force column generation
+                gantt.showDate(new Date(2025, 11, 31));
+                console.log('Scrolled to Dec 31, 2025');
+
+                // Wait a moment for columns to generate, then scroll back to first task
+                setTimeout(function() {
+                    const firstTask = gantt.getTaskByIndex(0);
+                    if (firstTask && firstTask.id != 9999998 && firstTask.id != 9999999) {
+                        gantt.showTask(firstTask.id);
+                        console.log('Scrolled back to first task:', firstTask.id);
+                    }
+                }, 300);
+            } catch (e) {
+                console.error('Error forcing timeline render:', e);
+            }
+        }, 100);
     })();
 
     // Debug: Log lightbox configuration
@@ -1783,6 +2126,121 @@
     console.log('Lightbox sections:', gantt.config.lightbox.sections);
     console.log('Read-only mode:', gantt.config.readonly);
     console.log('Double-click to open lightbox should work now. Try clicking a task.');
+
+    // FINAL RENDER: Now that everything is configured and boundary tasks are added
+    console.log('=== FINAL RENDER with boundary tasks ===');
+    gantt.render();
+    console.log('Timeline should now extend to Dec 31, 2025');
+
+    // ========================================================================
+    // CRITICAL FIX: FORCE TIMELINE EXTENSION BY OVERRIDING INTERNAL METHODS
+    // ========================================================================
+    (function() {
+        console.log('=== APPLYING AGGRESSIVE TIMELINE FIX ===');
+
+        // Store the original functions
+        const originalGetState = gantt.getState;
+        const originalGetSubtaskDates = gantt.getSubtaskDates;
+        const originalGetSubtaskDuration = gantt.getSubtaskDuration;
+
+        // Override getState to always return our fixed dates
+        gantt.getState = function() {
+            const state = originalGetState.call(this);
+            // Force our date range
+            state.min_date = new Date(2025, 0, 1);
+            state.max_date = new Date(2025, 11, 31, 23, 59, 59);
+            console.log('getState override - forcing dates:', state.min_date, 'to', state.max_date);
+            return state;
+        };
+
+        // Override getSubtaskDates to include our boundary dates
+        gantt.getSubtaskDates = function(task_id) {
+            const dates = originalGetSubtaskDates.call(this, task_id);
+            // If this is the root task, force our date range
+            if (task_id === 0 || !task_id) {
+                dates.start_date = new Date(2025, 0, 1);
+                dates.end_date = new Date(2025, 11, 31, 23, 59, 59);
+                console.log('getSubtaskDates override - forcing full year for root');
+            }
+            return dates;
+        };
+
+        // Override getSubtaskDuration to ensure proper duration
+        gantt.getSubtaskDuration = function(task_id) {
+            if (task_id === 0 || !task_id) {
+                // Return duration for full year
+                return 365;
+            }
+            return originalGetSubtaskDuration.call(this, task_id);
+        };
+
+        // Force a complete re-render with our overrides in place
+        setTimeout(function() {
+            console.log('=== Forcing complete re-render with overrides ===');
+
+            // Reset the config one more time to be sure
+            gantt.config.start_date = new Date(2025, 0, 1);
+            gantt.config.end_date = new Date(2025, 11, 31, 23, 59, 59);
+            gantt.config.fit_tasks = false;
+
+            // Clear and re-render
+            gantt.clearAll();
+            gantt.parse(ganttData);
+
+            console.log('Re-render complete with overrides active');
+            console.log('Timeline should now DEFINITELY extend to Dec 31, 2025');
+
+            // After re-render, try to scroll to show the full timeline
+            setTimeout(function() {
+                try {
+                    // Try to show a date in December to force column rendering
+                    gantt.showDate(new Date(2025, 11, 15));
+                    console.log('Scrolled to mid-December to force column rendering');
+
+                    // Then scroll back to the first real task
+                    setTimeout(function() {
+                        const tasks = gantt.getTaskByTime();
+                        const realTasks = tasks.filter(t => !t.is_boundary && t.id != 999998 && t.id != 999999);
+                        if (realTasks.length > 0) {
+                            gantt.showTask(realTasks[0].id);
+                            console.log('Scrolled back to first real task');
+                        }
+                    }, 500);
+                } catch(e) {
+                    console.log('Could not scroll to December:', e);
+                }
+            }, 500);
+
+        }, 1000);
+
+        // Also override the internal _get_timeline_dates if it exists
+        if (gantt._get_timeline_dates) {
+            const original_get_timeline_dates = gantt._get_timeline_dates;
+            gantt._get_timeline_dates = function() {
+                const dates = original_get_timeline_dates.call(this);
+                dates.start_date = new Date(2025, 0, 1);
+                dates.end_date = new Date(2025, 11, 31, 23, 59, 59);
+                console.log('_get_timeline_dates override - forcing full year');
+                return dates;
+            };
+        }
+
+        // Override any scale calculation methods
+        if (gantt._scale_helpers) {
+            const originalGetScaleBounds = gantt._scale_helpers.getScaleBounds;
+            if (originalGetScaleBounds) {
+                gantt._scale_helpers.getScaleBounds = function() {
+                    const bounds = originalGetScaleBounds.apply(this, arguments);
+                    bounds.start_date = new Date(2025, 0, 1);
+                    bounds.end_date = new Date(2025, 11, 31, 23, 59, 59);
+                    console.log('getScaleBounds override - forcing full year');
+                    return bounds;
+                };
+            }
+        }
+
+        console.log('=== All overrides installed ===');
+    })();
 
     // ========================================================================
     // ENHANCED DELETE FUNCTIONALITY
@@ -2624,11 +3082,19 @@
         return true;
     });
 
-    // View mode change
+    // View mode change - use zoom extension if available
     document.querySelectorAll('input[name="viewMode"]').forEach(radio => {
         radio.addEventListener('change', function() {
             console.log('View mode changed to:', this.value);
 
+            // If zoom extension is configured, use it
+            if (gantt.ext && gantt.ext.zoom) {
+                console.log('Using zoom extension to change view to:', this.value);
+                gantt.ext.zoom.setLevel(this.value);
+                return;
+            }
+
+            // Fallback to manual configuration (if zoom not available)
             switch(this.value) {
                 case 'day':
                     gantt.config.scale_unit = "day";
@@ -2656,17 +3122,78 @@
                     break;
             }
 
-            // CRITICAL: Always ensure timeline extends to December 31, 2025
+            // CRITICAL: Always ensure timeline extends to full year 2025
             // This must be set AFTER scale configuration and BEFORE render
+            const startOfJan2025 = new Date(2025, 0, 1);
             const endOfDec2025 = new Date(2025, 11, 31, 23, 59, 59);
-            gantt.config.end_date = endOfDec2025;  // Always force it, don't check
+            gantt.config.start_date = startOfJan2025;  // Lock to Jan 1, 2025
+            gantt.config.end_date = endOfDec2025;  // Lock to Dec 31, 2025
             gantt.config.fit_tasks = false;  // Ensure fit_tasks stays disabled
 
-            console.log('View mode applied. End date set to:', gantt.config.end_date.toISOString());
+            console.log('View mode applied. Start date:', gantt.config.start_date.toISOString());
+            console.log('View mode applied. End date:', gantt.config.end_date.toISOString());
             console.log('fit_tasks:', gantt.config.fit_tasks);
 
-            // Force Gantt to render the full date range by showing the end date
+            // AGGRESSIVE FIX: Force the timeline to generate all columns
+            // by temporarily adding tasks at the boundaries if they don't exist
+            const allTasks = gantt.getTaskByTime();
+            let hasJanTask = false;
+            let hasDecTask = false;
+
+            allTasks.forEach(function(task) {
+                const taskDate = task.start_date;
+                if (taskDate.getFullYear() === 2025) {
+                    if (taskDate.getMonth() === 0) hasJanTask = true;
+                    if (taskDate.getMonth() === 11) hasDecTask = true;
+                }
+            });
+
+            // Temporarily add boundary tasks if they don't exist
+            const tempTasks = [];
+            if (!hasJanTask) {
+                const janTask = {
+                    id: 'temp_jan_' + Date.now(),
+                    text: '',
+                    start_date: new Date(2025, 0, 1),
+                    duration: 1,
+                    parent: 0,
+                    $virtual: true
+                };
+                gantt.addTask(janTask);
+                tempTasks.push(janTask.id);
+                console.log('Added temporary January task for timeline extension');
+            }
+
+            if (!hasDecTask) {
+                const decTask = {
+                    id: 'temp_dec_' + Date.now(),
+                    text: '',
+                    start_date: new Date(2025, 11, 31),
+                    duration: 1,
+                    parent: 0,
+                    $virtual: true
+                };
+                gantt.addTask(decTask);
+                tempTasks.push(decTask.id);
+                console.log('Added temporary December task for timeline extension');
+            }
+
+            // Force Gantt to render with the temporary tasks
             gantt.render();
+
+            // Remove temporary tasks after render completes
+            if (tempTasks.length > 0) {
+                setTimeout(function() {
+                    tempTasks.forEach(function(taskId) {
+                        if (gantt.isTaskExists(taskId)) {
+                            gantt.deleteTask(taskId);
+                            console.log('Removed temporary task:', taskId);
+                        }
+                    });
+                    // Re-render without the temporary tasks
+                    gantt.render();
+                }, 100);
+            }
 
             // WORKAROUND: Scroll to show that the end date exists in the timeline
             // This forces Gantt to render columns all the way to Dec 31
