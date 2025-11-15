@@ -1629,10 +1629,10 @@
             {% for task in tasks %}
             {% for dep in task.predecessors.all %}
             {
-                id: "{{ dep.pk }}",
+                id: {{ dep.pk }},
                 source: {{ dep.predecessor.pk }},
                 target: {{ dep.successor.pk }},
-                type: "{% if dep.dependency_type == 'FS' %}0{% elif dep.dependency_type == 'SS' %}1{% elif dep.dependency_type == 'FF' %}2{% else %}3{% endif %}"
+                type: {% if dep.dependency_type == 'FS' %}0{% elif dep.dependency_type == 'SS' %}1{% elif dep.dependency_type == 'FF' %}2{% else %}3{% endif %}
             }{% if not forloop.last or not forloop.parentloop.last %},{% endif %}
             {% endfor %}
             {% endfor %}
@@ -2430,35 +2430,6 @@
         })
         .catch(error => {
             console.error('Error reordering task:', error);
-        });
-
-        return true;
-    });
-
-    gantt.attachEvent("onAfterLinkAdd", function(id, link){
-        // Add dependency via API
-        fetch(`/project-management/{{ project.pk }}/api/gantt/dependencies/add/`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrftoken
-            },
-            body: JSON.stringify({
-                predecessor_id: link.source,
-                successor_id: link.target,
-                dependency_type: link.type === "0" ? "FS" : link.type === "1" ? "SS" : link.type === "2" ? "FF" : "SF"
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (!data.success) {
-                alert('Error: ' + data.error);
-                gantt.deleteLink(id);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            gantt.deleteLink(id);
         });
 
         return true;
