@@ -1698,6 +1698,7 @@
     gantt.config.date_scale = "%F %Y";
     gantt.config.subscales = [{unit: "week", step: 1, date: "Week #%W"}];
     gantt.config.min_column_width = 80;
+    gantt.config.fit_tasks = false;  // CRITICAL: Don't auto-fit to tasks
 
     // CRITICAL: Force end date to December 31, 2025 on initial load
     const endOfDec2025 = new Date(2025, 11, 31, 23, 59, 59);
@@ -1705,8 +1706,7 @@
 
     console.log('After - scale_unit:', gantt.config.scale_unit);
     console.log('After - end_date:', gantt.config.end_date.toISOString());
-    gantt.render();
-    console.log('Month view applied and rendered with end date:', endOfDec2025.toISOString());
+    console.log('After - fit_tasks:', gantt.config.fit_tasks);
 
     // ========================================================================
     // SET EXPLICIT DATE RANGE - ALWAYS EXTEND TO DEC 31, 2025
@@ -1742,8 +1742,11 @@
         // ALWAYS set end date to December 31, 2025 (already set above, but ensure it stays)
         const endOfDec2025 = new Date(2025, 11, 31, 23, 59, 59);
         gantt.config.end_date = endOfDec2025;
+        gantt.config.fit_tasks = false;  // Ensure fit_tasks stays disabled
+
         console.log('=== Timeline End Date LOCKED to Dec 31, 2025 ===');
         console.log('Display end:', endOfDec2025.toISOString().split('T')[0]);
+        console.log('fit_tasks:', gantt.config.fit_tasks);
 
         // Re-render to apply the date range
         gantt.render();
