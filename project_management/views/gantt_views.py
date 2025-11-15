@@ -102,9 +102,11 @@ def gantt_chart_view(request, pk):
             self.process_owner = None
             self.definition_of_done = ""
             self.assigned_to = MockRelatedManager()  # Empty manager
+            self.predecessors = MockRelatedManager()  # CRITICAL: Add for template compatibility
+            self.successors = MockRelatedManager()  # Add for completeness
 
     class MockRelatedManager:
-        """Mock manager for assigned_to relationship"""
+        """Mock manager for assigned_to and predecessors relationship"""
         def all(self):
             return []
 
