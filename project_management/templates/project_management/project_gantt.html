@@ -2638,7 +2638,21 @@
 
             console.log('View mode applied. End date set to:', gantt.config.end_date.toISOString());
             console.log('fit_tasks:', gantt.config.fit_tasks);
+
+            // Force Gantt to render the full date range by showing the end date
             gantt.render();
+
+            // WORKAROUND: Scroll to show that the end date exists in the timeline
+            // This forces Gantt to render columns all the way to Dec 31
+            setTimeout(() => {
+                gantt.showDate(endOfDec2025);
+                // Then scroll back to show tasks
+                setTimeout(() => {
+                    if (gantt.getTaskByIndex(0)) {
+                        gantt.showTask(gantt.getTaskByIndex(0).id);
+                    }
+                }, 100);
+            }, 100);
         });
     });
 
