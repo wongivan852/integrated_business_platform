@@ -3134,7 +3134,25 @@
             if (gantt.ext && gantt.ext.zoom) {
                 console.log('Using zoom extension to change view to:', this.value);
                 gantt.ext.zoom.setLevel(this.value);
-                return;
+
+                // CRITICAL: Don't return here! Must force date range after zoom
+                // Force date range AFTER zoom extension changes the view
+                setTimeout(function() {
+                    const startOfJan2025 = new Date(2025, 0, 1);
+                    const endOfDec2025 = new Date(2025, 11, 31, 23, 59, 59);
+                    gantt.config.start_date = startOfJan2025;
+                    gantt.config.end_date = endOfDec2025;
+                    gantt.config.fit_tasks = false;
+
+                    console.log('After zoom.setLevel: Forcing dates Jan 1 - Dec 31, 2025');
+                    console.log('After zoom.setLevel: fit_tasks =', gantt.config.fit_tasks);
+
+                    // Force re-render with new date range
+                    gantt.render();
+                    console.log('Re-rendered with forced date range');
+                }, 50);
+
+                return; // Now we can return after setting up the timeout
             }
 
             // Fallback to manual configuration (if zoom not available)
