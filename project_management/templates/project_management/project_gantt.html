@@ -1056,7 +1056,7 @@
         {name: "predecessors", height: 350, map_to: "auto", type: "template", focus: false},
         {name: "start_date", height: 38, map_to: "start_date", type: "date", date_format: "%Y-%m-%d"},
         {name: "end_date", height: 38, map_to: "end_date", type: "date", date_format: "%Y-%m-%d"},
-        {name: "duration", height: 38, map_to: "duration", type: "duration", readonly: false}
+        {name: "duration", height: 38, map_to: "duration", type: "duration", readonly: true, formatter: gantt.ext.formatters.durationFormatter({enter: "day", store: "day", format: "day"})}
     ];
 
     // Custom labels for lightbox sections
@@ -1534,7 +1534,7 @@
         return true;
     });
 
-    // Update duration when dates are changed
+    // Update duration when dates are changed and validate date range
     gantt.attachEvent("onLightboxChange", function(task_id, section, value){
         const task = gantt.getTask(task_id);
 
@@ -1548,6 +1548,15 @@
 
                     // Validate dates before calculating duration
                     if (startDate && endDate && !isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
+                        // Check if end_date is before start_date
+                        if (endDate < startDate) {
+                            console.warn('End date is before start date, auto-correcting...');
+                            // Auto-correct: set end_date = start_date + 1 day
+                            task.end_date = gantt.date.add(startDate, 1, "day");
+                            endDate = task.end_date;
+                            alert('Warning: End date cannot be before start date. Adjusted to start date + 1 day.');
+                        }
+
                         const calculatedDuration = gantt.calculateDuration(startDate, endDate);
                         // Ensure duration is at least 1
                         task.duration = (calculatedDuration && calculatedDuration > 0) ? calculatedDuration : 1;
