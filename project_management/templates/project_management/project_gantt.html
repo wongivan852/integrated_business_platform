@@ -988,59 +988,10 @@
     })();
 
     // ========================================================================
-    // CUSTOM DATE FORM BLOCK - ADDITIONAL DATE VALIDATION
+    // CUSTOM DATE FORM BLOCK - COMMENTED OUT (was interfering with time controls)
     // ========================================================================
-    // Override the built-in date control to ensure dates are always Date objects
-    (function() {
-        // Store the original date form block
-        const originalDate = gantt.form_blocks["date"];
-
-        if (originalDate) {
-            // Create a wrapper that validates dates before calling the original
-            gantt.form_blocks["date"] = {
-                render: originalDate.render,
-
-                set_value: function(node, value, task, section) {
-                    // Ensure the value being set is a valid Date object
-                    let dateValue = value;
-
-                    if (dateValue && !(dateValue instanceof Date)) {
-                        console.warn('Date control: Converting value from', typeof dateValue, 'to Date');
-                        try {
-                            if (typeof dateValue === 'string') {
-                                dateValue = gantt.date.parseDate(dateValue, section.date_format || "xml_date") || new Date();
-                            } else {
-                                dateValue = new Date();
-                            }
-                        } catch (e) {
-                            console.error('Date control: Error converting value:', e);
-                            dateValue = new Date();
-                        }
-                    } else if (!dateValue || isNaN(dateValue.getTime())) {
-                        console.warn('Date control: Invalid date value, setting to today');
-                        dateValue = new Date();
-                    }
-
-                    // Update the task's date field
-                    if (section.map_to === 'start_date') {
-                        task.start_date = dateValue;
-                    } else if (section.map_to === 'end_date') {
-                        task.end_date = dateValue;
-                    }
-
-                    // Now call the original set_value with validated data
-                    return originalDate.set_value.call(this, node, dateValue, task, section);
-                },
-
-                get_value: originalDate.get_value,
-                focus: originalDate.focus
-            };
-
-            console.log('Custom date form block installed successfully');
-        } else {
-            console.warn('Original date form block not found - cannot override');
-        }
-    })();
+    // Note: We use type: "time" instead of type: "date" for date fields
+    // The time control handles date validation internally, so no custom override needed
 
     // Configure Lightbox (Task Edit Dialog)
     gantt.config.lightbox.sections = [
@@ -1054,8 +1005,8 @@
         ]},
         {name: "definition_of_done", height: 70, map_to: "definition_of_done", type: "textarea", focus: false},
         {name: "predecessors", height: 350, map_to: "auto", type: "template", focus: false},
-        {name: "start_date", height: 38, map_to: "start_date", type: "date", date_format: "%Y-%m-%d"},
-        {name: "end_date", height: 38, map_to: "end_date", type: "date", date_format: "%Y-%m-%d"},
+        {name: "start_date", height: 38, map_to: "start_date", type: "time", time_format: ["%Y", "%m", "%d"]},
+        {name: "end_date", height: 38, map_to: "end_date", type: "time", time_format: ["%Y", "%m", "%d"]},
         {name: "duration", height: 38, map_to: "duration", type: "textarea", focus: false}
     ];
 
