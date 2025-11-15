@@ -2633,11 +2633,11 @@
             // CRITICAL: Always ensure timeline extends to December 31, 2025
             // This must be set AFTER scale configuration and BEFORE render
             const endOfDec2025 = new Date(2025, 11, 31, 23, 59, 59);
-            if (!gantt.config.end_date || gantt.config.end_date < endOfDec2025) {
-                gantt.config.end_date = endOfDec2025;
-            }
+            gantt.config.end_date = endOfDec2025;  // Always force it, don't check
+            gantt.config.fit_tasks = false;  // Ensure fit_tasks stays disabled
 
             console.log('View mode applied. End date set to:', gantt.config.end_date.toISOString());
+            console.log('fit_tasks:', gantt.config.fit_tasks);
             gantt.render();
         });
     });
