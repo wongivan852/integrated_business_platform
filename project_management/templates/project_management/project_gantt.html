@@ -1689,9 +1689,9 @@
 
         // If we found dates, set explicit range with padding
         if (minDate && maxDate) {
-            // Add 1 month padding before and 3 months padding after
-            const paddedStart = gantt.date.add(minDate, -1, "month");
-            const paddedEnd = gantt.date.add(maxDate, 3, "month");
+            // Add 2 months padding before and 6 months padding after
+            const paddedStart = gantt.date.add(minDate, -2, "month");
+            const paddedEnd = gantt.date.add(maxDate, 6, "month");
 
             gantt.config.start_date = paddedStart;
             gantt.config.end_date = paddedEnd;
@@ -1704,6 +1704,11 @@
             gantt.render();
         } else {
             console.warn('No valid task dates found - using default timeline range');
+            // Set a default 12-month range if no tasks found
+            const today = new Date();
+            gantt.config.start_date = gantt.date.add(today, -2, "month");
+            gantt.config.end_date = gantt.date.add(today, 10, "month");
+            gantt.render();
         }
     })();
 
