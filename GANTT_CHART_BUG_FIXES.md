@@ -394,5 +394,111 @@ This check now works correctly because dependencies are properly loaded from the
 
 ---
 
-**Document Version**: 2.0
+## Bug #4: Timeline Not Extending to December 31, 2025 ⚠️ IN PROGRESS
+
+### Symptom
+
+The Gantt chart timeline does not extend to December 31, 2025 as intended. Different view modes show different cutoff dates:
+- **Day view**: Stops at Dec 07, 2025
+- **Week view**: Stops at Nov 29, 2025
+- **Month view**: Stops at Nov 25, 2025
+- **Year view**: Stops at Nov 23, 2025
+
+### Expected Behavior
+
+All view modes (Day/Week/Month/Year) should display timeline columns extending through December 31, 2025, allowing users to plan tasks for the entire year.
+
+### Root Cause
+
+DHTMLX Gantt library appears to ignore the `gantt.config.end_date` configuration and the `gantt.config.fit_tasks = false` setting. Despite correctly setting:
+- `gantt.config.end_date = new Date(2025, 11, 31, 23, 59, 59)`
+- `gantt.config.fit_tasks = false`
+
+The timeline auto-fits to the date range of existing tasks instead of respecting the explicit end_date configuration.
+
+### Attempted Solutions
+
+**Attempt 1**: Set `gantt.config.fit_tasks = false` before initialization
+- **Result**: Timeline still auto-fits to tasks
+
+**Attempt 2**: Set `gantt.config.end_date` after initialization with multiple renders
+- **Result**: Console shows correct end_date, but timeline doesn't extend
+
+**Attempt 3**: Re-enforce `fit_tasks: false` and `end_date` when switching view modes
+- **Result**: Settings applied correctly (verified in console), but timeline still cuts off early
+
+**Attempt 4**: Use `gantt.showDate(Dec 31, 2025)` to force rendering
+- **Result**: No effect on timeline extension
+
+**Attempt 5**: Add invisible marker task at December 31, 2025 (CURRENT)
+- **Implementation**: Added task with ID 9999999, hidden with CSS
+- **Result**: Testing in progress
+
+### Current Workaround
+
+Added an invisible marker task to force timeline extension:
+
+**File**: `project_management/templates/project_management/project_gantt.html`
+
+**Lines 1690-1706**: Marker task creation
+```javascript
+ganttData.data.push({
+    id: 9999999,
+    text: "",
+    title_cn: "",
+    start_date: new Date(2025, 11, 31),
+    duration: 1,
+    progress: 0,
+    parent: 0,
+    type: gantt.config.types.task,
+    readonly: true
+});
+```
+
+**Lines 624-630**: CSS to hide marker task
+```css
+.gantt_row[task_id="9999999"],
+.gantt_task_row[task_id="9999999"],
+.gantt_task_line[task_id="9999999"] {
+    display: none !important;
+    visibility: hidden !important;
+}
+```
+
+### Status
+
+⚠️ **IN PROGRESS** - Workaround implemented but needs testing
+
+### Console Verification
+
+Console logs confirm settings are applied:
+```
+Display end: 2025-12-31
+fit_tasks: false
+```
+
+But timeline still doesn't extend to December 31 in visual display.
+
+### Next Steps
+
+1. Test invisible marker task workaround
+2. If unsuccessful, investigate DHTMLX Gantt version-specific issues
+3. Consider alternative approaches:
+   - Using `gantt.config.min_date` and `gantt.config.max_date`
+   - Forcing timeline column generation
+   - Custom timeline scale implementation
+
+### Related Configuration
+
+**Files Modified**:
+- `project_management/templates/project_management/project_gantt.html`
+  - Lines 767: `fit_tasks: false` configuration
+  - Lines 1701: `fit_tasks: false` after initialization
+  - Lines 1745: `fit_tasks: false` in date range calculation
+  - Lines 2637, 2641: `fit_tasks: false` in view mode switcher
+  - Lines 1704, 1744, 2636: `end_date` set to Dec 31, 2025
+
+---
+
+**Document Version**: 3.0
 **Last Updated**: November 15, 2025
