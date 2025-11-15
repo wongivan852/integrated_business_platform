@@ -2569,6 +2569,11 @@
     document.querySelectorAll('input[name="viewMode"]').forEach(radio => {
         radio.addEventListener('change', function() {
             console.log('View mode changed to:', this.value);
+
+            // Preserve the current date range
+            const currentStartDate = gantt.config.start_date;
+            const currentEndDate = gantt.config.end_date;
+
             switch(this.value) {
                 case 'day':
                     gantt.config.scale_unit = "day";
@@ -2595,6 +2600,12 @@
                     gantt.config.min_column_width = 100;
                     break;
             }
+
+            // Restore the date range to ensure timeline extends to Dec 2025
+            if (currentStartDate) gantt.config.start_date = currentStartDate;
+            if (currentEndDate) gantt.config.end_date = currentEndDate;
+
+            console.log('View mode applied. Date range:', gantt.config.start_date, 'to', gantt.config.end_date);
             gantt.render();
         });
     });
