@@ -620,6 +620,14 @@
         box-shadow: 0 0 10px 3px #0d6efd !important;
         border: 2px solid #0d6efd !important;
     }
+
+    /* Hide the marker task (ID 9999999) used to extend timeline */
+    .gantt_row[task_id="9999999"],
+    .gantt_task_row[task_id="9999999"],
+    .gantt_task_line[task_id="9999999"] {
+        display: none !important;
+        visibility: hidden !important;
+    }
 </style>
 
 <script>
@@ -1686,6 +1694,24 @@
         }
     });
     console.log('=== Data sanitization complete ===');
+
+    // WORKAROUND: Add an invisible marker task at Dec 31, 2025
+    // This forces the timeline to extend to the end of the year
+    ganttData.data.push({
+        id: 9999999,
+        text: "",
+        title_cn: "",
+        start_date: new Date(2025, 11, 31),
+        duration: 1,
+        progress: 0,
+        parent: 0,
+        type: gantt.config.types.task,
+        readonly: true,
+        unscheduled: false,
+        $no_start: false,
+        $no_end: false,
+        $rendered_type: gantt.config.types.task
+    });
 
     // Initialize Gantt
     gantt.init("gantt_here");
