@@ -764,6 +764,7 @@
     gantt.config.row_height = 50;  // Increased for bilingual text
     gantt.config.grid_width = 605;  // Fixed grid width
     gantt.config.autosize = false;  // Disable auto-sizing
+    gantt.config.fit_tasks = false;  // Don't auto-fit timeline to tasks - use explicit date range
     gantt.config.readonly = {% if not can_edit %}true{% else %}false{% endif %};
     gantt.config.scroll_size = 17;  // Scrollbar width
     gantt.config.scrollable = true;  // Enable scrolling
