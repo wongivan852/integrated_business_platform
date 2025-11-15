@@ -934,6 +934,21 @@
         console.error('✗ Could not find any methods to override for date range control');
     }
 
+    // CRITICAL: Override gantt's internal date range calculation to force full year
+    // This must happen BEFORE zoom extension is initialized
+    if (gantt.getScale) {
+        const originalGetScale = gantt.getScale;
+        gantt.getScale = function() {
+            const scale = originalGetScale.apply(this, arguments);
+            // Force date range to full year 2025
+            scale.min_date = new Date(2025, 0, 1);
+            scale.max_date = new Date(2025, 11, 31, 23, 59, 59);
+            console.log('getScale override - forced min:', scale.min_date, 'max:', scale.max_date);
+            return scale;
+        };
+        console.log('✓ gantt.getScale overridden to force Jan 1 - Dec 31, 2025');
+    }
+
     // FINAL SOLUTION: Use gantt.ext.zoom to define custom zoom levels with fixed dates
     if (gantt.ext && gantt.ext.zoom) {
         console.log('✓ gantt.ext.zoom is available - configuring zoom levels with fixed date range');
@@ -980,7 +995,6 @@
         });
 
         // CRITICAL: Use onAfterZoom event to force date range AFTER zoom level changes
-        // This is the correct way to extend timeline when using zoom extension
         gantt.attachEvent("onAfterZoom", function(level, config) {
             console.log('onAfterZoom triggered - Level:', level);
 
@@ -994,27 +1008,8 @@
             console.log('onAfterZoom: Forced date range to Jan 1 - Dec 31, 2025');
             console.log('onAfterZoom: fit_tasks =', gantt.config.fit_tasks);
 
-            // CRITICAL FOR DAY/WEEK VIEWS: Force timeline to generate columns to December
-            // by scrolling to December which triggers column generation
-            setTimeout(function() {
-                try {
-                    // Scroll to mid-December to force column generation
-                    const decemberDate = new Date(2025, 11, 15);
-                    gantt.showDate(decemberDate);
-                    console.log('onAfterZoom: Forced scroll to December to generate columns');
-
-                    // Scroll back to show first task after brief delay
-                    setTimeout(function() {
-                        const firstTask = gantt.getTaskByIndex(0);
-                        if (firstTask && firstTask.id !== 999998 && firstTask.id !== 999999) {
-                            gantt.showTask(firstTask.id);
-                            console.log('onAfterZoom: Scrolled back to first task');
-                        }
-                    }, 200);
-                } catch(e) {
-                    console.warn('onAfterZoom: Could not force December scroll:', e);
-                }
-            }, 100);
+            // Force re-render with new date range
+            gantt.render();
         });
 
         // CRITICAL: Attach event to force dates when gantt renders
