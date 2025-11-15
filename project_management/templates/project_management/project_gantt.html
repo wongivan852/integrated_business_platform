@@ -1661,62 +1661,55 @@
     gantt.config.date_scale = "%F %Y";
     gantt.config.subscales = [{unit: "week", step: 1, date: "Week #%W"}];
     gantt.config.min_column_width = 80;
+
+    // CRITICAL: Force end date to December 31, 2025 on initial load
+    const endOfDec2025 = new Date(2025, 11, 31, 23, 59, 59);
+    gantt.config.end_date = endOfDec2025;
+
     console.log('After - scale_unit:', gantt.config.scale_unit);
+    console.log('After - end_date:', gantt.config.end_date.toISOString());
     gantt.render();
-    console.log('Month view applied and rendered');
+    console.log('Month view applied and rendered with end date:', endOfDec2025.toISOString());
 
     // ========================================================================
-    // SET EXPLICIT DATE RANGE TO PREVENT SINGLE DAY FROM FILLING ENTIRE WIDTH
+    // SET EXPLICIT DATE RANGE - ALWAYS EXTEND TO DEC 31, 2025
     // ========================================================================
     (function() {
-        // Calculate the actual date range from all tasks
+        // Calculate the earliest task date to determine start
         let minDate = null;
-        let maxDate = null;
 
         gantt.eachTask(function(task) {
             if (task.start_date) {
                 const taskStart = new Date(task.start_date);
-                const taskEnd = task.end_date ? new Date(task.end_date) : gantt.calculateEndDate(taskStart, task.duration || 1, "day");
 
                 if (!minDate || taskStart < minDate) {
                     minDate = taskStart;
                 }
-                if (!maxDate || taskEnd > maxDate) {
-                    maxDate = taskEnd;
-                }
             }
         });
 
-        // If we found dates, set explicit range with padding
-        if (minDate && maxDate) {
-            // Add 2 months padding before tasks
+        // Set start date with padding
+        if (minDate) {
             const paddedStart = gantt.date.add(minDate, -2, "month");
-
-            // Ensure timeline extends to at least end of December 2025
-            const endOfDec2025 = new Date(2025, 11, 31); // Month is 0-indexed, so 11 = December
-            const paddedEnd = gantt.date.add(maxDate, 6, "month");
-
-            // Use whichever is later: calculated end or Dec 31, 2025
-            const finalEnd = paddedEnd > endOfDec2025 ? paddedEnd : endOfDec2025;
-
             gantt.config.start_date = paddedStart;
-            gantt.config.end_date = finalEnd;
-
-            console.log('=== Timeline Date Range Set ===');
-            console.log('Task date range:', minDate.toISOString().split('T')[0], 'to', maxDate.toISOString().split('T')[0]);
-            console.log('Display range:', paddedStart.toISOString().split('T')[0], 'to', finalEnd.toISOString().split('T')[0]);
-
-            // Re-render to apply the new date range
-            gantt.render();
+            console.log('=== Timeline Start Date Set ===');
+            console.log('First task date:', minDate.toISOString().split('T')[0]);
+            console.log('Display start:', paddedStart.toISOString().split('T')[0]);
         } else {
-            console.warn('No valid task dates found - using default timeline range');
-            // Set timeline to end of December 2025
+            // Default to 2 months before today
             const today = new Date();
-            const endOfDec2025 = new Date(2025, 11, 31);
             gantt.config.start_date = gantt.date.add(today, -2, "month");
-            gantt.config.end_date = endOfDec2025;
-            gantt.render();
+            console.log('No tasks found - using default start date');
         }
+
+        // ALWAYS set end date to December 31, 2025 (already set above, but ensure it stays)
+        const endOfDec2025 = new Date(2025, 11, 31, 23, 59, 59);
+        gantt.config.end_date = endOfDec2025;
+        console.log('=== Timeline End Date LOCKED to Dec 31, 2025 ===');
+        console.log('Display end:', endOfDec2025.toISOString().split('T')[0]);
+
+        // Re-render to apply the date range
+        gantt.render();
     })();
 
     // Debug: Log lightbox configuration
@@ -2570,10 +2563,6 @@
         radio.addEventListener('change', function() {
             console.log('View mode changed to:', this.value);
 
-            // Preserve the current date range
-            const currentStartDate = gantt.config.start_date;
-            const currentEndDate = gantt.config.end_date;
-
             switch(this.value) {
                 case 'day':
                     gantt.config.scale_unit = "day";
@@ -2601,11 +2590,14 @@
                     break;
             }
 
-            // Restore the date range to ensure timeline extends to Dec 2025
-            if (currentStartDate) gantt.config.start_date = currentStartDate;
-            if (currentEndDate) gantt.config.end_date = currentEndDate;
+            // CRITICAL: Always ensure timeline extends to December 31, 2025
+            // This must be set AFTER scale configuration and BEFORE render
+            const endOfDec2025 = new Date(2025, 11, 31, 23, 59, 59);
+            if (!gantt.config.end_date || gantt.config.end_date < endOfDec2025) {
+                gantt.config.end_date = endOfDec2025;
+            }
 
-            console.log('View mode applied. Date range:', gantt.config.start_date, 'to', gantt.config.end_date);
+            console.log('View mode applied. End date set to:', gantt.config.end_date.toISOString());
             gantt.render();
         });
     });
