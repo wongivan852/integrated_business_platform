@@ -86,14 +86,6 @@
                     <label class="btn btn-outline-secondary" for="viewYear">Year</label>
                 </div>
 
-                <!-- Timeline Markers Toggle -->
-                <div class="form-check form-switch d-inline-block ms-3">
-                    <input class="form-check-input" type="checkbox" id="toggleTimelineMarkers" checked>
-                    <label class="form-check-label" for="toggleTimelineMarkers" style="font-size: 12px;">
-                        Timeline Guides
-                    </label>
-                </div>
-
                 <!-- Force Full Year Button -->
                 <button class="btn btn-sm btn-warning ms-2" id="forceFullYear" title="Force timeline to show full year 2025">
                     <i class="fas fa-expand-arrows-alt"></i> Force Full Year
@@ -2082,200 +2074,8 @@
     console.log('=== Gantt initialized and data parsed ===');
     console.log('Total tasks loaded:', gantt.getTaskCount());
 
-    // GLOBAL STORAGE FOR TIMELINE MARKERS - PERSIST ACROSS ALL OPERATIONS
-    window.timelineMarkers = [];
-    window.originalGanttData = JSON.parse(JSON.stringify(ganttData)); // Store original data
-
-    // Create and store timeline markers globally
-    function createAndStoreTimelineMarkers() {
-        console.log('Creating persistent timeline markers for 2025...');
-        window.timelineMarkers = [];
-
-        // Create a marker for every week throughout 2025 (more aggressive)
-        const startDate = new Date(2025, 0, 1);
-        const endDate = new Date(2025, 11, 31);
-        let currentDate = new Date(startDate);
-        let weekNum = 1;
-
-        // Weekly markers for more coverage
-        while (currentDate <= endDate) {
-            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            const month = monthNames[currentDate.getMonth()];
-            const day = currentDate.getDate();
-            const placeholderId = 'timeline_w' + weekNum + '_' + month + day + '_2025';
-
-            const placeholderTask = {
-                id: placeholderId,
-                text: 'W' + weekNum,
-                start_date: new Date(currentDate),
-                end_date: new Date(currentDate.getTime() + 86400000),
-                duration: 1,
-                parent: 0,
-                progress: 0,
-                readonly: true,
-                $no_delete: true,
-                $no_drag: true,
-                type: gantt.config.types.milestone,
-                is_timeline_marker: true,
-                color: '#e0e0e0'
-            };
-
-            window.timelineMarkers.push(placeholderTask);
-            currentDate.setDate(currentDate.getDate() + 7); // Weekly instead of bi-weekly
-            weekNum++;
-        }
-
-        // Add start and end markers
-        window.timelineMarkers.push({
-            id: 'timeline_start_2025',
-            text: 'Start 2025',
-            start_date: new Date(2025, 0, 1),
-            end_date: new Date(2025, 0, 2),
-            duration: 1,
-            parent: 0,
-            progress: 0,
-            readonly: true,
-            $no_delete: true,
-            $no_drag: true,
-            type: gantt.config.types.milestone,
-            is_timeline_marker: true,
-            color: '#e0e0e0'
-        });
-
-        window.timelineMarkers.push({
-            id: 'timeline_end_2025',
-            text: 'End 2025',
-            start_date: new Date(2025, 11, 31),
-            end_date: new Date(2025, 11, 31, 23, 59, 59),
-            duration: 1,
-            parent: 0,
-            progress: 0,
-            readonly: true,
-            $no_delete: true,
-            $no_drag: true,
-            type: gantt.config.types.milestone,
-            is_timeline_marker: true,
-            color: '#e0e0e0'
-        });
-
-        console.log('Created', window.timelineMarkers.length, 'persistent timeline markers');
-        return window.timelineMarkers;
-    }
-
-    // Function to forcefully inject markers into Gantt - MAKE IT GLOBAL AND BULLETPROOF
-    window.injectTimelineMarkers = function(forceAll = false) {
-        let injected = 0;
-        if (!window.timelineMarkers || window.timelineMarkers.length === 0) {
-            console.warn('No timeline markers found, recreating...');
-            createAndStoreTimelineMarkers();
-        }
-
-        // If forceAll, remove and re-add all markers
-        if (forceAll) {
-            console.log('Force re-adding all timeline markers...');
-            window.timelineMarkers.forEach(function(marker) {
-                if (gantt.isTaskExists(marker.id)) {
-                    gantt.silent(function() {
-                        gantt.deleteTask(marker.id);
-                    });
-                }
-            });
-        }
-
-        window.timelineMarkers.forEach(function(marker) {
-            if (!gantt.isTaskExists(marker.id)) {
-                // Clone the marker to avoid reference issues
-                const markerClone = JSON.parse(JSON.stringify(marker));
-                // Ensure dates are Date objects
-                markerClone.start_date = new Date(markerClone.start_date);
-                markerClone.end_date = new Date(markerClone.end_date);
-
-                // Make absolutely sure it can't be deleted
-                markerClone.$no_delete = true;
-                markerClone.$no_drag = true;
-                markerClone.$no_resize = true;
-                markerClone.readonly = true;
-
-                gantt.addTask(markerClone);
-                injected++;
-            }
-        });
-
-        if (injected > 0) {
-            console.log('Injected', injected, 'timeline markers into Gantt');
-
-            // FORCE TIMELINE RECALCULATION
-            gantt.config.start_date = new Date(2025, 0, 1);
-            gantt.config.end_date = new Date(2025, 11, 31, 23, 59, 59);
-            gantt.config.fit_tasks = false;
-
-            // Force the timeline to show December
-            setTimeout(function() {
-                gantt.showDate(new Date(2025, 11, 31));
-            }, 100);
-        }
-        return injected;
-    };
-
-    // Create markers and store globally
-    createAndStoreTimelineMarkers();
-
-    // Override gantt.clearAll to preserve our markers
-    const originalClearAll = gantt.clearAll;
-    gantt.clearAll = function() {
-        console.log('gantt.clearAll intercepted - will re-inject markers after clear');
-        originalClearAll.apply(this, arguments);
-        // Immediately re-inject our timeline markers
-        window.injectTimelineMarkers();
-    };
-
-    // Override gantt.parse to ensure markers are always added
-    const originalParse = gantt.parse;
-    gantt.parse = function(data) {
-        console.log('gantt.parse intercepted - will inject markers after parse');
-        originalParse.apply(this, arguments);
-        // Inject markers after parsing
-        window.injectTimelineMarkers();
-    };
-
-    // Override gantt.deleteTask to prevent deletion of timeline markers
-    const originalDeleteTask = gantt.deleteTask;
-    gantt.deleteTask = function(id) {
-        // Check if this is a timeline marker
-        if (typeof id === 'string' && (id.startsWith('timeline_') || id.includes('timeline_'))) {
-            console.log('Prevented deletion of timeline marker:', id);
-            return false; // Don't delete timeline markers
-        }
-        return originalDeleteTask.apply(this, arguments);
-    };
-
-    // BULLETPROOF: Continuously ensure markers exist
-    window.markerMaintenanceInterval = setInterval(function() {
-        let currentTaskCount = 0;
-        gantt.eachTask(function(task) {
-            if (task.is_timeline_marker) {
-                currentTaskCount++;
-            }
-        });
-
-        // If we have fewer markers than expected, re-inject
-        if (currentTaskCount < window.timelineMarkers.length) {
-            console.log('Marker count dropped to', currentTaskCount, '- re-injecting...');
-            window.injectTimelineMarkers();
-
-            // Force timeline recalculation
-            const currentView = document.querySelector('input[name="viewMode"]:checked');
-            if (currentView) {
-                // Force config update
-                gantt.config.start_date = new Date(2025, 0, 1);
-                gantt.config.end_date = new Date(2025, 11, 31, 23, 59, 59);
-                gantt.render();
-            }
-        }
-    }, 2000); // Check every 2 seconds
-
-    // Inject markers initially
-    window.injectTimelineMarkers();
+    // REMOVED TIMELINE MARKERS APPROACH - Using config-only solution
+    console.log('Using configuration-only approach for timeline extension');
 
     // Force render after adding placeholders
     gantt.render();
@@ -3396,14 +3196,6 @@
             if (gantt.ext && gantt.ext.zoom) {
                 console.log('Using zoom extension to change view to:', this.value);
                 gantt.ext.zoom.setLevel(this.value);
-                // INJECT MARKERS AFTER ZOOM CHANGE
-                setTimeout(function() {
-                    if (typeof window.injectTimelineMarkers === 'function') {
-                        window.injectTimelineMarkers();
-                        gantt.render();
-                        console.log('Injected markers after zoom level change');
-                    }
-                }, 100);
                 return;
             }
 
@@ -3447,26 +3239,11 @@
             console.log('View mode applied. End date:', gantt.config.end_date.toISOString());
             console.log('fit_tasks:', gantt.config.fit_tasks);
 
-            // FORCEFULLY INJECT TIMELINE MARKERS FROM GLOBAL STORAGE
-            // Use the global injectTimelineMarkers function
-            console.log('Injecting timeline markers after view switch...');
-            if (typeof window.injectTimelineMarkers === 'function') {
-                window.injectTimelineMarkers();
-            } else {
-                console.error('injectTimelineMarkers function not found!');
-            }
+            // Force timeline to extend by setting config
+            console.log('Forcing timeline extension through config...');
 
-            // Force Gantt to render with all tasks
+            // Force Gantt to render with full year timeline
             gantt.render();
-
-            // ADDITIONAL SAFEGUARD: Re-add placeholders after render in case they were lost
-            setTimeout(function() {
-                if (typeof window.injectTimelineMarkers === 'function') {
-                    window.injectTimelineMarkers();
-                    gantt.render();
-                    console.log('Double-checked timeline placeholders after render');
-                }
-            }, 200);
 
             // WORKAROUND: Scroll to show that the end date exists in the timeline
             // This forces Gantt to render columns all the way to Dec 31
@@ -3492,29 +3269,26 @@
         monthButton.checked = true;
     }
 
-    // Handle Force Full Year button
+    // Handle Force Full Year button - SIMPLIFIED VERSION
     document.getElementById('forceFullYear').addEventListener('click', function(e) {
         e.preventDefault();
         console.log('=== FORCING FULL YEAR TIMELINE ===');
 
-        // 1. Force re-inject ALL markers
-        window.injectTimelineMarkers(true); // Force all
-
-        // 2. Set config aggressively
+        // Set config to force full year
         gantt.config.start_date = new Date(2025, 0, 1);
         gantt.config.end_date = new Date(2025, 11, 31, 23, 59, 59);
         gantt.config.fit_tasks = false;
         gantt.config.show_chart = true;
 
-        // 3. Force render
+        // Force render
         gantt.render();
 
-        // 4. Scroll to December to force column generation
+        // Scroll to December to force column generation
         setTimeout(function() {
             gantt.showDate(new Date(2025, 11, 31));
             console.log('Scrolled to December 31, 2025');
 
-            // 5. Then scroll back to first task
+            // Then scroll back to first task
             setTimeout(function() {
                 const firstTask = gantt.getTaskByIndex(0);
                 if (firstTask) {
