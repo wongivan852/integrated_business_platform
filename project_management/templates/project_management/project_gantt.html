@@ -626,7 +626,19 @@
         border: 2px solid #0d6efd !important;
     }
 
-    /* Removed marker hiding CSS - no longer needed */
+    /* Hide boundary tasks by ID */
+    .gantt_row[task_id="999999"],
+    .gantt_task_row[task_id="999999"],
+    .gantt_task_line[task_id="999999"],
+    .gantt_row[task_id="999998"],
+    .gantt_task_row[task_id="999998"],
+    .gantt_task_line[task_id="999998"] {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        max-height: 0 !important;
+        overflow: hidden !important;
+    }
 
     /* Hide tasks with the gantt_hidden_task class */
     .gantt_hidden_task,
@@ -792,13 +804,12 @@
     gantt.config.xml_date = "%Y-%m-%d";
     gantt.config.scale_unit = "month";
     gantt.config.date_scale = "%F %Y";
-    gantt.config.subscales = [
-        {unit: "week", step: 1, date: "Week #%W"}
-    ];
+    // Removed subscales to avoid showing week numbers (W01, W02, etc.)
+    gantt.config.subscales = [];
     gantt.config.min_column_width = 80;
     gantt.config.scale_height = 90;
     gantt.config.row_height = 50;  // Increased for bilingual text
-    gantt.config.grid_width = 605;  // Fixed grid width
+    gantt.config.grid_width = 515;  // Fixed grid width (adjusted after removing start_date column)
     gantt.config.autosize = false;  // Disable auto-sizing
     gantt.config.fit_tasks = false;  // Don't auto-fit timeline to tasks - use explicit date range
     gantt.config.readonly = {% if not can_edit %}true{% else %}false{% endif %};
@@ -1060,7 +1071,7 @@
             }
         },
         {name: "task_code", label: "Code", width: 90, align: "center", resize: true},
-        {name: "start_date", label: "Start", width: 90, align: "center", resize: true},
+        // Removed start_date column as per user request
         {name: "duration", label: "Days", width: 55, align: "center", resize: true},
         {
             name: "progress",
@@ -1758,6 +1769,12 @@
     gantt.templates.task_class = function(start, end, task) {
         let classes = [];
 
+        // Hide boundary tasks
+        if (task.is_boundary === true || task.id === 999998 || task.id === 999999) {
+            classes.push("gantt_hidden_task");
+            return classes.join(" ");
+        }
+
         // Critical path highlighting
         if (task.critical) {
             classes.push("critical_task");
@@ -1774,6 +1791,14 @@
         }
 
         return classes.join(" ");
+    };
+
+    // Hide boundary tasks from grid rows
+    gantt.templates.grid_row_class = function(start, end, task) {
+        if (task.is_boundary === true || task.id === 999998 || task.id === 999999) {
+            return "gantt_hidden_row";
+        }
+        return "";
     };
 
     // Prepare data for Gantt
@@ -2012,7 +2037,8 @@
     console.log('Before - scale_unit:', gantt.config.scale_unit);
     gantt.config.scale_unit = "month";
     gantt.config.date_scale = "%F %Y";
-    gantt.config.subscales = [{unit: "week", step: 1, date: "Week #%W"}];
+    // Removed week number subscale - keep it empty
+    gantt.config.subscales = [];
     gantt.config.min_column_width = 80;
     gantt.config.fit_tasks = false;  // CRITICAL: Don't auto-fit to tasks
 
@@ -3064,25 +3090,27 @@
                 case 'day':
                     gantt.config.scale_unit = "day";
                     gantt.config.date_scale = "%d %M";
-                    gantt.config.subscales = [{unit:"hour", step:6, date:"%H"}];
+                    // Removed subscales to avoid confusion
+                    gantt.config.subscales = [];
                     gantt.config.min_column_width = 40;
                     break;
                 case 'week':
                     gantt.config.scale_unit = "week";
-                    gantt.config.date_scale = "Week #%W";
-                    gantt.config.subscales = [{unit:"day", step:1, date:"%d %M"}];
+                    gantt.config.date_scale = "%d %M, %Y";  // Changed from "Week #%W" to actual dates
+                    gantt.config.subscales = [];
                     gantt.config.min_column_width = 60;
                     break;
                 case 'month':
                     gantt.config.scale_unit = "month";
                     gantt.config.date_scale = "%F %Y";
-                    gantt.config.subscales = [{unit:"week", step:1, date:"Week #%W"}];
+                    // Removed week number subscale
+                    gantt.config.subscales = [];
                     gantt.config.min_column_width = 80;
                     break;
                 case 'year':
                     gantt.config.scale_unit = "year";
                     gantt.config.date_scale = "%Y";
-                    gantt.config.subscales = [{unit:"month", step:1, date:"%M"}];
+                    gantt.config.subscales = [];
                     gantt.config.min_column_width = 100;
                     break;
             }
