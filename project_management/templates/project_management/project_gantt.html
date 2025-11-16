@@ -656,6 +656,24 @@
         min-height: 0 !important;
         pointer-events: none !important;
     }
+
+    /* Hide placeholder tasks by ID pattern */
+    [task_id^="_timeline_"],
+    [task_id^="_month_"],
+    .gantt_row[task_id^="_timeline_"],
+    .gantt_row[task_id^="_month_"],
+    .gantt_task_row[task_id^="_timeline_"],
+    .gantt_task_row[task_id^="_month_"],
+    .gantt_task_line[task_id^="_timeline_"],
+    .gantt_task_line[task_id^="_month_"],
+    .gantt_task_bar[task_id^="_timeline_"],
+    .gantt_task_bar[task_id^="_month_"] {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        overflow: hidden !important;
+        pointer-events: none !important;
+    }
 </style>
 
 <script>
@@ -967,29 +985,88 @@
         gantt.ext.zoom.setLevel = function(level) {
             console.log('Zoom level changing to:', level);
 
-            // Call original setLevel
-            originalSetLevel.call(this, level);
+            // CRITICAL: For day and week views, we need special handling
+            if (level === 'day' || level === 'week') {
+                console.log('Applying AGGRESSIVE timeline extension for', level, 'view');
 
-            // FORCE timeline extension after zoom change
-            setTimeout(function() {
+                // Step 1: Set config BEFORE calling original setLevel
                 gantt.config.start_date = new Date(2025, 0, 1);
                 gantt.config.end_date = new Date(2025, 11, 31, 23, 59, 59);
                 gantt.config.fit_tasks = false;
+                gantt.config.show_chart = true;
 
-                // Force re-render with fixed dates
-                gantt.render();
+                // Step 2: Call original setLevel
+                originalSetLevel.call(this, level);
 
-                // Scroll to end and back to force column generation
-                gantt.showDate(new Date(2025, 11, 31));
+                // Step 3: Force multiple renders with progressive scrolling
                 setTimeout(function() {
-                    const firstTask = gantt.getTaskByIndex(0);
-                    if (firstTask) {
-                        gantt.showTask(firstTask.id);
-                    }
-                }, 100);
+                    // Re-enforce config after zoom change
+                    gantt.config.start_date = new Date(2025, 0, 1);
+                    gantt.config.end_date = new Date(2025, 11, 31, 23, 59, 59);
+                    gantt.config.fit_tasks = false;
 
-                console.log('✓ Timeline forced to Jan 1 - Dec 31, 2025 after zoom change');
-            }, 100);
+                    // First render
+                    gantt.render();
+
+                    // Progressive scrolling to force all columns to generate
+                    const scrollPositions = [
+                        new Date(2025, 11, 31),  // December 31
+                        new Date(2025, 10, 15),  // November 15
+                        new Date(2025, 9, 15),   // October 15
+                        new Date(2025, 8, 15),   // September 15
+                        new Date(2025, 7, 15),   // August 15
+                        new Date(2025, 6, 15),   // July 15
+                        new Date(2025, 5, 15),   // June 15
+                        new Date(2025, 4, 15),   // May 15
+                        new Date(2025, 3, 15),   // April 15
+                        new Date(2025, 2, 15),   // March 15
+                        new Date(2025, 1, 15),   // February 15
+                        new Date(2025, 0, 1)     // January 1
+                    ];
+
+                    let scrollIndex = 0;
+                    const scrollInterval = setInterval(function() {
+                        if (scrollIndex < scrollPositions.length) {
+                            gantt.showDate(scrollPositions[scrollIndex]);
+                            console.log('Scrolling to:', scrollPositions[scrollIndex].toDateString());
+                            scrollIndex++;
+                        } else {
+                            clearInterval(scrollInterval);
+                            // Final scroll to first task or current date
+                            const firstTask = gantt.getTaskByIndex(0);
+                            if (firstTask && firstTask.start_date) {
+                                gantt.showTask(firstTask.id);
+                            } else {
+                                gantt.showDate(new Date());
+                            }
+                            console.log('✓ Aggressive timeline extension completed for', level, 'view');
+                        }
+                    }, 50);  // Fast scrolling through all months
+                }, 200);
+
+            } else {
+                // For month and year views, use standard approach
+                originalSetLevel.call(this, level);
+
+                setTimeout(function() {
+                    gantt.config.start_date = new Date(2025, 0, 1);
+                    gantt.config.end_date = new Date(2025, 11, 31, 23, 59, 59);
+                    gantt.config.fit_tasks = false;
+
+                    gantt.render();
+
+                    // Simple scroll for month/year views
+                    gantt.showDate(new Date(2025, 11, 31));
+                    setTimeout(function() {
+                        const firstTask = gantt.getTaskByIndex(0);
+                        if (firstTask) {
+                            gantt.showTask(firstTask.id);
+                        }
+                    }, 100);
+
+                    console.log('✓ Timeline forced to Jan 1 - Dec 31, 2025 for', level, 'view');
+                }, 100);
+            }
         };
 
         // CRITICAL: Attach multiple events to force dates
@@ -1976,7 +2053,39 @@
     // Create invisible placeholder tasks at boundaries to force timeline
     // These won't show in UI but will force timeline calculation
     function forceTimelineExtension() {
-        // Add tasks to gantt's internal data store without UI visibility
+        // For Day and Week views, we need monthly placeholders to ensure full timeline
+        const viewMode = document.querySelector('input[name="viewMode"]:checked')?.value || 'month';
+
+        if (viewMode === 'day' || viewMode === 'week') {
+            console.log('Creating monthly placeholders for', viewMode, 'view');
+
+            // Create a placeholder for each month to force timeline extension
+            for (let month = 0; month < 12; month++) {
+                const placeholderId = '_month_' + month + '_placeholder_';
+
+                if (!gantt.isTaskExists(placeholderId)) {
+                    const placeholder = {
+                        id: placeholderId,
+                        text: '',
+                        start_date: new Date(2025, month, 15),  // Middle of each month
+                        end_date: new Date(2025, month, 16),
+                        duration: 1,
+                        parent: 0,
+                        $ignore: true,
+                        $virtual: true,
+                        $no_autoschedule: true,
+                        type: 'task',
+                        hide: true
+                    };
+
+                    gantt.silent(function() {
+                        gantt.addTask(placeholder, 0);
+                    });
+                }
+            }
+        }
+
+        // Always add boundary placeholders
         const startPlaceholder = {
             id: '_timeline_start_',
             text: '',
@@ -1984,10 +2093,11 @@
             end_date: new Date(2025, 0, 2),
             duration: 1,
             parent: 0,
-            $ignore: true,  // Gantt internal flag to skip processing
+            $ignore: true,
             $rendered_type: 'project',
             $no_autoschedule: true,
-            $virtual: true
+            $virtual: true,
+            hide: true
         };
 
         const endPlaceholder = {
@@ -2000,7 +2110,8 @@
             $ignore: true,
             $rendered_type: 'project',
             $no_autoschedule: true,
-            $virtual: true
+            $virtual: true,
+            hide: true
         };
 
         // Add directly to gantt's data store
@@ -2065,6 +2176,23 @@
         gantt.config.end_date = new Date(2025, 11, 31, 23, 59, 59);
         gantt.config.fit_tasks = false;
     });
+
+    // Hide placeholder tasks in UI
+    gantt.templates.task_class = function(start, end, task) {
+        if (task.id && (task.id.toString().startsWith('_timeline_') ||
+                       task.id.toString().startsWith('_month_'))) {
+            return "gantt_hidden_task";
+        }
+        return "";
+    };
+
+    gantt.templates.grid_row_class = function(start, end, task) {
+        if (task.id && (task.id.toString().startsWith('_timeline_') ||
+                       task.id.toString().startsWith('_month_'))) {
+            return "gantt_hidden_row";
+        }
+        return "";
+    };
 
     // Removed boundary task code - no longer using boundary tasks
 
@@ -3117,33 +3245,52 @@
             if (gantt.ext && gantt.ext.zoom) {
                 console.log('Using zoom extension to change view to:', this.value);
 
-                // Use the zoom extension which now has forced timeline extension
+                // Use the zoom extension which now has aggressive timeline extension for day/week
                 gantt.ext.zoom.setLevel(this.value);
 
-                // Double ensure timeline extension after a short delay
-                setTimeout(function() {
-                    console.log('Double-checking timeline extension after view change...');
-                    gantt.config.start_date = new Date(2025, 0, 1);
-                    gantt.config.end_date = new Date(2025, 11, 31, 23, 59, 59);
-                    gantt.config.fit_tasks = false;
+                // For Day and Week views, ensure aggressive timeline extension
+                if (this.value === 'day' || this.value === 'week') {
+                    console.log('Applying additional timeline enforcement for', this.value, 'view');
 
-                    // Force a scroll to December to ensure columns are generated
-                    gantt.showDate(new Date(2025, 11, 31));
-                    console.log('Scrolled to Dec 31, 2025 to ensure timeline is fully rendered');
-
-                    // Then scroll back to first task or current date
+                    // Additional enforcement after zoom level change completes
                     setTimeout(function() {
-                        const today = new Date();
-                        if (today.getFullYear() === 2025) {
-                            gantt.showDate(today);
-                        } else {
-                            const firstTask = gantt.getTaskByIndex(0);
-                            if (firstTask) {
-                                gantt.showTask(firstTask.id);
-                            }
+                        // Force config settings
+                        gantt.config.start_date = new Date(2025, 0, 1);
+                        gantt.config.end_date = new Date(2025, 11, 31, 23, 59, 59);
+                        gantt.config.fit_tasks = false;
+
+                        // Call forceTimelineExtension to add monthly placeholders
+                        if (typeof forceTimelineExtension === 'function') {
+                            forceTimelineExtension();
                         }
-                    }, 200);
-                }, 300);
+
+                        // Re-render with forced dates
+                        gantt.render();
+
+                        // Aggressive scrolling pattern for day/week views
+                        const dates = [
+                            new Date(2025, 11, 31),  // End of year
+                            new Date(2025, 6, 1),    // Middle of year
+                            new Date(2025, 0, 1)     // Start of year
+                        ];
+
+                        let dateIndex = 0;
+                        const scrollTimer = setInterval(function() {
+                            if (dateIndex < dates.length) {
+                                gantt.showDate(dates[dateIndex]);
+                                console.log('Force scroll to:', dates[dateIndex].toDateString());
+                                dateIndex++;
+                            } else {
+                                clearInterval(scrollTimer);
+                                // Return to first task
+                                const firstTask = gantt.getTaskByIndex(0);
+                                if (firstTask && firstTask.start_date) {
+                                    gantt.showTask(firstTask.id);
+                                }
+                            }
+                        }, 200);
+                    }, 800);  // Wait for zoom change to complete
+                }
 
                 return;
             }
