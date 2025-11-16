@@ -949,30 +949,15 @@
         console.log('✓ gantt.getScale overridden to force Jan 1 - Dec 31, 2025');
     }
 
-    // FINAL SOLUTION: Use gantt.ext.zoom to define custom zoom levels with fixed dates
+    // CRITICAL: Only use zoom extension for Month/Year (Day/Week handled manually)
+    // Day/Week zoom levels don't respect date range settings, so we handle them manually
     if (gantt.ext && gantt.ext.zoom) {
-        console.log('✓ gantt.ext.zoom is available - configuring zoom levels with fixed date range');
+        console.log('✓ gantt.ext.zoom is available - configuring Month/Year zoom levels only');
 
         gantt.ext.zoom.init({
             levels: [
-                {
-                    name: "day",
-                    scale_height: 90,
-                    min_column_width: 40,
-                    scales: [
-                        {unit: "day", step: 1, format: "%d %M"},
-                        {unit: "hour", step: 6, format: "%H"}
-                    ]
-                },
-                {
-                    name: "week",
-                    scale_height: 90,
-                    min_column_width: 60,
-                    scales: [
-                        {unit: "week", step: 1, format: "Week #%W"},
-                        {unit: "day", step: 1, format: "%d %M"}
-                    ]
-                },
+                // Day and Week levels REMOVED - handled manually in view switcher
+                // This prevents zoom extension from interfering with manual date range
                 {
                     name: "month",
                     scale_height: 90,
