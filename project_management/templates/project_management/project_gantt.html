@@ -657,22 +657,27 @@
         pointer-events: none !important;
     }
 
-    /* Hide placeholder tasks by ID pattern */
-    [task_id^="_timeline_"],
-    [task_id^="_month_"],
-    .gantt_row[task_id^="_timeline_"],
-    .gantt_row[task_id^="_month_"],
-    .gantt_task_row[task_id^="_timeline_"],
-    .gantt_task_row[task_id^="_month_"],
-    .gantt_task_line[task_id^="_timeline_"],
-    .gantt_task_line[task_id^="_month_"],
-    .gantt_task_bar[task_id^="_timeline_"],
-    .gantt_task_bar[task_id^="_month_"] {
+    /* Hide timeline forcing tasks completely */
+    .timeline_hidden_task,
+    .gantt_task_line.timeline_hidden_task,
+    .gantt_row.timeline_hidden_task,
+    [task_id^="_tl_"],
+    .gantt_row[task_id^="_tl_"],
+    .gantt_task_row[task_id^="_tl_"],
+    .gantt_task_line[task_id^="_tl_"],
+    .gantt_task_bar[task_id^="_tl_"],
+    .gantt_grid_data .gantt_row[task_id^="_tl_"] {
         display: none !important;
         visibility: hidden !important;
         height: 0 !important;
+        max-height: 0 !important;
+        min-height: 0 !important;
+        line-height: 0 !important;
         overflow: hidden !important;
+        opacity: 0 !important;
         pointer-events: none !important;
+        position: absolute !important;
+        left: -9999px !important;
     }
 </style>
 
@@ -1197,7 +1202,10 @@
             width: 280,
             resize: true,
             template: function(task) {
-                // No filtering needed - all tasks should be displayed
+                // Filter out timeline forcing tasks
+                if (task.id && task.id.toString().startsWith('_tl_')) {
+                    return '';
+                }
                 // Show both English and Chinese if available
                 console.log('Rendering task:', task.id, 'title_cn:', task.title_cn); // Debug
                 if (task.title_cn && task.title_cn.trim() !== '') {
@@ -2089,85 +2097,134 @@
     console.log('=== Gantt initialized and data parsed ===');
     console.log('Total tasks loaded:', gantt.getTaskCount());
 
-    // AGGRESSIVE TIMELINE EXTENSION SOLUTION
-    console.log('=== Implementing aggressive timeline extension to Dec 31, 2025 ===');
+    // ALTERNATIVE SOLUTION: Create real but hidden tasks to force timeline
+    console.log('=== Alternative timeline extension using real tasks ===');
 
-    // Create invisible placeholder tasks at boundaries to force timeline
-    // These won't show in UI but will force timeline calculation
-    // Make it globally available
+    // Create actual tasks throughout the year to force timeline extension
     window.forceTimelineExtension = function() {
-        // For Day and Week views, we need monthly placeholders to ensure full timeline
         const viewMode = document.querySelector('input[name="viewMode"]:checked')?.value || 'month';
 
+        console.log('Creating timeline forcing tasks for', viewMode, 'view');
+
+        // Remove old placeholders first
+        const tasksToRemove = [];
+        gantt.eachTask(function(task) {
+            if (task.id && (task.id.toString().startsWith('_tl_') ||
+                           task.id.toString().startsWith('_timeline_') ||
+                           task.id.toString().startsWith('_month_'))) {
+                tasksToRemove.push(task.id);
+            }
+        });
+
+        tasksToRemove.forEach(function(id) {
+            if (gantt.isTaskExists(id)) {
+                gantt.silent(function() {
+                    gantt.deleteTask(id);
+                });
+            }
+        });
+
         if (viewMode === 'day' || viewMode === 'week') {
-            console.log('Creating monthly placeholders for', viewMode, 'view');
+            // For Day/Week views, create weekly tasks throughout the year
+            console.log('Creating weekly timeline tasks for full year 2025...');
 
-            // Create a placeholder for each month to force timeline extension
-            for (let month = 0; month < 12; month++) {
-                const placeholderId = '_month_' + month + '_placeholder_';
+            // Create a task for every 2 weeks throughout 2025
+            const startDate = new Date(2025, 0, 1);
+            const endDate = new Date(2025, 11, 31);
 
-                if (!gantt.isTaskExists(placeholderId)) {
-                    const placeholder = {
-                        id: placeholderId,
+            let currentDate = new Date(startDate);
+            let taskIndex = 0;
+
+            while (currentDate <= endDate) {
+                const taskId = '_tl_w_' + taskIndex;
+                const taskStart = new Date(currentDate);
+                const taskEnd = new Date(currentDate);
+                taskEnd.setDate(taskEnd.getDate() + 1);
+
+                if (!gantt.isTaskExists(taskId)) {
+                    const task = {
+                        id: taskId,
                         text: '',
-                        start_date: new Date(2025, month, 15),  // Middle of each month
-                        end_date: new Date(2025, month, 16),
+                        start_date: taskStart,
+                        end_date: taskEnd,
                         duration: 1,
+                        progress: 0,
                         parent: 0,
-                        $ignore: true,
-                        $virtual: true,
-                        $no_autoschedule: true,
                         type: 'task',
-                        hide: true
+                        readonly: true,
+                        editable: false,
+                        open: false,
+                        // Set CSS class for hiding
+                        $css: 'timeline_hidden_task'
                     };
 
                     gantt.silent(function() {
-                        gantt.addTask(placeholder, 0);
+                        try {
+                            gantt.addTask(task, 0);
+                        } catch(e) {
+                            console.log('Could not add task:', e);
+                        }
+                    });
+                }
+
+                // Move to next 2 weeks
+                currentDate.setDate(currentDate.getDate() + 14);
+                taskIndex++;
+            }
+
+            console.log('Created', taskIndex, 'timeline forcing tasks');
+        } else {
+            // For Month/Year views, just create monthly tasks
+            for (let month = 0; month < 12; month++) {
+                const taskId = '_tl_m_' + month;
+
+                if (!gantt.isTaskExists(taskId)) {
+                    const task = {
+                        id: taskId,
+                        text: '',
+                        start_date: new Date(2025, month, 15),
+                        end_date: new Date(2025, month, 16),
+                        duration: 1,
+                        progress: 0,
+                        parent: 0,
+                        type: 'task',
+                        readonly: true,
+                        editable: false,
+                        $css: 'timeline_hidden_task'
+                    };
+
+                    gantt.silent(function() {
+                        gantt.addTask(task, 0);
                     });
                 }
             }
         }
 
-        // Always add boundary placeholders
-        const startPlaceholder = {
-            id: '_timeline_start_',
-            text: '',
-            start_date: new Date(2025, 0, 1),
-            end_date: new Date(2025, 0, 2),
-            duration: 1,
-            parent: 0,
-            $ignore: true,
-            $rendered_type: 'project',
-            $no_autoschedule: true,
-            $virtual: true,
-            hide: true
-        };
+        // Always add boundary tasks
+        const boundaryTasks = [
+            { id: '_tl_start_', date: new Date(2025, 0, 1) },
+            { id: '_tl_end_', date: new Date(2025, 11, 31) }
+        ];
 
-        const endPlaceholder = {
-            id: '_timeline_end_',
-            text: '',
-            start_date: new Date(2025, 11, 30),
-            end_date: new Date(2025, 11, 31, 23, 59, 59),
-            duration: 2,
-            parent: 0,
-            $ignore: true,
-            $rendered_type: 'project',
-            $no_autoschedule: true,
-            $virtual: true,
-            hide: true
-        };
-
-        // Add directly to gantt's data store
-        if (!gantt.isTaskExists('_timeline_start_')) {
-            gantt.silent(function() {
-                gantt.addTask(startPlaceholder, 0);
-            });
-        }
-        if (!gantt.isTaskExists('_timeline_end_')) {
-            gantt.silent(function() {
-                gantt.addTask(endPlaceholder, 0);
-            });
-        }
+        boundaryTasks.forEach(function(boundary) {
+            if (!gantt.isTaskExists(boundary.id)) {
+                gantt.silent(function() {
+                    gantt.addTask({
+                        id: boundary.id,
+                        text: '',
+                        start_date: boundary.date,
+                        end_date: new Date(boundary.date.getTime() + 86400000),
+                        duration: 1,
+                        progress: 0,
+                        parent: 0,
+                        type: 'task',
+                        readonly: true,
+                        editable: false,
+                        $css: 'timeline_hidden_task'
+                    }, 0);
+                });
+            }
+        });
     }
 
     // Override multiple internal methods to force timeline
@@ -2207,11 +2264,18 @@
         return new Date(2025, 0, 1);
     };
 
-    // Force the timeline
+    // Force the timeline with real tasks
     forceTimelineExtension();
 
     // Initial render
     gantt.render();
+
+    // Double-check timeline extension after render
+    setTimeout(function() {
+        console.log('Double-checking timeline extension...');
+        forceTimelineExtension();
+        gantt.render();
+    }, 500);
 
     // Attach event to maintain timeline after any operation
     gantt.attachEvent("onGanttRender", function() {
@@ -2220,21 +2284,38 @@
         gantt.config.fit_tasks = false;
     });
 
-    // Hide placeholder tasks in UI
+    // Hide timeline forcing tasks in UI
     gantt.templates.task_class = function(start, end, task) {
-        if (task.id && (task.id.toString().startsWith('_timeline_') ||
-                       task.id.toString().startsWith('_month_'))) {
-            return "gantt_hidden_task";
+        if (task.id && task.id.toString().startsWith('_tl_')) {
+            return "timeline_hidden_task";
+        }
+        if (task.$css) {
+            return task.$css;
         }
         return "";
     };
 
     gantt.templates.grid_row_class = function(start, end, task) {
-        if (task.id && (task.id.toString().startsWith('_timeline_') ||
-                       task.id.toString().startsWith('_month_'))) {
-            return "gantt_hidden_row";
+        if (task.id && task.id.toString().startsWith('_tl_')) {
+            return "timeline_hidden_task";
         }
         return "";
+    };
+
+    gantt.templates.task_text = function(start, end, task) {
+        if (task.id && task.id.toString().startsWith('_tl_')) {
+            return "";
+        }
+        return task.text;
+    };
+
+    // Hide from grid
+    const originalGridTemplate = gantt.templates.grid_folder || function(task) { return ""; };
+    gantt.templates.grid_folder = function(task) {
+        if (task.id && task.id.toString().startsWith('_tl_')) {
+            return "";
+        }
+        return originalGridTemplate(task);
     };
 
     // Removed boundary task code - no longer using boundary tasks
