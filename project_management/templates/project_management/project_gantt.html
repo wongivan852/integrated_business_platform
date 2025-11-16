@@ -1007,33 +1007,51 @@
             ]
         });
 
-        // Override zoom's setLevel to force date range after any zoom change
+        // Override zoom's setLevel - but only for Month and Year views
+        // Day and Week views will bypass zoom entirely
         const originalSetLevel = gantt.ext.zoom.setLevel;
         gantt.ext.zoom.setLevel = function(level) {
             console.log('Zoom level changing to:', level);
 
-            // Always force config first
-            gantt.config.start_date = new Date(2025, 0, 1);
-            gantt.config.end_date = new Date(2026, 0, 7, 23, 59, 59);
-            gantt.config.fit_tasks = false;
-            gantt.config.show_chart = true;
+            // For Month and Year, use normal zoom with forced dates
+            if (level === 'month' || level === 'year') {
+                // Force config
+                gantt.config.start_date = new Date(2025, 0, 1);
+                gantt.config.end_date = new Date(2026, 0, 7, 23, 59, 59);
+                gantt.config.fit_tasks = false;
+                gantt.config.show_chart = true;
 
-            // CRITICAL: For day and week views, we need special handling with data refresh
-            if (level === 'day' || level === 'week') {
-                console.log('Applying AGGRESSIVE timeline extension for', level, 'view');
+                // Call original
+                originalSetLevel.call(this, level);
 
-                // Step 1: Modify the zoom level configuration before applying it
-                const levelConfig = gantt.ext.zoom.getLevels().find(l => l.name === level);
-                if (levelConfig) {
-                    levelConfig.start_date = new Date(2025, 0, 1);
-                    levelConfig.end_date = new Date(2026, 0, 7, 23, 59, 59);
+            } else if (level === 'day' || level === 'week') {
+                // Day and Week views should not use zoom extension
+                console.log('WARNING: Zoom extension called for', level, '- this should be bypassed');
+
+                // If somehow we get here, configure manually
+                gantt.clearAll();
+
+                gantt.config.start_date = new Date(2025, 0, 1);
+                gantt.config.end_date = new Date(2026, 0, 15, 23, 59, 59);
+                gantt.config.fit_tasks = false;
+
+                if (level === 'day') {
+                    gantt.config.scale_unit = "day";
+                    gantt.config.date_scale = "%d %M %Y";
+                    gantt.config.subscales = [{unit: "hour", step: 6, date: "%H:00"}];
+                    gantt.config.min_column_width = 50;
+                } else {
+                    gantt.config.scale_unit = "week";
+                    gantt.config.date_scale = "Week #%W of %Y";
+                    gantt.config.subscales = [{unit: "day", step: 1, date: "%d %M"}];
+                    gantt.config.min_column_width = 70;
                 }
 
-                // Step 2: Store current task
-                const currentTask = gantt.getSelectedId();
-
-                // Step 3: Call original setLevel with modified config
-                originalSetLevel.call(this, level);
+                gantt.parse(ganttData);
+                if (typeof forceTimelineExtension === 'function') {
+                    forceTimelineExtension();
+                }
+                gantt.render();
 
                 // Step 5: CRITICAL - Clear all and re-parse to force timeline extension
                 setTimeout(function() {
@@ -3475,11 +3493,90 @@
         radio.addEventListener('change', function() {
             console.log('View mode changed to:', this.value);
 
-            // If zoom extension is configured, use it
-            if (gantt.ext && gantt.ext.zoom) {
-                console.log('Using zoom extension to change view to:', this.value);
+            // BYPASS zoom extension for Day and Week views
+            if ((this.value === 'day' || this.value === 'week') && gantt.ext && gantt.ext.zoom) {
+                console.log('BYPASSING zoom extension for', this.value, 'view - using custom implementation');
 
-                // Use the zoom extension which now has aggressive timeline extension for day/week
+                // Don't use zoom extension - configure manually
+                const viewMode = this.value;
+
+                // Clear and reload everything
+                gantt.clearAll();
+
+                // Force configuration
+                gantt.config.start_date = new Date(2025, 0, 1);
+                gantt.config.end_date = new Date(2026, 0, 15, 23, 59, 59); // Extend even further
+                gantt.config.fit_tasks = false;
+                gantt.config.show_chart = true;
+
+                // Configure scales manually
+                if (viewMode === 'day') {
+                    gantt.config.scale_unit = "day";
+                    gantt.config.date_scale = "%d %M";
+                    gantt.config.subscales = [
+                        {unit: "hour", step: 6, date: "%H:00"}
+                    ];
+                    gantt.config.min_column_width = 50;
+                    gantt.config.scale_height = 90;
+                } else if (viewMode === 'week') {
+                    gantt.config.scale_unit = "week";
+                    gantt.config.date_scale = "Week #%W";
+                    gantt.config.subscales = [
+                        {unit: "day", step: 1, date: "%d %M"}
+                    ];
+                    gantt.config.min_column_width = 70;
+                    gantt.config.scale_height = 90;
+                }
+
+                // Re-parse data
+                gantt.parse(ganttData);
+
+                // Force timeline extension with tasks
+                if (typeof forceTimelineExtension === 'function') {
+                    forceTimelineExtension();
+                }
+
+                // Force render
+                gantt.render();
+
+                // CRITICAL: Force scrolling to generate all columns
+                setTimeout(function() {
+                    console.log('Forcing column generation by scrolling...');
+
+                    // Scroll to end
+                    gantt.showDate(new Date(2026, 0, 7));
+
+                    // Scroll through key dates to force column generation
+                    setTimeout(function() {
+                        gantt.showDate(new Date(2025, 11, 31)); // Dec 31
+                    }, 100);
+
+                    setTimeout(function() {
+                        gantt.showDate(new Date(2025, 11, 15)); // Dec 15
+                    }, 200);
+
+                    setTimeout(function() {
+                        gantt.showDate(new Date(2025, 6, 1)); // July 1
+                    }, 300);
+
+                    setTimeout(function() {
+                        // Return to first task or current date
+                        const firstTask = gantt.getTaskByIndex(0);
+                        if (firstTask && firstTask.start_date) {
+                            gantt.showTask(firstTask.id);
+                        } else {
+                            gantt.showDate(new Date());
+                        }
+                        console.log('Column generation complete');
+                    }, 400);
+                }, 500);
+
+                console.log('Custom scale configuration applied for', viewMode);
+                return; // Don't continue to zoom extension
+
+            } else if (gantt.ext && gantt.ext.zoom) {
+                // Use zoom extension for Month and Year views only
+                console.log('Using zoom extension for', this.value, 'view');
                 gantt.ext.zoom.setLevel(this.value);
 
                 // For Day and Week views, ensure aggressive timeline extension with DATA REFRESH
