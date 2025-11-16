@@ -3128,6 +3128,10 @@
 
             // Manual configuration for Day/Week (or fallback if zoom not available)
             console.log('Using manual configuration for:', this.value);
+
+            // Set scale_height for all views
+            gantt.config.scale_height = 90;
+
             switch(this.value) {
                 case 'day':
                     gantt.config.scale_unit = "day";
