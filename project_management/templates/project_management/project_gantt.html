@@ -812,15 +812,16 @@
         return true; // Always return true to allow task to be loaded
     });
 
-    // Initialize Gantt Chart
+    // Initialize Gantt Chart - using modern scales API
     gantt.config.date_format = "%Y-%m-%d";
     gantt.config.xml_date = "%Y-%m-%d";
-    gantt.config.scale_unit = "month";
-    gantt.config.date_scale = "%F %Y";
-    gantt.config.subscales = [
-        {unit: "week", step: 1, date: "Week #%W"}
+
+    // Default to Month view using modern scales API
+    gantt.config.scales = [
+        {unit: "month", step: 1, format: "%F %Y"},
+        {unit: "week", step: 1, format: "Week #%W"}
     ];
-    gantt.config.min_column_width = 80;
+    gantt.config.min_column_width = 120;
     gantt.config.scale_height = 90;
     gantt.config.row_height = 50;  // Increased for bilingual text
     gantt.config.grid_width = 605;  // Fixed grid width
@@ -1038,19 +1039,18 @@
                 gantt.config.fit_tasks = false;
 
                 if (level === 'day') {
-                    // Day view: Individual days only, no hours
-                    gantt.config.scale_unit = "day";
-                    gantt.config.date_scale = "%d %M %Y";
-                    gantt.config.subscales = [];  // No subscales for cleaner day view
+                    // Day view: Individual days only, no hours - using modern scales API
+                    gantt.config.scales = [
+                        {unit: "day", step: 1, format: "%d %M %Y"}
+                    ];
                     gantt.config.min_column_width = 80;
-                    gantt.config.scale_height = 50;
                 } else {
-                    // Week view: Weeks with days as subscale
-                    gantt.config.scale_unit = "week";
-                    gantt.config.date_scale = "Week #%W of %Y";
-                    gantt.config.subscales = [{unit: "day", step: 1, date: "%d %M"}];
+                    // Week view: Weeks with days as subscale - using modern scales API
+                    gantt.config.scales = [
+                        {unit: "week", step: 1, format: "Week #%W of %Y"},
+                        {unit: "day", step: 1, format: "%d %M"}
+                    ];
                     gantt.config.min_column_width = 30;
-                    gantt.config.scale_height = 90;
                 }
 
                 gantt.parse(ganttData);
@@ -2524,20 +2524,23 @@
 
     // Removed boundary task code - no longer using boundary tasks
 
-    // Ensure month view is applied after initialization
-    console.log('=== Setting Month View ===');
-    console.log('Before - scale_unit:', gantt.config.scale_unit);
-    gantt.config.scale_unit = "month";
-    gantt.config.date_scale = "%F %Y";
-    gantt.config.subscales = [{unit: "week", step: 1, date: "Week #%W"}];
-    gantt.config.min_column_width = 80;
+    // Ensure month view is applied after initialization using modern scales API
+    console.log('=== Setting Default Month View ===');
+    console.log('Before - scales:', gantt.config.scales);
+
+    // Already set in initialization, but ensure it's applied
+    gantt.config.scales = [
+        {unit: "month", step: 1, format: "%F %Y"},
+        {unit: "week", step: 1, format: "Week #%W"}
+    ];
+    gantt.config.min_column_width = 120;
     gantt.config.fit_tasks = false;  // CRITICAL: Don't auto-fit to tasks
 
     // CRITICAL: Force end date to December 31, 2025 on initial load
     const endOfDec2025 = new Date(2026, 0, 7, 23, 59, 59);
     gantt.config.end_date = endOfDec2025;
 
-    console.log('After - scale_unit:', gantt.config.scale_unit);
+    console.log('After - scales:', gantt.config.scales);
     console.log('After - end_date:', gantt.config.end_date.toISOString());
     console.log('After - fit_tasks:', gantt.config.fit_tasks);
 
@@ -3671,14 +3674,14 @@
         return true;
     });
 
-    // View mode change - simplified and fixed logic
+    // View mode change - using modern gantt.config.scales API
     document.querySelectorAll('input[name="viewMode"]').forEach(radio => {
         radio.addEventListener('change', function() {
             console.log('View mode changed to:', this.value);
             const viewMode = this.value;
 
-            // Clear and reload everything
-            gantt.clearAll();
+            // Store current scroll position
+            const scrollState = gantt.getScrollState();
 
             // Set common configuration for all views
             gantt.config.start_date = new Date(2025, 10, 1);
@@ -3686,50 +3689,46 @@
             gantt.config.fit_tasks = false;
             gantt.config.show_chart = true;
 
-            // Configure each view with distinct settings
+            // Configure each view using the modern scales API
             switch(viewMode) {
                 case 'day':
                     console.log('Configuring Day view');
-                    gantt.config.scale_unit = "day";
-                    gantt.config.date_scale = "%d %M %Y";  // "15 Nov 2025"
-                    gantt.config.subscales = [];  // No subscales for cleaner view
+                    gantt.config.scales = [
+                        {unit: "day", step: 1, format: "%d %M %Y"}
+                    ];
                     gantt.config.min_column_width = 80;
-                    gantt.config.scale_height = 50;
                     break;
 
                 case 'week':
                     console.log('Configuring Week view');
-                    gantt.config.scale_unit = "week";
-                    gantt.config.date_scale = "Week #%W of %Y";  // "Week #45 of 2025"
-                    gantt.config.subscales = [
-                        {unit: "day", step: 1, date: "%d %M"}  // Days under weeks
+                    gantt.config.scales = [
+                        {unit: "week", step: 1, format: "Week #%W of %Y"},
+                        {unit: "day", step: 1, format: "%d %M"}
                     ];
                     gantt.config.min_column_width = 30;
-                    gantt.config.scale_height = 90;
                     break;
 
                 case 'month':
                     console.log('Configuring Month view');
-                    gantt.config.scale_unit = "month";
-                    gantt.config.date_scale = "%F %Y";  // "November 2025"
-                    gantt.config.subscales = [
-                        {unit: "week", step: 1, date: "W%W"}  // Week numbers under months
+                    gantt.config.scales = [
+                        {unit: "month", step: 1, format: "%F %Y"},
+                        {unit: "week", step: 1, format: "W%W"}
                     ];
                     gantt.config.min_column_width = 120;
-                    gantt.config.scale_height = 90;
                     break;
 
                 case 'year':
                     console.log('Configuring Year view');
-                    gantt.config.scale_unit = "year";
-                    gantt.config.date_scale = "%Y";  // "2025"
-                    gantt.config.subscales = [
-                        {unit: "month", step: 1, date: "%M"}  // Month names under year
+                    gantt.config.scales = [
+                        {unit: "year", step: 1, format: "%Y"},
+                        {unit: "month", step: 1, format: "%M"}
                     ];
                     gantt.config.min_column_width = 100;
-                    gantt.config.scale_height = 90;
                     break;
             }
+
+            // Clear and reload everything
+            gantt.clearAll();
 
             // Re-parse data
             gantt.parse(ganttData);
@@ -3739,7 +3738,7 @@
                 forceTimelineExtension();
             }
 
-            // Force render
+            // Force render with new scales
             gantt.render();
 
             // Scroll to ensure columns are generated
@@ -3763,9 +3762,8 @@
 
             console.log('View mode applied. Start date:', gantt.config.start_date.toISOString());
             console.log('View mode applied. End date:', gantt.config.end_date.toISOString());
-            console.log('Scale unit:', gantt.config.scale_unit);
-            console.log('Date scale format:', gantt.config.date_scale);
-            console.log('Subscales:', gantt.config.subscales);
+            console.log('Scales configuration:', gantt.config.scales);
+            console.log('Min column width:', gantt.config.min_column_width);
         });
     });
 
