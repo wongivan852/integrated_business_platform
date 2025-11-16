@@ -3111,9 +3111,15 @@
     });
 
     // View mode change - BYPASS zoom extension for Day/Week (it ignores date configs)
-    document.querySelectorAll('input[name="viewMode"]').forEach(radio => {
+    const viewModeInputs = document.querySelectorAll('input[name="viewMode"]');
+    console.log('Found', viewModeInputs.length, 'viewMode inputs. Attaching event listeners...');
+
+    viewModeInputs.forEach((radio, index) => {
+        console.log(`Attaching listener to radio ${index}:`, radio.id, 'value:', radio.value);
         radio.addEventListener('change', function() {
+            console.log('========================================');
             console.log('View mode changed to:', this.value);
+            console.log('========================================');
 
             // CRITICAL: For Day/Week views, zoom extension ignores start_date/end_date
             // Must use manual configuration instead
