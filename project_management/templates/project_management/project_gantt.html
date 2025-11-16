@@ -1810,15 +1810,20 @@
         try {
             const task = gantt.getTask(task_id);
 
-            // Standardize or generate task code
+            // Standardize or generate unique task code
             if (!task.task_code || task.task_code === '') {
-                task.task_code = generateNextTaskCode();
+                task.task_code = generateNextTaskCode(task_id);
                 console.log('Generated new task code:', task.task_code);
             } else if (!task.task_code.match(/^T\d{4}$/)) {
                 // Standardize existing non-standard code
                 const oldCode = task.task_code;
-                task.task_code = standardizeTaskCode(task.task_code);
+                task.task_code = standardizeTaskCode(task.task_code, task_id);
                 console.log('Standardized task code from', oldCode, 'to', task.task_code);
+            } else if (isTaskCodeUsed(task.task_code, task_id)) {
+                // Code is duplicate, generate new one
+                const oldCode = task.task_code;
+                task.task_code = generateNextTaskCode(task_id);
+                console.log('Task had duplicate code', oldCode, '- assigned new code:', task.task_code);
             }
 
             console.log('Task data:', {
@@ -2154,24 +2159,55 @@
     // Parse the data
     gantt.parse(ganttData);
 
-    // Standardize all existing task codes
-    console.log('=== Standardizing task codes to Txxxx format ===');
+    // Standardize all existing task codes and ensure uniqueness
+    console.log('=== Standardizing task codes to Txxxx format (ensuring uniqueness) ===');
+    const assignedCodes = new Set();
+    const tasksToUpdate = [];
+
+    // First pass: collect all tasks that need code updates
     gantt.eachTask(function(task) {
         if (!task.id || task.id.toString().startsWith('_tl_')) {
             return; // Skip timeline tasks
         }
+        tasksToUpdate.push(task);
+    });
 
+    // Sort tasks by ID to ensure consistent processing
+    tasksToUpdate.sort((a, b) => {
+        const aNum = parseInt(a.id) || 0;
+        const bNum = parseInt(b.id) || 0;
+        return aNum - bNum;
+    });
+
+    // Second pass: assign unique codes
+    tasksToUpdate.forEach(function(task) {
         const originalCode = task.task_code;
+
         if (!task.task_code || task.task_code === '') {
-            task.task_code = generateNextTaskCode();
+            // Generate new unique code
+            task.task_code = generateNextTaskCode(task.id);
+            assignedCodes.add(task.task_code);
             console.log('Task', task.id, 'assigned new code:', task.task_code);
         } else if (!task.task_code.match(/^T\d{4}$/)) {
-            task.task_code = standardizeTaskCode(task.task_code);
+            // Standardize non-standard code
+            task.task_code = standardizeTaskCode(task.task_code, task.id);
+            assignedCodes.add(task.task_code);
             if (originalCode !== task.task_code) {
                 console.log('Task', task.id, 'code standardized from', originalCode, 'to', task.task_code);
             }
+        } else if (assignedCodes.has(task.task_code)) {
+            // Code already used, generate new one
+            const newCode = generateNextTaskCode(task.id);
+            console.log('Task', task.id, 'had duplicate code', task.task_code, '- assigned new code:', newCode);
+            task.task_code = newCode;
+            assignedCodes.add(task.task_code);
+        } else {
+            // Valid and unique code
+            assignedCodes.add(task.task_code);
         }
     });
+
+    console.log('Total unique task codes assigned:', assignedCodes.size);
 
     console.log('=== Gantt initialized and data parsed ===');
     console.log('Total tasks loaded:', gantt.getTaskCount());
@@ -3044,33 +3080,71 @@
 
     const csrftoken = getCookie('csrftoken');
 
-    // Function to generate next task code in Txxxx format
-    function generateNextTaskCode() {
-        let maxNumber = 0;
-
-        // Find the highest task number
+    // Function to check if a task code already exists
+    function isTaskCodeUsed(code, excludeTaskId) {
+        let isUsed = false;
         gantt.eachTask(function(task) {
-            if (task.task_code && task.task_code.match(/^T(\d{4})$/)) {
-                const num = parseInt(task.task_code.substring(1));
-                if (num > maxNumber) {
-                    maxNumber = num;
+            if (task.id !== excludeTaskId && task.task_code === code) {
+                isUsed = true;
+            }
+        });
+        return isUsed;
+    }
+
+    // Function to generate next task code in Txxxx format
+    function generateNextTaskCode(excludeTaskId) {
+        let maxNumber = 0;
+        const usedCodes = new Set();
+
+        // Collect all used codes and find the highest number
+        gantt.eachTask(function(task) {
+            if (task.id !== excludeTaskId && task.task_code) {
+                usedCodes.add(task.task_code);
+                if (task.task_code.match(/^T(\d{4})$/)) {
+                    const num = parseInt(task.task_code.substring(1));
+                    if (num > maxNumber) {
+                        maxNumber = num;
+                    }
                 }
             }
         });
 
-        // Generate next code
-        const nextNumber = maxNumber + 1;
-        return 'T' + String(nextNumber).padStart(4, '0');
+        // Generate next available code
+        let nextNumber = maxNumber + 1;
+        let newCode = 'T' + String(nextNumber).padStart(4, '0');
+
+        // Ensure it's not already used
+        while (usedCodes.has(newCode)) {
+            nextNumber++;
+            newCode = 'T' + String(nextNumber).padStart(4, '0');
+        }
+
+        return newCode;
+    }
+
+    // Function to get unique task code (ensures no duplicates)
+    function getUniqueTaskCode(baseCode, excludeTaskId) {
+        if (!baseCode || baseCode === '') {
+            return generateNextTaskCode(excludeTaskId);
+        }
+
+        // Check if the base code is already used by another task
+        if (!isTaskCodeUsed(baseCode, excludeTaskId)) {
+            return baseCode;
+        }
+
+        // If used, generate a new unique code
+        return generateNextTaskCode(excludeTaskId);
     }
 
     // Function to standardize task code format
-    function standardizeTaskCode(code) {
+    function standardizeTaskCode(code, taskId) {
         if (!code || code === '') {
-            return generateNextTaskCode();
+            return generateNextTaskCode(taskId);
         }
 
-        // If already in Txxxx format, return as is
-        if (code.match(/^T\d{4}$/)) {
+        // If already in Txxxx format and unique, return as is
+        if (code.match(/^T\d{4}$/) && !isTaskCodeUsed(code, taskId)) {
             return code;
         }
 
@@ -3078,18 +3152,26 @@
         const numbers = code.match(/\d+/);
         if (numbers && numbers[0]) {
             const num = parseInt(numbers[0]);
-            return 'T' + String(num).padStart(4, '0');
+            const proposedCode = 'T' + String(num).padStart(4, '0');
+
+            // Check if this code is already used
+            if (!isTaskCodeUsed(proposedCode, taskId)) {
+                return proposedCode;
+            }
         }
 
-        // If no number found, generate new code
-        return generateNextTaskCode();
+        // If no suitable code found or it's a duplicate, generate new unique code
+        return generateNextTaskCode(taskId);
     }
 
     // Event handlers
     gantt.attachEvent("onAfterTaskAdd", function(id, item){
-        // Generate task code for new tasks
+        // Generate unique task code for new tasks
         if (!item.task_code) {
-            item.task_code = generateNextTaskCode();
+            item.task_code = generateNextTaskCode(id);
+        } else {
+            // Ensure the code is unique
+            item.task_code = getUniqueTaskCode(item.task_code, id);
         }
         // Task was created in Gantt - save to database
         fetch(`/project-management/{{ project.pk }}/api/gantt/tasks/create/`, {
@@ -3465,12 +3547,16 @@
 
     // Handle lightbox save to update task title, Chinese title, process owner, and DoD
     gantt.attachEvent("onLightboxSave", function(id, task, is_new){
-        // Validate and standardize task code
+        // Validate and ensure unique task code
         if (!task.task_code || task.task_code === '') {
-            task.task_code = generateNextTaskCode();
+            task.task_code = generateNextTaskCode(id);
         } else if (!task.task_code.match(/^T\d{4}$/)) {
             // If user entered a non-standard code, standardize it
-            task.task_code = standardizeTaskCode(task.task_code);
+            task.task_code = standardizeTaskCode(task.task_code, id);
+        } else if (isTaskCodeUsed(task.task_code, id)) {
+            // If code is already used by another task
+            alert('Task code ' + task.task_code + ' is already used by another task. A new code will be assigned.');
+            task.task_code = generateNextTaskCode(id);
         }
 
         console.log('Lightbox saved for task:', id);
