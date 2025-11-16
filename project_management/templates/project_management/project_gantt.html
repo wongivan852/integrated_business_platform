@@ -948,7 +948,12 @@
                     scales: [
                         {unit: "day", step: 1, format: "%d %M"},
                         {unit: "hour", step: 6, format: "%H"}
-                    ]
+                    ],
+                    // Force date range for day view
+                    render: function(level) {
+                        gantt.config.start_date = new Date(2025, 0, 1);
+                        gantt.config.end_date = new Date(2025, 11, 31, 23, 59, 59);
+                    }
                 },
                 {
                     name: "week",
@@ -957,7 +962,12 @@
                     scales: [
                         {unit: "week", step: 1, format: "Week #%W"},
                         {unit: "day", step: 1, format: "%d %M"}
-                    ]
+                    ],
+                    // Force date range for week view
+                    render: function(level) {
+                        gantt.config.start_date = new Date(2025, 0, 1);
+                        gantt.config.end_date = new Date(2025, 11, 31, 23, 59, 59);
+                    }
                 },
                 {
                     name: "month",
@@ -985,18 +995,50 @@
         gantt.ext.zoom.setLevel = function(level) {
             console.log('Zoom level changing to:', level);
 
-            // CRITICAL: For day and week views, we need special handling
+            // CRITICAL: For day and week views, we need special handling with data refresh
             if (level === 'day' || level === 'week') {
-                console.log('Applying AGGRESSIVE timeline extension for', level, 'view');
+                console.log('Applying AGGRESSIVE timeline extension with DATA REFRESH for', level, 'view');
 
-                // Step 1: Set config BEFORE calling original setLevel
+                // Step 1: Force config settings
                 gantt.config.start_date = new Date(2025, 0, 1);
                 gantt.config.end_date = new Date(2025, 11, 31, 23, 59, 59);
                 gantt.config.fit_tasks = false;
                 gantt.config.show_chart = true;
 
-                // Step 2: Call original setLevel
+                // Step 2: Store current scroll position and selected task
+                const currentTask = gantt.getSelectedId();
+
+                // Step 3: Clear and reload data to force timeline recalculation
+                const currentData = {
+                    data: gantt.getTaskByTime(),
+                    links: gantt.getLinks()
+                };
+
+                // Step 4: Call original setLevel
                 originalSetLevel.call(this, level);
+
+                // Step 5: CRITICAL - Clear all and re-parse to force timeline extension
+                setTimeout(function() {
+                    console.log('Refreshing Gantt data for', level, 'view...');
+
+                    // Clear everything
+                    gantt.clearAll();
+
+                    // Re-set configuration
+                    gantt.config.start_date = new Date(2025, 0, 1);
+                    gantt.config.end_date = new Date(2025, 11, 31, 23, 59, 59);
+                    gantt.config.fit_tasks = false;
+
+                    // Re-parse the original data
+                    gantt.parse(ganttData);
+
+                    // Force timeline extension function
+                    if (typeof forceTimelineExtension === 'function') {
+                        forceTimelineExtension();
+                    }
+
+                    console.log('Data refreshed, timeline should now extend to Dec 31, 2025');
+                }, 100);
 
                 // Step 3: Force multiple renders with progressive scrolling
                 setTimeout(function() {
@@ -2052,7 +2094,8 @@
 
     // Create invisible placeholder tasks at boundaries to force timeline
     // These won't show in UI but will force timeline calculation
-    function forceTimelineExtension() {
+    // Make it globally available
+    window.forceTimelineExtension = function() {
         // For Day and Week views, we need monthly placeholders to ensure full timeline
         const viewMode = document.querySelector('input[name="viewMode"]:checked')?.value || 'month';
 
@@ -3248,24 +3291,39 @@
                 // Use the zoom extension which now has aggressive timeline extension for day/week
                 gantt.ext.zoom.setLevel(this.value);
 
-                // For Day and Week views, ensure aggressive timeline extension
+                // For Day and Week views, ensure aggressive timeline extension with DATA REFRESH
                 if (this.value === 'day' || this.value === 'week') {
-                    console.log('Applying additional timeline enforcement for', this.value, 'view');
+                    console.log('Applying DATA REFRESH timeline enforcement for', this.value, 'view');
 
-                    // Additional enforcement after zoom level change completes
+                    // Critical: Refresh the entire Gantt data after zoom level change
                     setTimeout(function() {
+                        console.log('Starting data refresh for full timeline extension...');
+
+                        // Store current position
+                        const selectedTask = gantt.getSelectedId();
+
+                        // Clear and reload to force timeline recalculation
+                        gantt.clearAll();
+
                         // Force config settings
                         gantt.config.start_date = new Date(2025, 0, 1);
                         gantt.config.end_date = new Date(2025, 11, 31, 23, 59, 59);
                         gantt.config.fit_tasks = false;
+
+                        // Re-parse the data
+                        gantt.parse(ganttData);
 
                         // Call forceTimelineExtension to add monthly placeholders
                         if (typeof forceTimelineExtension === 'function') {
                             forceTimelineExtension();
                         }
 
-                        // Re-render with forced dates
-                        gantt.render();
+                        // Restore selection if it existed
+                        if (selectedTask && gantt.isTaskExists(selectedTask)) {
+                            gantt.selectTask(selectedTask);
+                        }
+
+                        console.log('Data refresh complete - timeline should extend to Dec 31, 2025');
 
                         // Aggressive scrolling pattern for day/week views
                         const dates = [
@@ -3373,27 +3431,41 @@
         monthButton.checked = true;
     }
 
-    // Handle Force Full Year button - ENHANCED VERSION
+    // Handle Force Full Year button - ENHANCED VERSION WITH DATA REFRESH
     document.getElementById('forceFullYear').addEventListener('click', function(e) {
         e.preventDefault();
-        console.log('=== FORCING FULL YEAR TIMELINE (ENHANCED) ===');
+        console.log('=== FORCING FULL YEAR TIMELINE WITH DATA REFRESH ===');
 
-        // Step 1: Force config settings
+        const currentLevel = document.querySelector('input[name="viewMode"]:checked')?.value || 'month';
+        const selectedTask = gantt.getSelectedId();
+
+        // Step 1: Clear and refresh data completely
+        console.log('Clearing and refreshing all data...');
+        gantt.clearAll();
+
+        // Step 2: Force config settings
         gantt.config.start_date = new Date(2025, 0, 1);
         gantt.config.end_date = new Date(2025, 11, 31, 23, 59, 59);
         gantt.config.fit_tasks = false;
         gantt.config.show_chart = true;
 
-        // Step 2: If zoom extension exists, reconfigure current level
-        if (gantt.ext && gantt.ext.zoom) {
-            const currentLevel = document.querySelector('input[name="viewMode"]:checked')?.value || 'month';
-            console.log('Reconfiguring zoom level:', currentLevel);
+        // Step 3: Re-parse data
+        gantt.parse(ganttData);
 
-            // Trigger zoom level reset to force date range
+        // Step 4: Add timeline extension placeholders
+        if (typeof forceTimelineExtension === 'function') {
+            forceTimelineExtension();
+        }
+
+        // Step 5: If zoom extension exists, reconfigure current level
+        if (gantt.ext && gantt.ext.zoom) {
+            console.log('Reconfiguring zoom level:', currentLevel);
             gantt.ext.zoom.setLevel(currentLevel);
-        } else {
-            // Direct render if no zoom extension
-            gantt.render();
+        }
+
+        // Step 6: Restore selection
+        if (selectedTask && gantt.isTaskExists(selectedTask)) {
+            gantt.selectTask(selectedTask);
         }
 
         // Step 3: Force timeline to render all columns
