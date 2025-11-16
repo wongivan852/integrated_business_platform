@@ -3163,16 +3163,28 @@
             // This must be set AFTER scale configuration and BEFORE render
             const startOfJan2025 = new Date(2025, 0, 1);
             const endOfDec2025 = new Date(2025, 11, 31, 23, 59, 59);
+
+            console.log('BEFORE setting dates - start:', gantt.config.start_date);
+            console.log('BEFORE setting dates - end:', gantt.config.end_date);
+            console.log('BEFORE setting dates - fit_tasks:', gantt.config.fit_tasks);
+
             gantt.config.start_date = startOfJan2025;  // Lock to Jan 1, 2025
             gantt.config.end_date = endOfDec2025;  // Lock to Dec 31, 2025
             gantt.config.fit_tasks = false;  // Ensure fit_tasks stays disabled
 
-            console.log('Manual config applied. Start date:', gantt.config.start_date.toISOString());
-            console.log('Manual config applied. End date:', gantt.config.end_date.toISOString());
-            console.log('fit_tasks:', gantt.config.fit_tasks);
+            console.log('AFTER setting dates - start:', gantt.config.start_date.toISOString());
+            console.log('AFTER setting dates - end:', gantt.config.end_date.toISOString());
+            console.log('AFTER setting dates - fit_tasks:', gantt.config.fit_tasks);
+            console.log('AFTER setting dates - scale_unit:', gantt.config.scale_unit);
 
             // Force Gantt to render with the new scale and date range
+            console.log('About to call gantt.render()...');
             gantt.render();
+
+            // Check if dates were preserved after render
+            console.log('AFTER RENDER - start:', gantt.config.start_date);
+            console.log('AFTER RENDER - end:', gantt.config.end_date);
+            console.log('AFTER RENDER - fit_tasks:', gantt.config.fit_tasks);
         });
     });
 
