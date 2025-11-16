@@ -950,11 +950,10 @@
             levels: [
                 {
                     name: "day",
-                    scale_height: 90,
-                    min_column_width: 40,
+                    scale_height: 50,  // Single scale height for day view
+                    min_column_width: 80,  // Wide columns for day labels
                     scales: [
-                        {unit: "day", step: 1, format: "%d %M"},
-                        {unit: "hour", step: 6, format: "%H"}
+                        {unit: "day", step: 1, format: "%d %M %Y"}  // Just days, no hours
                     ],
                     // CRITICAL: Explicitly set date range for day view
                     start_date: new Date(2025, 10, 1),
@@ -970,10 +969,10 @@
                 },
                 {
                     name: "week",
-                    scale_height: 90,
-                    min_column_width: 60,
+                    scale_height: 90,  // Two scales for week view
+                    min_column_width: 30,  // Narrower columns for days within weeks
                     scales: [
-                        {unit: "week", step: 1, format: "Week #%W"},
+                        {unit: "week", step: 1, format: "Week #%W of %Y"},
                         {unit: "day", step: 1, format: "%d %M"}
                     ],
                     // CRITICAL: Explicitly set date range for week view
@@ -1038,15 +1037,19 @@
                 gantt.config.fit_tasks = false;
 
                 if (level === 'day') {
+                    // Day view: Individual days only, no hours
                     gantt.config.scale_unit = "day";
                     gantt.config.date_scale = "%d %M %Y";
-                    gantt.config.subscales = [{unit: "hour", step: 6, date: "%H:00"}];
-                    gantt.config.min_column_width = 50;
+                    gantt.config.subscales = [];  // No subscales for cleaner day view
+                    gantt.config.min_column_width = 80;
+                    gantt.config.scale_height = 50;
                 } else {
+                    // Week view: Weeks with days as subscale
                     gantt.config.scale_unit = "week";
                     gantt.config.date_scale = "Week #%W of %Y";
                     gantt.config.subscales = [{unit: "day", step: 1, date: "%d %M"}];
-                    gantt.config.min_column_width = 70;
+                    gantt.config.min_column_width = 30;
+                    gantt.config.scale_height = 90;
                 }
 
                 gantt.parse(ganttData);
@@ -3688,23 +3691,23 @@
                 gantt.config.fit_tasks = false;
                 gantt.config.show_chart = true;
 
-                // Configure scales manually
+                // Configure scales manually - make Day view distinct from Week
                 if (viewMode === 'day') {
+                    // Day view: Show individual days as main scale with no subscale
                     gantt.config.scale_unit = "day";
-                    gantt.config.date_scale = "%d %M";
-                    gantt.config.subscales = [
-                        {unit: "hour", step: 6, date: "%H:00"}
-                    ];
-                    gantt.config.min_column_width = 50;
-                    gantt.config.scale_height = 90;
+                    gantt.config.date_scale = "%d %M %Y";  // Show full date: "15 Nov 2025"
+                    gantt.config.subscales = [];  // No subscales for cleaner day view
+                    gantt.config.min_column_width = 80;  // Wider columns for day labels
+                    gantt.config.scale_height = 50;  // Single scale, less height needed
                 } else if (viewMode === 'week') {
+                    // Week view: Show weeks as main scale with days as subscale
                     gantt.config.scale_unit = "week";
-                    gantt.config.date_scale = "Week #%W";
+                    gantt.config.date_scale = "Week #%W of %Y";  // "Week #45 of 2025"
                     gantt.config.subscales = [
-                        {unit: "day", step: 1, date: "%d %M"}
+                        {unit: "day", step: 1, date: "%d %M"}  // Show days under weeks
                     ];
-                    gantt.config.min_column_width = 70;
-                    gantt.config.scale_height = 90;
+                    gantt.config.min_column_width = 30;  // Narrower columns since we show 7 days per week
+                    gantt.config.scale_height = 90;  // Two scales need more height
                 }
 
                 // Re-parse data
