@@ -77,53 +77,7 @@ def gantt_chart_view(request, pk):
         task.is_boundary = False
         task.text = task.title  # Add text attribute for template compatibility
 
-    # Create boundary task at start of year
-    from datetime import date
-    class BoundaryTask:
-        """Minimal task object for timeline boundary"""
-        def __init__(self, id, text, start_date, end_date):
-            self.id = id
-            self.pk = id
-            self.text = text  # For template compatibility
-            self.title = text  # Regular tasks use title
-            self.task_code = f"BOUNDARY_{id}"
-            self.title_cn = ""
-            self.start_date = start_date
-            self.end_date = end_date
-            self.duration = 1
-            self.progress = 0
-            self.parent_task = None
-            self.parent_task_id = None
-            self.priority = "low"
-            self.status = "pending"
-            self.is_boundary = True  # Custom flag
-            # Add missing attributes that might be accessed
-            self.is_milestone = False
-            self.process_owner = None
-            self.definition_of_done = ""
-            self.assigned_to = MockRelatedManager()  # Empty manager
-
-    class MockRelatedManager:
-        """Mock manager for assigned_to relationship"""
-        def all(self):
-            return []
-
-    # Add boundary tasks for 2025
-    start_boundary = BoundaryTask(
-        id=999998,
-        text="",
-        start_date=date(2025, 1, 1),
-        end_date=date(2025, 1, 2)
-    )
-    end_boundary = BoundaryTask(
-        id=999999,
-        text="",
-        start_date=date(2025, 12, 31),
-        end_date=date(2025, 12, 31)
-    )
-
-    tasks_list.append(start_boundary)
-    tasks_list.append(end_boundary)
+    # Removed boundary tasks - no longer needed
 
     context = {
         'project': project,

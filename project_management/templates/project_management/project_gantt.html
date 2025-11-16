@@ -626,47 +626,7 @@
         border: 2px solid #0d6efd !important;
     }
 
-    /* Hide the marker tasks (ID 9999998 and 9999999) used to extend timeline */
-    /* Also hide the new persistent boundary tasks */
-    .gantt_row[task_id="9999999"],
-    .gantt_task_row[task_id="9999999"],
-    .gantt_task_line[task_id="9999999"],
-    .gantt_task_bar[data-task-id="9999999"],
-    .gantt_side_content[data-task-id="9999999"],
-    div[task_id="9999999"],
-    .gantt_row[task_id="9999998"],
-    .gantt_task_row[task_id="9999998"],
-    .gantt_task_line[task_id="9999998"],
-    .gantt_task_bar[data-task-id="9999998"],
-    .gantt_side_content[data-task-id="9999998"],
-    div[task_id="9999998"],
-    .gantt_row[task_id="boundary_start_2025"],
-    .gantt_task_row[task_id="boundary_start_2025"],
-    .gantt_task_line[task_id="boundary_start_2025"],
-    .gantt_task_bar[data-task-id="boundary_start_2025"],
-    .gantt_side_content[data-task-id="boundary_start_2025"],
-    div[task_id="boundary_start_2025"],
-    .gantt_row[task_id="boundary_end_2025"],
-    .gantt_task_row[task_id="boundary_end_2025"],
-    .gantt_task_line[task_id="boundary_end_2025"],
-    .gantt_task_bar[data-task-id="boundary_end_2025"],
-    .gantt_side_content[data-task-id="boundary_end_2025"],
-    div[task_id="boundary_end_2025"] {
-        display: none !important;
-        visibility: hidden !important;
-        height: 0 !important;
-        max-height: 0 !important;
-        overflow: hidden !important;
-    }
-
-    /* Also hide the grid rows for the marker tasks */
-    .gantt_grid_data .gantt_row[task_id="9999999"],
-    .gantt_grid_data .gantt_row[task_id="9999998"],
-    .gantt_grid_data .gantt_row[task_id="boundary_start_2025"],
-    .gantt_grid_data .gantt_row[task_id="boundary_end_2025"] {
-        height: 0 !important;
-        line-height: 0 !important;
-    }
+    /* Removed marker hiding CSS - no longer needed */
 
     /* Hide tasks with the gantt_hidden_task class */
     .gantt_hidden_task,
@@ -685,47 +645,7 @@
         display: none !important;
     }
 
-    /* Style for timeline marker tasks - make them subtle */
-    .gantt_task_line[task_id^="timeline_marker_"],
-    .gantt_task_line[task_id^="timeline_w"],
-    .gantt_task_line[task_id^="timeline_start"],
-    .gantt_task_line[task_id^="timeline_end"] {
-        opacity: 0.2 !important;
-        background-color: #e0e0e0 !important;
-        border-color: #d0d0d0 !important;
-    }
-
-    /* Make timeline marker milestones smaller and less prominent */
-    .gantt_task_line[task_id^="timeline_marker_"] .gantt_task_content,
-    .gantt_task_line[task_id^="timeline_w"] .gantt_task_content,
-    .gantt_task_line[task_id^="timeline_start"] .gantt_task_content,
-    .gantt_task_line[task_id^="timeline_end"] .gantt_task_content {
-        font-size: 10px !important;
-        color: #999 !important;
-    }
-
-    /* Style timeline markers in the grid */
-    .gantt_row[task_id^="timeline_marker_"],
-    .gantt_row[task_id^="timeline_w"],
-    .gantt_row[task_id^="timeline_start"],
-    .gantt_row[task_id^="timeline_end"] {
-        opacity: 0.3 !important;
-        background-color: #f9f9f9 !important;
-    }
-
-    .gantt_row[task_id^="timeline_marker_"] .gantt_cell,
-    .gantt_row[task_id^="timeline_w"] .gantt_cell,
-    .gantt_row[task_id^="timeline_start"] .gantt_cell,
-    .gantt_row[task_id^="timeline_end"] .gantt_cell {
-        color: #999 !important;
-        font-size: 11px !important;
-        font-style: italic !important;
-    }
-</style>
-
-<!-- Dynamic style for timeline markers toggle -->
-<style id="timeline-markers-style">
-    /* Initial state - markers visible */
+    /* Removed timeline marker styles - no longer needed */
 
     /* Hide boundary tasks completely */
     .gantt_boundary_hidden,
@@ -1127,16 +1047,7 @@
             width: 280,
             resize: true,
             template: function(task) {
-                // Hide boundary tasks and timeline markers completely in the grid
-                if (task.is_timeline_marker === true ||
-                    task.is_boundary === true ||
-                    task.id == 999998 ||
-                    task.id == 999999 ||
-                    task.id === 'boundary_start_2025' ||
-                    task.id === 'boundary_end_2025' ||
-                    (typeof task.id === 'string' && task.id.startsWith('timeline_'))) {
-                    return '';
-                }
+                // No filtering needed - all tasks should be displayed
                 // Show both English and Chinese if available
                 console.log('Rendering task:', task.id, 'title_cn:', task.title_cn); // Debug
                 if (task.title_cn && task.title_cn.trim() !== '') {
@@ -2004,50 +1915,7 @@
     console.log('=== Skipping marker tasks - using config-based approach instead ===');
 
 
-    // Add template to completely hide boundary tasks from rendering
-    gantt.templates.task_class = function(start, end, task) {
-        // Hide all timeline markers
-        if (task.is_timeline_marker === true ||
-            task.is_boundary === true ||
-            task.id == 999998 ||
-            task.id == 999999 ||
-            task.id === 'boundary_start_2025' ||
-            task.id === 'boundary_end_2025' ||
-            (typeof task.id === 'string' && task.id.startsWith('timeline_'))) {
-            return "gantt_boundary_hidden gantt_hidden_task";
-        }
-        return "";
-    };
-
-    // Prevent boundary tasks and timeline markers from being displayed in the grid rows
-    gantt.templates.grid_row_class = function(start, end, task) {
-        // Hide all timeline markers
-        if (task.is_timeline_marker === true ||
-            task.is_boundary === true ||
-            task.id == 999998 ||
-            task.id == 999999 ||
-            task.id === 'boundary_start_2025' ||
-            task.id === 'boundary_end_2025' ||
-            (typeof task.id === 'string' && task.id.startsWith('timeline_'))) {
-            return "gantt_hidden_row";
-        }
-        return "";
-    };
-
-    // Return empty string for task text of boundary tasks and timeline markers
-    gantt.templates.task_text = function(start, end, task) {
-        // Hide all timeline markers
-        if (task.is_timeline_marker === true ||
-            task.is_boundary === true ||
-            task.id == 999998 ||
-            task.id == 999999 ||
-            task.id === 'boundary_start_2025' ||
-            task.id === 'boundary_end_2025' ||
-            (typeof task.id === 'string' && task.id.startsWith('timeline_'))) {
-            return "";
-        }
-        return task.text;
-    };
+    // Removed boundary task templates - no longer needed
 
     // CRITICAL: Set start_date and end_date BEFORE initialization
     // Force the timeline range to include the full year 2025
@@ -2057,15 +1925,7 @@
     console.log('BEFORE INIT - end_date:', gantt.config.end_date);
     console.log('BEFORE INIT - fit_tasks:', gantt.config.fit_tasks);
 
-    // Add filter to hide timeline markers from display
-    gantt.attachEvent("onBeforeTaskDisplay", function(id, task){
-        // Hide timeline markers from display
-        if (task.is_timeline_marker === true ||
-            (typeof id === 'string' && id.startsWith('timeline_'))) {
-            return false;  // Don't display timeline markers
-        }
-        return true;  // Display regular tasks
-    });
+    // Removed filter - all tasks should be displayed
 
     // Initialize Gantt
     gantt.init("gantt_here");
