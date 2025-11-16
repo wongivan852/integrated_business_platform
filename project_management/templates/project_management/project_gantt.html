@@ -798,49 +798,94 @@
     // ========================================================================
     gantt.attachEvent("onTaskLoading", function(task) {
         try {
-            console.log('Loading task:', task.id, 'start_date:', task.start_date, 'type:', typeof task.start_date, 'duration:', task.duration);
+            console.log('Loading task:', task.id, 'start_date:', task.start_date, 'end_date:', task.end_date, 'duration:', task.duration);
 
-            // Fix start_date if missing or invalid
-            if (!task.start_date || task.start_date === null || task.start_date === '' || task.start_date === 'null') {
-                console.warn('Task', task.id, 'has null/empty start_date, setting to today');
-                task.start_date = new Date();
-            } else if (typeof task.start_date === 'number') {
-                // If it's a number (like 1), it's invalid - set to today
-                console.warn('Task', task.id, 'has NUMERIC start_date:', task.start_date, '- setting to today');
-                task.start_date = new Date();
-            } else if (typeof task.start_date === 'string') {
-                // Parse string dates
+            // IMPORTANT: Preserve the original duration from server - this is what user set
+            const originalDuration = task.duration;
+            const hadStartDate = task.start_date && task.start_date !== null && task.start_date !== 'null';
+            const hadEndDate = task.end_date && task.end_date !== null && task.end_date !== 'null';
+
+            // Parse start_date if it exists and is a string
+            if (hadStartDate && typeof task.start_date === 'string') {
                 try {
                     const parsed = gantt.date.parseDate(task.start_date, "xml_date");
-                    if (!parsed || isNaN(parsed.getTime())) {
-                        console.warn('Task', task.id, 'has unparseable start_date:', task.start_date);
-                        task.start_date = new Date();
-                    } else {
+                    if (parsed && !isNaN(parsed.getTime())) {
                         task.start_date = parsed;
+                    } else {
+                        // Try alternative date parsing for Y-m-d format
+                        const dateParts = task.start_date.split('-');
+                        if (dateParts.length === 3) {
+                            const altParsed = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
+                            if (!isNaN(altParsed.getTime())) {
+                                console.log('Task', task.id, 'parsed start_date using alternative method:', altParsed);
+                                task.start_date = altParsed;
+                            } else {
+                                console.warn('Task', task.id, 'has unparseable start_date:', task.start_date, '- setting to today');
+                                task.start_date = new Date();
+                            }
+                        } else {
+                            console.warn('Task', task.id, 'has unparseable start_date:', task.start_date, '- setting to today');
+                            task.start_date = new Date();
+                        }
                     }
                 } catch (e) {
                     console.error('Error parsing start_date for task', task.id, ':', e);
+                    // Only set to today if we really can't parse it
                     task.start_date = new Date();
                 }
-            } else if (!(task.start_date instanceof Date) || isNaN(task.start_date.getTime())) {
-                console.warn('Task', task.id, 'has invalid Date object for start_date');
+            } else if (!hadStartDate) {
+                // No start date provided, set to today only for new tasks
+                console.log('Task', task.id, 'has no start_date, setting to today');
                 task.start_date = new Date();
+            } else if (task.start_date instanceof Date) {
+                // Date object already, keep it as is
+                console.log('Task', task.id, 'already has valid Date object for start_date');
             }
 
-            // Fix duration if missing or invalid
-            if (!task.duration || typeof task.duration !== 'number' || task.duration <= 0 || isNaN(task.duration)) {
-                console.warn('Task', task.id, 'has invalid duration:', task.duration, '- defaulting to 1');
-                task.duration = 1;
+            // Parse end_date if it exists and is a string
+            if (hadEndDate && typeof task.end_date === 'string') {
+                try {
+                    const parsed = gantt.date.parseDate(task.end_date, "xml_date");
+                    if (parsed && !isNaN(parsed.getTime())) {
+                        task.end_date = parsed;
+                    }
+                } catch (e) {
+                    console.error('Error parsing end_date for task', task.id, ':', e);
+                    task.end_date = null;
+                }
             }
 
-            // Calculate end_date if missing
-            if (!task.end_date) {
+            // DURATION LOGIC:
+            // 1. If both dates were provided from server, calculate duration from them
+            // 2. If only duration was provided (no dates or only start_date), keep the original duration
+            // 3. Only default to 1 if no valid duration was provided at all
+
+            if (hadStartDate && hadEndDate && task.start_date instanceof Date && task.end_date instanceof Date) {
+                // Both dates exist - calculate duration from them
+                const calculatedDuration = gantt.calculateDuration(task.start_date, task.end_date);
+                if (calculatedDuration && calculatedDuration > 0) {
+                    console.log('Task', task.id, 'calculating duration from dates:', calculatedDuration, '(server sent:', originalDuration, ')');
+                    task.duration = calculatedDuration;
+                }
+            } else {
+                // No end date or missing dates - preserve the original duration
+                if (originalDuration && typeof originalDuration === 'number' && originalDuration > 0 && !isNaN(originalDuration)) {
+                    console.log('Task', task.id, 'preserving duration from server:', originalDuration);
+                    task.duration = originalDuration;
+                } else {
+                    console.warn('Task', task.id, 'has no valid duration, defaulting to 1');
+                    task.duration = 1;
+                }
+            }
+
+            // Calculate end_date if missing (but we have start_date and duration)
+            if (!task.end_date && task.start_date && task.duration) {
                 try {
                     task.end_date = gantt.calculateEndDate(task.start_date, task.duration);
-                    console.log('Calculated end_date for task', task.id, ':', task.end_date);
+                    console.log('Task', task.id, 'calculated end_date from start+duration:', task.end_date);
                 } catch (e) {
                     console.error('Error calculating end_date for task', task.id, ':', e);
-                    task.end_date = gantt.date.add(task.start_date, 1, "day");
+                    task.end_date = gantt.date.add(task.start_date, task.duration || 1, "day");
                 }
             }
 
@@ -849,13 +894,13 @@
                 task.progress = 0;
             }
 
-            console.log('Task', task.id, 'validated - start:', task.start_date, 'duration:', task.duration, 'end:', task.end_date);
+            console.log('Task', task.id, 'final values - start:', task.start_date, 'duration:', task.duration, 'end:', task.end_date);
         } catch (error) {
             console.error('CRITICAL ERROR in onTaskLoading for task', task.id, ':', error);
-            // Set safe defaults to prevent crash
+            // Set safe defaults to prevent crash, but try to preserve duration
             task.start_date = new Date();
-            task.duration = 1;
-            task.end_date = gantt.date.add(new Date(), 1, "day");
+            task.duration = task.duration || 1;
+            task.end_date = gantt.date.add(task.start_date, task.duration, "day");
             task.progress = 0;
         }
         return true; // Always return true to allow task to be loaded
@@ -864,6 +909,8 @@
     // Initialize Gantt Chart - using modern scales API
     gantt.config.date_format = "%Y-%m-%d";
     gantt.config.xml_date = "%Y-%m-%d";
+    gantt.config.duration_unit = "day";  // Ensure duration is always in days
+    gantt.config.duration_step = 1;  // 1 day increments
 
     // Default to Month view using modern scales API
     gantt.config.scales = [
@@ -884,7 +931,7 @@
 
     // CRITICAL: Override DHTMLX's automatic date range calculation
     // Force the timeline to always show Jan 1 - Dec 31, 2025 (extended to Jan 7, 2026)
-    gantt.config.start_date = new Date(2025, 10, 1);
+    gantt.config.start_date = new Date(2025, 0, 1);  // Fixed: January 1, 2025 (month 0 = January)
     gantt.config.end_date = new Date(2026, 0, 7, 23, 59, 59); // Extend to Jan 7, 2026
 
     console.log('CONFIG: Set fixed date range:', gantt.config.start_date, 'to', gantt.config.end_date);
@@ -892,12 +939,12 @@
     // CRITICAL: Since getScale() is not called in modern DHTMLX Gantt, we need to use events
     // The onBeforeDataRender event fires before each render and allows us to force the date range
     gantt.attachEvent("onBeforeDataRender", function() {
-        const fixedStart = new Date(2025, 10, 1);
+        const fixedStart = new Date(2025, 0, 1);
         const fixedEnd = new Date(2026, 0, 7, 23, 59, 59);
 
         // Force the config every single time before render
         if (!gantt.config.start_date || gantt.config.start_date.getTime() !== fixedStart.getTime()) {
-            console.log('onBeforeDataRender: Forcing start_date to Nov 1, 2025');
+            console.log('onBeforeDataRender: Forcing start_date to Jan 1, 2025');
             gantt.config.start_date = fixedStart;
         }
         if (!gantt.config.end_date || gantt.config.end_date.getTime() !== fixedEnd.getTime()) {
@@ -914,7 +961,7 @@
 
     // Also use onGanttRender to enforce after render
     gantt.attachEvent("onGanttRender", function() {
-        const fixedStart = new Date(2025, 10, 1);
+        const fixedStart = new Date(2025, 0, 1);
         const fixedEnd = new Date(2026, 0, 7, 23, 59, 59);
 
         // Verify config is still correct after render
@@ -947,7 +994,7 @@
         const originalGetSubtaskDates = gantt.getSubtaskDates;
         gantt.getSubtaskDates = function() {
             // Return our fixed date range instead of calculating from tasks
-            const fixedStart = new Date(2025, 10, 1);
+            const fixedStart = new Date(2025, 0, 1);
             const fixedEnd = new Date(2026, 0, 7, 23, 59, 59);
 
             console.log('✓ getSubtaskDates override ACTIVE - returning fixed range');
@@ -968,7 +1015,7 @@
             const result = original_init_tasks_range.apply(this, arguments);
 
             // Force our date range
-            const fixedStart = new Date(2025, 10, 1);
+            const fixedStart = new Date(2025, 0, 1);
             const fixedEnd = new Date(2026, 0, 7, 23, 59, 59);
 
             this._min_date = fixedStart;
@@ -992,7 +1039,7 @@
         console.log('✓ gantt.ext.zoom is available - configuring zoom levels with FORCED date range');
 
         // Force timeline configuration BEFORE zoom init
-        gantt.config.start_date = new Date(2025, 10, 1);
+        gantt.config.start_date = new Date(2025, 0, 1);
         gantt.config.end_date = new Date(2026, 0, 7, 23, 59, 59); // Extend to Jan 7, 2026
         gantt.config.fit_tasks = false;
         gantt.config.show_chart = true;
@@ -1007,11 +1054,11 @@
                         {unit: "day", step: 1, format: "%d %M %Y"}  // Just days, no hours
                     ],
                     // CRITICAL: Explicitly set date range for day view
-                    start_date: new Date(2025, 10, 1),
+                    start_date: new Date(2025, 0, 1),
                     end_date: new Date(2026, 0, 7, 23, 59, 59),
                     // Force date range for day view
                     render: function(level) {
-                        gantt.config.start_date = new Date(2025, 10, 1);
+                        gantt.config.start_date = new Date(2025, 0, 1);
                         gantt.config.end_date = new Date(2026, 0, 7, 23, 59, 59);
                         gantt.config.fit_tasks = false;
                         // Force immediate render with dates
@@ -1027,11 +1074,11 @@
                         {unit: "day", step: 1, format: "%d %M"}
                     ],
                     // CRITICAL: Explicitly set date range for week view
-                    start_date: new Date(2025, 10, 1),
+                    start_date: new Date(2025, 0, 1),
                     end_date: new Date(2026, 0, 7, 23, 59, 59),
                     // Force date range for week view
                     render: function(level) {
-                        gantt.config.start_date = new Date(2025, 10, 1);
+                        gantt.config.start_date = new Date(2025, 0, 1);
                         gantt.config.end_date = new Date(2026, 0, 7, 23, 59, 59);
                         gantt.config.fit_tasks = false;
                         // Force immediate render with dates
@@ -1068,7 +1115,7 @@
             // For Month and Year, use normal zoom with forced dates
             if (level === 'month' || level === 'year') {
                 // Force config
-                gantt.config.start_date = new Date(2025, 10, 1);
+                gantt.config.start_date = new Date(2025, 0, 1);
                 gantt.config.end_date = new Date(2026, 0, 7, 23, 59, 59);
                 gantt.config.fit_tasks = false;
                 gantt.config.show_chart = true;
@@ -1083,7 +1130,7 @@
                 // If somehow we get here, configure manually
                 gantt.clearAll();
 
-                gantt.config.start_date = new Date(2025, 10, 1);
+                gantt.config.start_date = new Date(2025, 0, 1);
                 gantt.config.end_date = new Date(2026, 0, 15, 23, 59, 59);
                 gantt.config.fit_tasks = false;
 
@@ -1116,7 +1163,7 @@
                     gantt.clearAll();
 
                     // Re-set configuration - extend to Jan 2026
-                    gantt.config.start_date = new Date(2025, 10, 1);
+                    gantt.config.start_date = new Date(2025, 0, 1);
                     gantt.config.end_date = new Date(2026, 0, 7, 23, 59, 59); // Jan 7, 2026
                     gantt.config.fit_tasks = false;
 
@@ -1134,7 +1181,7 @@
                 // Step 3: Force multiple renders with progressive scrolling
                 setTimeout(function() {
                     // Re-enforce config after zoom change
-                    gantt.config.start_date = new Date(2025, 10, 1);
+                    gantt.config.start_date = new Date(2025, 0, 1);
                     gantt.config.end_date = new Date(2026, 0, 7, 23, 59, 59); // Extend to Jan 7, 2026
                     gantt.config.fit_tasks = false;
 
@@ -1154,7 +1201,7 @@
                         new Date(2025, 3, 15),   // April 15
                         new Date(2025, 2, 15),   // March 15
                         new Date(2025, 1, 15),   // February 15
-                        new Date(2025, 10, 1)     // January 1
+                        new Date(2025, 0, 1)     // January 1
                     ];
 
                     let scrollIndex = 0;
@@ -1182,7 +1229,7 @@
                 originalSetLevel.call(this, level);
 
                 setTimeout(function() {
-                    gantt.config.start_date = new Date(2025, 10, 1);
+                    gantt.config.start_date = new Date(2025, 0, 1);
                     gantt.config.end_date = new Date(2026, 0, 7, 23, 59, 59); // Extend to Jan 7, 2026
                     gantt.config.fit_tasks = false;
 
@@ -1204,7 +1251,7 @@
 
         // CRITICAL: Attach multiple events to force dates
         gantt.attachEvent("onBeforeGanttRender", function() {
-            gantt.config.start_date = new Date(2025, 10, 1);
+            gantt.config.start_date = new Date(2025, 0, 1);
             gantt.config.end_date = new Date(2026, 0, 7, 23, 59, 59); // Extend to Jan 7, 2026
             gantt.config.fit_tasks = false;
             console.log('onBeforeGanttRender: Enforcing full year 2025 range');
@@ -1212,7 +1259,7 @@
         });
 
         gantt.attachEvent("onGanttReady", function() {
-            gantt.config.start_date = new Date(2025, 10, 1);
+            gantt.config.start_date = new Date(2025, 0, 1);
             gantt.config.end_date = new Date(2026, 0, 7, 23, 59, 59); // Extend to Jan 7, 2026
             gantt.config.fit_tasks = false;
             console.log('onGanttReady: Enforcing full year 2025 range');
@@ -1224,7 +1271,7 @@
             gantt.ext.zoom._getScaleConfig = function(level) {
                 const config = originalGetScaleConfig.call(this, level);
                 // Force our date range regardless of what zoom calculates
-                config.date_scale_start = new Date(2025, 10, 1);
+                config.date_scale_start = new Date(2025, 0, 1);
                 config.date_scale_end = new Date(2026, 0, 7, 23, 59, 59);
                 return config;
             };
@@ -2058,12 +2105,12 @@
             {% for task in tasks %}
             {
                 id: {{ task.pk }},
-                text: "{{ task.text|escapejs }}",
+                text: "{{ task.title|escapejs }}",
                 title_cn: "{{ task.title_cn|default:""|escapejs }}",
                 task_code: "{{ task.task_code|default:"" }}",
                 start_date: {% if task.start_date %}"{{ task.start_date|date:"Y-m-d" }}"{% else %}null{% endif %},
                 end_date: {% if task.end_date %}"{{ task.end_date|date:"Y-m-d" }}"{% else %}null{% endif %},
-                duration: {{ task.duration|default:1 }},
+                duration: {{ task.duration|default:1 }},  // Server says: {{ task.duration }} days
                 progress: {{ task.progress|default:0 }}{% if not task.is_boundary %} / 100{% endif %},
                 parent: {% if task.parent_task %}{{ task.parent_task.pk }}{% else %}0{% endif %},
                 priority: "{{ task.priority|default:"medium" }}",
@@ -2165,6 +2212,38 @@
             }
         }
 
+        // CRITICAL: Handle conflict between end_date and duration
+        // DHTMLX Gantt prioritizes end_date over duration when both are provided
+        // This can cause display inconsistencies
+        if (task.end_date && task.start_date && task.duration) {
+            // Calculate what the duration should be based on dates
+            const calculatedDuration = gantt.calculateDuration(task.start_date, task.end_date);
+
+            // Check for Task 247 specifically for debugging
+            if (task.id === 247 || task.task_code === 'T0247') {
+                console.log('=== Task 247 Debug ===');
+                console.log('Start date:', task.start_date);
+                console.log('End date:', task.end_date);
+                console.log('Provided duration:', task.duration);
+                console.log('Calculated duration:', calculatedDuration);
+            }
+
+            if (calculatedDuration !== task.duration) {
+                console.warn('Task', task.id, '(' + task.task_code + ') has conflicting duration:',
+                    'provided=' + task.duration + ', calculated=' + calculatedDuration,
+                    '- removing end_date to use provided duration');
+
+                // Trust the duration field and let DHTMLX calculate the end_date
+                // This ensures consistent display for all tasks with the same duration
+                delete task.end_date;
+
+                // Log the resolution for Task 247
+                if (task.id === 247 || task.task_code === 'T0247') {
+                    console.log('Task 247: Removed end_date, will use duration=' + task.duration);
+                }
+            }
+        }
+
         // Ensure duration is valid
         if (!task.duration || task.duration <= 0 || isNaN(task.duration)) {
             console.warn('Task', task.id, '(' + task.task_code + ') has invalid duration:', task.duration, '- setting to 1');
@@ -2195,13 +2274,21 @@
 
     // CRITICAL: Set start_date and end_date BEFORE initialization
     // Force the timeline range to include the full year 2025
-    gantt.config.start_date = new Date(2025, 10, 1);
+    gantt.config.start_date = new Date(2025, 0, 1);
     gantt.config.end_date = new Date(2026, 0, 7, 23, 59, 59); // Extend to Jan 7, 2026
     console.log('BEFORE INIT - start_date:', gantt.config.start_date);
     console.log('BEFORE INIT - end_date:', gantt.config.end_date);
     console.log('BEFORE INIT - fit_tasks:', gantt.config.fit_tasks);
 
     // Removed filter - all tasks should be displayed
+
+    // Debug: Log the task data to see what's being sent from server
+    console.log('=== GANTT DATA FROM SERVER ===');
+    ganttData.data.forEach(task => {
+        if (task.start_date && task.end_date) {
+            console.log(`Task ${task.id} (${task.text}): start=${task.start_date}, end=${task.end_date}, duration=${task.duration} days`);
+        }
+    });
 
     // Initialize Gantt
     gantt.init("gantt_here");
@@ -2297,7 +2384,7 @@
             console.log('Creating aggressive timeline tasks for full year 2025 and beyond...');
 
             // Strategy 1: Weekly tasks from November 2025 to January 2026
-            const startDate = new Date(2025, 10, 1); // November 1, 2025
+            const startDate = new Date(2025, 0, 1); // January 1, 2025
             const endDate = new Date(2026, 0, 15); // January 15, 2026 for buffer
             let currentDate = new Date(startDate);
             let taskIndex = 0;
@@ -2431,7 +2518,7 @@
 
         // Always add boundary tasks - extend beyond Dec 31 to force timeline
         const boundaryTasks = [
-            { id: '_tl_start_', date: new Date(2025, 10, 1) },
+            { id: '_tl_start_', date: new Date(2025, 0, 1) },
             { id: '_tl_dec_30_', date: new Date(2025, 11, 30) },
             { id: '_tl_dec_31_', date: new Date(2025, 11, 31) },
             { id: '_tl_jan_01_2026_', date: new Date(2026, 0, 1) },
@@ -2464,7 +2551,7 @@
         const tasks = gantt.getTaskByTime();
         // Always include boundary dates in calculation
         const boundaryStart = {
-            start_date: new Date(2025, 10, 1),
+            start_date: new Date(2025, 0, 1),
             end_date: new Date(2025, 0, 2)
         };
         const boundaryEnd = {
@@ -2480,7 +2567,7 @@
         const result = originalGetSubtaskDates.call(this, task_id);
         // For root level (0), always return full year 2025
         if (task_id === 0 || task_id === undefined) {
-            result.start_date = new Date(2025, 10, 1);
+            result.start_date = new Date(2025, 0, 1);
             result.end_date = new Date(2026, 0, 7, 23, 59, 59);
         }
         return result;
@@ -2491,9 +2578,9 @@
         return new Date(2026, 0, 7, 23, 59, 59);
     };
 
-    // Override _getProjectStart to always return Nov 1, 2025
+    // Override _getProjectStart to always return Jan 1, 2025
     gantt._getProjectStart = function() {
-        return new Date(2025, 10, 1);
+        return new Date(2025, 0, 1);
     };
 
     // Override scale calculation methods
@@ -2502,14 +2589,14 @@
         gantt._calculateScaleRange = function(config) {
             // Force our dates
             config = config || {};
-            config.start_date = new Date(2025, 10, 1);
+            config.start_date = new Date(2025, 0, 1);
             config.end_date = new Date(2026, 0, 7, 23, 59, 59);
 
             const result = originalCalculateScaleRange.call(this, config);
 
             // Ensure result uses our dates
             if (result) {
-                result.start_date = new Date(2025, 10, 1);
+                result.start_date = new Date(2025, 0, 1);
                 result.end_date = new Date(2026, 0, 7, 23, 59, 59);
             }
 
@@ -2532,7 +2619,7 @@
 
     // Attach event to maintain timeline after any operation
     gantt.attachEvent("onGanttRender", function() {
-        gantt.config.start_date = new Date(2025, 10, 1);
+        gantt.config.start_date = new Date(2025, 0, 1);
         gantt.config.end_date = new Date(2026, 0, 7, 23, 59, 59); // Extend to Jan 7, 2026
         gantt.config.fit_tasks = false;
     });
@@ -2598,7 +2685,7 @@
     // ========================================================================
     (function() {
         // CRITICAL FIX: Do NOT recalculate start_date from tasks
-        // Keep the fixed range: Nov 1, 2025 to Dec 31, 2025 (extended to Jan 7, 2026)
+        // Keep the fixed range: Jan 1, 2025 to Dec 31, 2025 (extended to Jan 7, 2026)
         // This prevents DHTMLX from auto-fitting the timeline
 
         console.log('=== LOCKING Timeline to Full Year 2025 ===');
@@ -2608,8 +2695,8 @@
 
         // Verify the configuration is still correct
         if (!gantt.config.start_date || gantt.config.start_date.getFullYear() !== 2025 || gantt.config.start_date.getMonth() !== 0) {
-            console.warn('start_date was modified, resetting to Nov 1, 2025');
-            gantt.config.start_date = new Date(2025, 10, 1);
+            console.warn('start_date was modified, resetting to Jan 1, 2025');
+            gantt.config.start_date = new Date(2025, 0, 1);
         }
         if (!gantt.config.end_date || gantt.config.end_date.getFullYear() !== 2025 || gantt.config.end_date.getMonth() !== 11) {
             console.warn('end_date was modified, resetting to Dec 31, 2025 (extended to Jan 7, 2026)');
@@ -2681,7 +2768,7 @@
         gantt.getState = function() {
             const state = originalGetState.call(this);
             // Force our date range
-            state.min_date = new Date(2025, 10, 1);
+            state.min_date = new Date(2025, 0, 1);
             state.max_date = new Date(2026, 0, 7, 23, 59, 59);
             console.log('getState override - forcing dates:', state.min_date, 'to', state.max_date);
             return state;
@@ -2692,7 +2779,7 @@
             const dates = originalGetSubtaskDates.call(this, task_id);
             // If this is the root task, force our date range
             if (task_id === 0 || !task_id) {
-                dates.start_date = new Date(2025, 10, 1);
+                dates.start_date = new Date(2025, 0, 1);
                 dates.end_date = new Date(2026, 0, 7, 23, 59, 59);
                 console.log('getSubtaskDates override - forcing full year for root');
             }
@@ -2713,7 +2800,7 @@
             console.log('=== Forcing complete re-render with overrides ===');
 
             // Reset the config one more time to be sure
-            gantt.config.start_date = new Date(2025, 10, 1);
+            gantt.config.start_date = new Date(2025, 0, 1);
             gantt.config.end_date = new Date(2026, 0, 7, 23, 59, 59); // Extend to Jan 7, 2026
             gantt.config.fit_tasks = false;
 
@@ -2752,7 +2839,7 @@
             const original_get_timeline_dates = gantt._get_timeline_dates;
             gantt._get_timeline_dates = function() {
                 const dates = original_get_timeline_dates.call(this);
-                dates.start_date = new Date(2025, 10, 1);
+                dates.start_date = new Date(2025, 0, 1);
                 dates.end_date = new Date(2026, 0, 7, 23, 59, 59);
                 console.log('_get_timeline_dates override - forcing full year');
                 return dates;
@@ -2765,7 +2852,7 @@
             if (originalGetScaleBounds) {
                 gantt._scale_helpers.getScaleBounds = function() {
                     const bounds = originalGetScaleBounds.apply(this, arguments);
-                    bounds.start_date = new Date(2025, 10, 1);
+                    bounds.start_date = new Date(2025, 0, 1);
                     bounds.end_date = new Date(2026, 0, 7, 23, 59, 59);
                     console.log('getScaleBounds override - forcing full year');
                     return bounds;
@@ -3136,6 +3223,55 @@
 
     const csrftoken = getCookie('csrftoken');
 
+    // ========================================================================
+    // DEBOUNCED SAVE FOR DATE/DURATION CHANGES
+    // ========================================================================
+    let saveTimeouts = {};
+
+    function debouncedSaveDates(taskId, task) {
+        // Clear any existing timeout for this task
+        if (saveTimeouts[taskId]) {
+            clearTimeout(saveTimeouts[taskId]);
+        }
+
+        // Set a new timeout to save after 500ms of no changes
+        saveTimeouts[taskId] = setTimeout(() => {
+            console.log('Debounced save triggered for task:', taskId);
+
+            if (task.start_date && task.end_date) {
+                fetch(`/project-management/{{ project.pk }}/api/gantt/tasks/${taskId}/update-dates/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken
+                    },
+                    body: JSON.stringify({
+                        start_date: gantt.date.date_to_str("%Y-%m-%d")(task.start_date),
+                        end_date: gantt.date.date_to_str("%Y-%m-%d")(task.end_date)
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        console.log('✓ Dates saved successfully for task:', taskId);
+                        // Update duration if it changed
+                        if (data.task && data.task.duration) {
+                            task.duration = data.task.duration;
+                        }
+                    } else {
+                        console.error('Failed to save dates:', data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error saving dates:', error);
+                });
+            }
+
+            // Clear the timeout reference
+            delete saveTimeouts[taskId];
+        }, 500);
+    }
+
     // Function to check if a task code already exists
     function isTaskCodeUsed(code, excludeTaskId) {
         let isUsed = false;
@@ -3240,7 +3376,7 @@
                 text: item.text,
                 task_code: item.task_code,
                 start_date: item.start_date ? gantt.date.date_to_str("%Y-%m-%d")(item.start_date) : null,
-                duration: item.duration || 1,
+                duration: item.duration && item.duration > 0 ? item.duration : null,  // Send null if no valid duration
                 parent: item.parent || 0
             })
         })
@@ -3564,7 +3700,14 @@
             return true;
         }
 
-        // Update task progress, Chinese title, process owner, and DoD
+        console.log('Task updated:', id, 'Start:', task.start_date, 'End:', task.end_date, 'Duration:', task.duration);
+
+        // Use debounced save for dates to avoid too many API calls
+        if (task.start_date && task.end_date) {
+            debouncedSaveDates(id, task);
+        }
+
+        // Then update task progress, Chinese title, process owner, and DoD
         fetch(`/project-management/{{ project.pk }}/api/gantt/tasks/${id}/update-progress/`, {
             method: 'POST',
             headers: {
@@ -3626,10 +3769,20 @@
         console.log('  End date:', task.end_date);
         console.log('  Duration:', task.duration);
 
-        // Skip updates for invalid, temporary, or null task IDs
+        // Handle temporary/new tasks differently
         if (!id || id === 'null' || id === null || id === undefined || id > 1000000000000) {
-            console.log('Skipping lightbox save for invalid/temporary task ID:', id);
-            return true;
+            console.log('Detected temporary/new task ID:', id, '- attempting to create in database first');
+
+            // For new tasks, we need to create them in the database first
+            if (is_new || id > 1000000000000) {
+                console.log('Creating new task in database...');
+                // The task will be created via onAfterTaskAdd event
+                // Just return true to allow the Gantt to proceed
+                return true;
+            } else {
+                console.log('Skipping lightbox save for invalid task ID:', id);
+                return true;
+            }
         }
 
         // Update task dates first (start_date, end_date)
@@ -3733,7 +3886,7 @@
             const scrollState = gantt.getScrollState();
 
             // Set common configuration for all views
-            gantt.config.start_date = new Date(2025, 10, 1);
+            gantt.config.start_date = new Date(2025, 0, 1);  // Fixed: January 1, 2025 (month 0 = January)
             gantt.config.end_date = new Date(2026, 0, 15, 23, 59, 59);
             gantt.config.fit_tasks = false;
             gantt.config.show_chart = true;
@@ -3881,7 +4034,7 @@
         gantt.clearAll();
 
         // Step 2: Force config settings
-        gantt.config.start_date = new Date(2025, 10, 1);
+        gantt.config.start_date = new Date(2025, 0, 1);
         gantt.config.end_date = new Date(2026, 0, 7, 23, 59, 59); // Extend to Jan 7, 2026
         gantt.config.fit_tasks = false;
         gantt.config.show_chart = true;
@@ -3923,8 +4076,8 @@
                         gantt.showTask(firstTask.id);
                         console.log('Scrolled back to first task');
                     } else {
-                        gantt.showDate(new Date(2025, 10, 1));
-                        console.log('Scrolled to November 1, 2025');
+                        gantt.showDate(new Date(2025, 0, 1));
+                        console.log('Scrolled to January 1, 2025');
                     }
                 }, 300);
             }, 300);

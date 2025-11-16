@@ -520,6 +520,11 @@ def api_update_task_dates(request, project_pk, task_id):
         old_start = task.start_date
         old_end = task.end_date
 
+        # Log what we received
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Updating dates for task {task_id} ({task.task_code}): start={start_date_str}, end={end_date_str}")
+
         if start_date_str:
             task.start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
 
@@ -531,6 +536,9 @@ def api_update_task_dates(request, project_pk, task_id):
             task.duration = (task.end_date - task.start_date).days + 1
 
         task.save(update_fields=['start_date', 'end_date', 'duration'])
+
+        # Log what was saved
+        logger.info(f"Saved task {task_id} ({task.task_code}): start={task.start_date}, end={task.end_date}, duration={task.duration}")
 
         # Log activity
         TaskActivity.objects.create(
@@ -767,7 +775,7 @@ def api_create_task(request, project_pk):
 
         title = data.get('text', 'New Task')
         start_date_str = data.get('start_date')
-        duration = data.get('duration', 1)
+        duration = data.get('duration')  # Don't default to 1 here
         parent_id = data.get('parent')
 
         # Parse start date
@@ -775,10 +783,16 @@ def api_create_task(request, project_pk):
         if start_date_str:
             start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
 
-        # Calculate end date
+        # Handle duration - if not provided or null, use model default (1)
+        if duration is None:
+            duration = 1  # Model default
+        else:
+            duration = int(duration)
+
+        # Calculate end date only if we have a start date
         end_date = None
-        if start_date:
-            end_date = start_date + timedelta(days=int(duration) - 1)
+        if start_date and duration:
+            end_date = start_date + timedelta(days=duration - 1)
 
         # Get parent task if specified
         parent_task = None
@@ -799,7 +813,7 @@ def api_create_task(request, project_pk):
             task_code=task_code,
             start_date=start_date,
             end_date=end_date,
-            duration=int(duration),
+            duration=duration,  # Already converted to int above
             parent_task=parent_task,
             created_by=request.user,
             status='todo',
