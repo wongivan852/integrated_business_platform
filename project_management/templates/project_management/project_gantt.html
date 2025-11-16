@@ -86,6 +86,19 @@
                     <label class="btn btn-outline-secondary" for="viewYear">Year</label>
                 </div>
 
+                <!-- Timeline Markers Toggle -->
+                <div class="form-check form-switch d-inline-block ms-3">
+                    <input class="form-check-input" type="checkbox" id="toggleTimelineMarkers" checked>
+                    <label class="form-check-label" for="toggleTimelineMarkers" style="font-size: 12px;">
+                        Timeline Guides
+                    </label>
+                </div>
+
+                <!-- Force Full Year Button -->
+                <button class="btn btn-sm btn-warning ms-2" id="forceFullYear" title="Force timeline to show full year 2025">
+                    <i class="fas fa-expand-arrows-alt"></i> Force Full Year
+                </button>
+
                 <div class="btn-group btn-group-sm ms-3" role="group">
                     <button class="btn btn-outline-secondary" onclick="gantt.scrollToToday()">
                         <i class="fas fa-calendar-day"></i> Today
@@ -622,6 +635,7 @@
     }
 
     /* Hide the marker tasks (ID 9999998 and 9999999) used to extend timeline */
+    /* Also hide the new persistent boundary tasks */
     .gantt_row[task_id="9999999"],
     .gantt_task_row[task_id="9999999"],
     .gantt_task_line[task_id="9999999"],
@@ -633,7 +647,19 @@
     .gantt_task_line[task_id="9999998"],
     .gantt_task_bar[data-task-id="9999998"],
     .gantt_side_content[data-task-id="9999998"],
-    div[task_id="9999998"] {
+    div[task_id="9999998"],
+    .gantt_row[task_id="boundary_start_2025"],
+    .gantt_task_row[task_id="boundary_start_2025"],
+    .gantt_task_line[task_id="boundary_start_2025"],
+    .gantt_task_bar[data-task-id="boundary_start_2025"],
+    .gantt_side_content[data-task-id="boundary_start_2025"],
+    div[task_id="boundary_start_2025"],
+    .gantt_row[task_id="boundary_end_2025"],
+    .gantt_task_row[task_id="boundary_end_2025"],
+    .gantt_task_line[task_id="boundary_end_2025"],
+    .gantt_task_bar[data-task-id="boundary_end_2025"],
+    .gantt_side_content[data-task-id="boundary_end_2025"],
+    div[task_id="boundary_end_2025"] {
         display: none !important;
         visibility: hidden !important;
         height: 0 !important;
@@ -643,7 +669,9 @@
 
     /* Also hide the grid rows for the marker tasks */
     .gantt_grid_data .gantt_row[task_id="9999999"],
-    .gantt_grid_data .gantt_row[task_id="9999998"] {
+    .gantt_grid_data .gantt_row[task_id="9999998"],
+    .gantt_grid_data .gantt_row[task_id="boundary_start_2025"],
+    .gantt_grid_data .gantt_row[task_id="boundary_end_2025"] {
         height: 0 !important;
         line-height: 0 !important;
     }
@@ -664,6 +692,48 @@
         line-height: 0 !important;
         display: none !important;
     }
+
+    /* Style for timeline marker tasks - make them subtle */
+    .gantt_task_line[task_id^="timeline_marker_"],
+    .gantt_task_line[task_id^="timeline_w"],
+    .gantt_task_line[task_id^="timeline_start"],
+    .gantt_task_line[task_id^="timeline_end"] {
+        opacity: 0.2 !important;
+        background-color: #e0e0e0 !important;
+        border-color: #d0d0d0 !important;
+    }
+
+    /* Make timeline marker milestones smaller and less prominent */
+    .gantt_task_line[task_id^="timeline_marker_"] .gantt_task_content,
+    .gantt_task_line[task_id^="timeline_w"] .gantt_task_content,
+    .gantt_task_line[task_id^="timeline_start"] .gantt_task_content,
+    .gantt_task_line[task_id^="timeline_end"] .gantt_task_content {
+        font-size: 10px !important;
+        color: #999 !important;
+    }
+
+    /* Style timeline markers in the grid */
+    .gantt_row[task_id^="timeline_marker_"],
+    .gantt_row[task_id^="timeline_w"],
+    .gantt_row[task_id^="timeline_start"],
+    .gantt_row[task_id^="timeline_end"] {
+        opacity: 0.3 !important;
+        background-color: #f9f9f9 !important;
+    }
+
+    .gantt_row[task_id^="timeline_marker_"] .gantt_cell,
+    .gantt_row[task_id^="timeline_w"] .gantt_cell,
+    .gantt_row[task_id^="timeline_start"] .gantt_cell,
+    .gantt_row[task_id^="timeline_end"] .gantt_cell {
+        color: #999 !important;
+        font-size: 11px !important;
+        font-style: italic !important;
+    }
+</style>
+
+<!-- Dynamic style for timeline markers toggle -->
+<style id="timeline-markers-style">
+    /* Initial state - markers visible */
 
     /* Hide boundary tasks completely */
     .gantt_boundary_hidden,
@@ -1066,7 +1136,8 @@
             resize: true,
             template: function(task) {
                 // Hide boundary tasks completely in the grid
-                if (task.is_boundary === true || task.id == 999998 || task.id == 999999) {
+                if (task.is_boundary === true || task.id == 999998 || task.id == 999999 ||
+                    task.id === 'boundary_start_2025' || task.id === 'boundary_end_2025') {
                     return '';
                 }
                 // Show both English and Chinese if available
@@ -1938,7 +2009,8 @@
 
     // Add template to completely hide boundary tasks from rendering
     gantt.templates.task_class = function(start, end, task) {
-        if (task.is_boundary === true || task.id == 999998 || task.id == 999999) {
+        if (task.is_boundary === true || task.id == 999998 || task.id == 999999 ||
+            task.id === 'boundary_start_2025' || task.id === 'boundary_end_2025') {
             return "gantt_boundary_hidden";
         }
         return "";
@@ -1946,7 +2018,8 @@
 
     // Prevent boundary tasks from being displayed in the grid rows
     gantt.templates.grid_row_class = function(start, end, task) {
-        if (task.is_boundary === true || task.id == 999998 || task.id == 999999) {
+        if (task.is_boundary === true || task.id == 999998 || task.id == 999999 ||
+            task.id === 'boundary_start_2025' || task.id === 'boundary_end_2025') {
             return "gantt_hidden_row";
         }
         return "";
@@ -1954,7 +2027,8 @@
 
     // Return empty string for task text of boundary tasks
     gantt.templates.task_text = function(start, end, task) {
-        if (task.is_boundary === true || task.id == 999998 || task.id == 999999) {
+        if (task.is_boundary === true || task.id == 999998 || task.id == 999999 ||
+            task.id === 'boundary_start_2025' || task.id === 'boundary_end_2025') {
             return "";
         }
         return task.text;
@@ -1974,6 +2048,204 @@
 
     console.log('=== Gantt initialized and data parsed ===');
     console.log('Total tasks loaded:', gantt.getTaskCount());
+
+    // GLOBAL STORAGE FOR TIMELINE MARKERS - PERSIST ACROSS ALL OPERATIONS
+    window.timelineMarkers = [];
+    window.originalGanttData = JSON.parse(JSON.stringify(ganttData)); // Store original data
+
+    // Create and store timeline markers globally
+    function createAndStoreTimelineMarkers() {
+        console.log('Creating persistent timeline markers for 2025...');
+        window.timelineMarkers = [];
+
+        // Create a marker for every week throughout 2025 (more aggressive)
+        const startDate = new Date(2025, 0, 1);
+        const endDate = new Date(2025, 11, 31);
+        let currentDate = new Date(startDate);
+        let weekNum = 1;
+
+        // Weekly markers for more coverage
+        while (currentDate <= endDate) {
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const month = monthNames[currentDate.getMonth()];
+            const day = currentDate.getDate();
+            const placeholderId = 'timeline_w' + weekNum + '_' + month + day + '_2025';
+
+            const placeholderTask = {
+                id: placeholderId,
+                text: 'W' + weekNum,
+                start_date: new Date(currentDate),
+                end_date: new Date(currentDate.getTime() + 86400000),
+                duration: 1,
+                parent: 0,
+                progress: 0,
+                readonly: true,
+                $no_delete: true,
+                $no_drag: true,
+                type: gantt.config.types.milestone,
+                is_timeline_marker: true,
+                color: '#e0e0e0'
+            };
+
+            window.timelineMarkers.push(placeholderTask);
+            currentDate.setDate(currentDate.getDate() + 7); // Weekly instead of bi-weekly
+            weekNum++;
+        }
+
+        // Add start and end markers
+        window.timelineMarkers.push({
+            id: 'timeline_start_2025',
+            text: 'Start 2025',
+            start_date: new Date(2025, 0, 1),
+            end_date: new Date(2025, 0, 2),
+            duration: 1,
+            parent: 0,
+            progress: 0,
+            readonly: true,
+            $no_delete: true,
+            $no_drag: true,
+            type: gantt.config.types.milestone,
+            is_timeline_marker: true,
+            color: '#e0e0e0'
+        });
+
+        window.timelineMarkers.push({
+            id: 'timeline_end_2025',
+            text: 'End 2025',
+            start_date: new Date(2025, 11, 31),
+            end_date: new Date(2025, 11, 31, 23, 59, 59),
+            duration: 1,
+            parent: 0,
+            progress: 0,
+            readonly: true,
+            $no_delete: true,
+            $no_drag: true,
+            type: gantt.config.types.milestone,
+            is_timeline_marker: true,
+            color: '#e0e0e0'
+        });
+
+        console.log('Created', window.timelineMarkers.length, 'persistent timeline markers');
+        return window.timelineMarkers;
+    }
+
+    // Function to forcefully inject markers into Gantt - MAKE IT GLOBAL AND BULLETPROOF
+    window.injectTimelineMarkers = function(forceAll = false) {
+        let injected = 0;
+        if (!window.timelineMarkers || window.timelineMarkers.length === 0) {
+            console.warn('No timeline markers found, recreating...');
+            createAndStoreTimelineMarkers();
+        }
+
+        // If forceAll, remove and re-add all markers
+        if (forceAll) {
+            console.log('Force re-adding all timeline markers...');
+            window.timelineMarkers.forEach(function(marker) {
+                if (gantt.isTaskExists(marker.id)) {
+                    gantt.silent(function() {
+                        gantt.deleteTask(marker.id);
+                    });
+                }
+            });
+        }
+
+        window.timelineMarkers.forEach(function(marker) {
+            if (!gantt.isTaskExists(marker.id)) {
+                // Clone the marker to avoid reference issues
+                const markerClone = JSON.parse(JSON.stringify(marker));
+                // Ensure dates are Date objects
+                markerClone.start_date = new Date(markerClone.start_date);
+                markerClone.end_date = new Date(markerClone.end_date);
+
+                // Make absolutely sure it can't be deleted
+                markerClone.$no_delete = true;
+                markerClone.$no_drag = true;
+                markerClone.$no_resize = true;
+                markerClone.readonly = true;
+
+                gantt.addTask(markerClone);
+                injected++;
+            }
+        });
+
+        if (injected > 0) {
+            console.log('Injected', injected, 'timeline markers into Gantt');
+
+            // FORCE TIMELINE RECALCULATION
+            gantt.config.start_date = new Date(2025, 0, 1);
+            gantt.config.end_date = new Date(2025, 11, 31, 23, 59, 59);
+            gantt.config.fit_tasks = false;
+
+            // Force the timeline to show December
+            setTimeout(function() {
+                gantt.showDate(new Date(2025, 11, 31));
+            }, 100);
+        }
+        return injected;
+    };
+
+    // Create markers and store globally
+    createAndStoreTimelineMarkers();
+
+    // Override gantt.clearAll to preserve our markers
+    const originalClearAll = gantt.clearAll;
+    gantt.clearAll = function() {
+        console.log('gantt.clearAll intercepted - will re-inject markers after clear');
+        originalClearAll.apply(this, arguments);
+        // Immediately re-inject our timeline markers
+        window.injectTimelineMarkers();
+    };
+
+    // Override gantt.parse to ensure markers are always added
+    const originalParse = gantt.parse;
+    gantt.parse = function(data) {
+        console.log('gantt.parse intercepted - will inject markers after parse');
+        originalParse.apply(this, arguments);
+        // Inject markers after parsing
+        window.injectTimelineMarkers();
+    };
+
+    // Override gantt.deleteTask to prevent deletion of timeline markers
+    const originalDeleteTask = gantt.deleteTask;
+    gantt.deleteTask = function(id) {
+        // Check if this is a timeline marker
+        if (typeof id === 'string' && (id.startsWith('timeline_') || id.includes('timeline_'))) {
+            console.log('Prevented deletion of timeline marker:', id);
+            return false; // Don't delete timeline markers
+        }
+        return originalDeleteTask.apply(this, arguments);
+    };
+
+    // BULLETPROOF: Continuously ensure markers exist
+    window.markerMaintenanceInterval = setInterval(function() {
+        let currentTaskCount = 0;
+        gantt.eachTask(function(task) {
+            if (task.is_timeline_marker) {
+                currentTaskCount++;
+            }
+        });
+
+        // If we have fewer markers than expected, re-inject
+        if (currentTaskCount < window.timelineMarkers.length) {
+            console.log('Marker count dropped to', currentTaskCount, '- re-injecting...');
+            window.injectTimelineMarkers();
+
+            // Force timeline recalculation
+            const currentView = document.querySelector('input[name="viewMode"]:checked');
+            if (currentView) {
+                // Force config update
+                gantt.config.start_date = new Date(2025, 0, 1);
+                gantt.config.end_date = new Date(2025, 11, 31, 23, 59, 59);
+                gantt.render();
+            }
+        }
+    }, 2000); // Check every 2 seconds
+
+    // Inject markers initially
+    window.injectTimelineMarkers();
+
+    // Force render after adding placeholders
+    gantt.render();
 
     // Boundary tasks are now added server-side in the view
     console.log('=== Boundary tasks loaded from server - checking... ===');
@@ -3091,6 +3363,14 @@
             if (gantt.ext && gantt.ext.zoom) {
                 console.log('Using zoom extension to change view to:', this.value);
                 gantt.ext.zoom.setLevel(this.value);
+                // INJECT MARKERS AFTER ZOOM CHANGE
+                setTimeout(function() {
+                    if (typeof window.injectTimelineMarkers === 'function') {
+                        window.injectTimelineMarkers();
+                        gantt.render();
+                        console.log('Injected markers after zoom level change');
+                    }
+                }, 100);
                 return;
             }
 
@@ -3134,78 +3414,41 @@
             console.log('View mode applied. End date:', gantt.config.end_date.toISOString());
             console.log('fit_tasks:', gantt.config.fit_tasks);
 
-            // AGGRESSIVE FIX: Force the timeline to generate all columns
-            // by temporarily adding tasks at the boundaries if they don't exist
-            const allTasks = gantt.getTaskByTime();
-            let hasJanTask = false;
-            let hasDecTask = false;
-
-            allTasks.forEach(function(task) {
-                const taskDate = task.start_date;
-                if (taskDate.getFullYear() === 2025) {
-                    if (taskDate.getMonth() === 0) hasJanTask = true;
-                    if (taskDate.getMonth() === 11) hasDecTask = true;
-                }
-            });
-
-            // Temporarily add boundary tasks if they don't exist
-            const tempTasks = [];
-            if (!hasJanTask) {
-                const janTask = {
-                    id: 'temp_jan_' + Date.now(),
-                    text: '',
-                    start_date: new Date(2025, 0, 1),
-                    duration: 1,
-                    parent: 0,
-                    $virtual: true
-                };
-                gantt.addTask(janTask);
-                tempTasks.push(janTask.id);
-                console.log('Added temporary January task for timeline extension');
+            // FORCEFULLY INJECT TIMELINE MARKERS FROM GLOBAL STORAGE
+            // Use the global injectTimelineMarkers function
+            console.log('Injecting timeline markers after view switch...');
+            if (typeof window.injectTimelineMarkers === 'function') {
+                window.injectTimelineMarkers();
+            } else {
+                console.error('injectTimelineMarkers function not found!');
             }
 
-            if (!hasDecTask) {
-                const decTask = {
-                    id: 'temp_dec_' + Date.now(),
-                    text: '',
-                    start_date: new Date(2025, 11, 31),
-                    duration: 1,
-                    parent: 0,
-                    $virtual: true
-                };
-                gantt.addTask(decTask);
-                tempTasks.push(decTask.id);
-                console.log('Added temporary December task for timeline extension');
-            }
-
-            // Force Gantt to render with the temporary tasks
+            // Force Gantt to render with all tasks
             gantt.render();
 
-            // Remove temporary tasks after render completes
-            if (tempTasks.length > 0) {
-                setTimeout(function() {
-                    tempTasks.forEach(function(taskId) {
-                        if (gantt.isTaskExists(taskId)) {
-                            gantt.deleteTask(taskId);
-                            console.log('Removed temporary task:', taskId);
-                        }
-                    });
-                    // Re-render without the temporary tasks
+            // ADDITIONAL SAFEGUARD: Re-add placeholders after render in case they were lost
+            setTimeout(function() {
+                if (typeof window.injectTimelineMarkers === 'function') {
+                    window.injectTimelineMarkers();
                     gantt.render();
-                }, 100);
-            }
+                    console.log('Double-checked timeline placeholders after render');
+                }
+            }, 200);
 
             // WORKAROUND: Scroll to show that the end date exists in the timeline
             // This forces Gantt to render columns all the way to Dec 31
+            // Wait for render operations to complete before scrolling
             setTimeout(() => {
                 gantt.showDate(endOfDec2025);
+                console.log('Scrolled to December 31, 2025 to force timeline extension');
                 // Then scroll back to show tasks
                 setTimeout(() => {
                     if (gantt.getTaskByIndex(0)) {
                         gantt.showTask(gantt.getTaskByIndex(0).id);
+                        console.log('Scrolled back to first task');
                     }
-                }, 100);
-            }, 100);
+                }, 500);  // Give time to see the full timeline
+            }, 1500);  // Wait for all render operations to complete
         });
     });
 
@@ -3215,6 +3458,95 @@
         console.log('Month button not checked, checking it now');
         monthButton.checked = true;
     }
+
+    // Handle Force Full Year button
+    document.getElementById('forceFullYear').addEventListener('click', function(e) {
+        e.preventDefault();
+        console.log('=== FORCING FULL YEAR TIMELINE ===');
+
+        // 1. Force re-inject ALL markers
+        window.injectTimelineMarkers(true); // Force all
+
+        // 2. Set config aggressively
+        gantt.config.start_date = new Date(2025, 0, 1);
+        gantt.config.end_date = new Date(2025, 11, 31, 23, 59, 59);
+        gantt.config.fit_tasks = false;
+        gantt.config.show_chart = true;
+
+        // 3. Force render
+        gantt.render();
+
+        // 4. Scroll to December to force column generation
+        setTimeout(function() {
+            gantt.showDate(new Date(2025, 11, 31));
+            console.log('Scrolled to December 31, 2025');
+
+            // 5. Then scroll back to first task
+            setTimeout(function() {
+                const firstTask = gantt.getTaskByIndex(0);
+                if (firstTask) {
+                    gantt.showTask(firstTask.id);
+                    console.log('Scrolled back to first task');
+                }
+            }, 500);
+        }, 500);
+
+        // Show success message
+        this.innerHTML = '<i class="fas fa-check"></i> Full Year Applied';
+        setTimeout(() => {
+            this.innerHTML = '<i class="fas fa-expand-arrows-alt"></i> Force Full Year';
+        }, 2000);
+    });
+
+    // Handle timeline markers visibility toggle
+    document.getElementById('toggleTimelineMarkers').addEventListener('change', function(e) {
+        const showMarkers = e.target.checked;
+        console.log('Timeline markers visibility:', showMarkers);
+
+        // Toggle CSS class to show/hide timeline markers
+        if (showMarkers) {
+            // Show timeline markers with reduced opacity
+            const style = document.getElementById('timeline-markers-style');
+            if (style) {
+                style.textContent = `
+                    .gantt_task_line[task_id^="timeline_marker_"],
+                    .gantt_task_line[task_id^="timeline_w"],
+                    .gantt_task_line[task_id^="timeline_start"],
+                    .gantt_task_line[task_id^="timeline_end"] {
+                        opacity: 0.2 !important;
+                        display: block !important;
+                    }
+                    .gantt_row[task_id^="timeline_marker_"],
+                    .gantt_row[task_id^="timeline_w"],
+                    .gantt_row[task_id^="timeline_start"],
+                    .gantt_row[task_id^="timeline_end"] {
+                        opacity: 0.3 !important;
+                        display: table-row !important;
+                    }
+                `;
+            }
+        } else {
+            // Hide timeline markers completely
+            const style = document.getElementById('timeline-markers-style');
+            if (style) {
+                style.textContent = `
+                    .gantt_task_line[task_id^="timeline_marker_"],
+                    .gantt_task_line[task_id^="timeline_w"],
+                    .gantt_task_line[task_id^="timeline_start"],
+                    .gantt_task_line[task_id^="timeline_end"],
+                    .gantt_row[task_id^="timeline_marker_"],
+                    .gantt_row[task_id^="timeline_w"],
+                    .gantt_row[task_id^="timeline_start"],
+                    .gantt_row[task_id^="timeline_end"] {
+                        display: none !important;
+                    }
+                `;
+            }
+        }
+
+        // Re-render to apply changes
+        gantt.render();
+    });
 
     // Toggle options
     document.getElementById('showCritical').addEventListener('change', function() {

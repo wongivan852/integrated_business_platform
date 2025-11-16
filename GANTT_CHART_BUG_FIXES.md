@@ -356,7 +356,7 @@ This check now works correctly because dependencies are properly loaded from the
 | Date handling error (`k.getDate is not a function`) | ✅ FIXED | Critical - prevented task editing |
 | Dependencies UI - hidden button | ✅ FIXED | High - prevented adding dependencies |
 | Duplicate dependencies error | ✅ FIXED | High - database errors and dependencies not displaying |
-| Timeline not extending to December 31, 2025 | 🔧 IN PROGRESS | High - limited project planning capability |
+| Timeline not extending to December 31, 2025 | ✅ FIXED (Nov 16) | High - limited project planning capability |
 
 ## Files Modified
 
@@ -406,7 +406,7 @@ This check now works correctly because dependencies are properly loaded from the
 
 ---
 
-## Bug #4: Timeline Not Extending to December 31, 2025 🔧 IN PROGRESS
+## Bug #4: Timeline Not Extending to December 31, 2025 ✅ FIXED (November 16, 2025)
 
 ### Symptom
 
@@ -676,12 +676,49 @@ template: function(task) {
    - Direct ID-based CSS targeting as final fallback
 3. **All view modes supported**: Works across Day/Week/Month/Year views because the marker tasks exist in the data regardless of scale
 
+### November 16, 2025 Fix: Race Condition Resolution
+
+**Root Cause Identified**: The temporary boundary tasks were being removed too quickly (100ms) before the Gantt chart finished rendering, causing the timeline to shrink back.
+
+**Solution Implemented**: Fixed the race condition by:
+
+1. **Increased Timeout for Task Removal** (Line 3196):
+   - Changed from 100ms to 500ms to allow full render completion
+
+2. **Enhanced Render Event Handling** (Lines 3185-3217):
+   - Added `onGanttRender` event listener to detect render completion
+   - Only removes temporary tasks after render event fires
+   - Includes fallback timeout of 1000ms if event doesn't fire
+
+3. **Improved Scroll Timing** (Lines 3222-3232):
+   - Increased scroll-to-December timeout from 100ms to 1500ms
+   - Ensures all render operations complete before scrolling
+   - Added console logging for debugging
+
+**Code Changes**:
+```javascript
+// Wait for render completion before removing temporary tasks
+const renderHandler = gantt.attachEvent("onGanttRender", function() {
+    gantt.detachEvent(renderHandler);
+    setTimeout(function() {
+        // Remove temporary tasks
+    }, 250);
+});
+
+// Fallback timeout increased to 1000ms
+setTimeout(function() {
+    if (gantt.checkEvent(renderHandler)) {
+        // Remove tasks if render event didn't fire
+    }
+}, 1000);
+```
+
 ### Result
 
-✅ **Status**: FIXED
+✅ **Status**: FIXED (November 16, 2025)
 ✅ **Impact**: Timeline now extends through December 31, 2025 in all view modes
 ✅ **User Experience**: Marker tasks are completely invisible to users
-✅ **Maintainability**: Multi-layered approach ensures robustness
+✅ **Maintainability**: Multi-layered approach with proper timing ensures robustness
 
 ### Testing Checklist
 
@@ -709,5 +746,5 @@ template: function(task) {
 
 ---
 
-**Document Version**: 4.0
-**Last Updated**: November 15, 2025 (Timeline Extension Fix Completed)
+**Document Version**: 5.0
+**Last Updated**: November 16, 2025 (Timeline Extension Race Condition Fix)
