@@ -4087,8 +4087,13 @@
         // Find matching tasks
         searchMatchedTasks = [];
         gantt.eachTask(function(task) {
-            const taskText = task.text.toLowerCase();
-            const taskCode = task.task_code.toLowerCase();
+            // Skip hidden timeline tasks
+            if (task.id && task.id.toString().startsWith('_tl_')) {
+                return;
+            }
+
+            const taskText = (task.text || '').toLowerCase();
+            const taskCode = (task.task_code || '').toLowerCase();
             const taskCn = task.title_cn ? task.title_cn.toLowerCase() : '';
 
             // Check if ANY of the search words matches
@@ -4115,47 +4120,97 @@
     }
 
     function highlightSearchResults() {
-        // Clear previous highlights
+        // Clear all previous highlights using DOM query
+        const allHighlighted = document.querySelectorAll('.search_match, .search_selected');
+        allHighlighted.forEach(function(el) {
+            el.classList.remove('search_match', 'search_selected');
+        });
+
+        // Also clear using Gantt's row highlighting
         gantt.eachTask(function(task) {
-            const row = gantt.getTaskNode(task.id);
-            if (row) {
-                row.classList.remove('search_match', 'search_selected');
-            }
+            gantt.refreshTask(task.id);
         });
 
-        // Highlight all matches
+        // Highlight all matches - try multiple approaches
         searchMatchedTasks.forEach(function(taskId) {
-            const row = gantt.getTaskNode(taskId);
-            if (row) {
-                row.classList.add('search_match');
+            try {
+                // Approach 1: Use getTaskNode
+                const taskNode = gantt.getTaskNode(taskId);
+                if (taskNode) {
+                    taskNode.classList.add('search_match');
+                }
+
+                // Approach 2: Use getTask and getTaskRowNode
+                const task = gantt.getTask(taskId);
+                if (task) {
+                    const rowNode = gantt.getTaskRowNode(taskId);
+                    if (rowNode) {
+                        rowNode.classList.add('search_match');
+                    }
+                }
+
+                // Approach 3: Query by task_id attribute
+                const gridRow = document.querySelector(`.gantt_row[task_id="${taskId}"]`);
+                if (gridRow) {
+                    gridRow.classList.add('search_match');
+                }
+
+                const taskBar = document.querySelector(`.gantt_task_line[task_id="${taskId}"]`);
+                if (taskBar) {
+                    taskBar.classList.add('search_match');
+                }
+            } catch (e) {
+                console.log('Error highlighting task:', taskId, e);
             }
         });
-
-        // Force refresh to show highlights
-        gantt.render();
     }
 
     function navigateToSearchResult(index) {
         if (searchMatchedTasks.length === 0) return;
 
-        // Remove previous selection
-        gantt.eachTask(function(task) {
-            const row = gantt.getTaskNode(task.id);
-            if (row) {
-                row.classList.remove('search_selected');
-            }
+        // Clear all previous selections
+        const allSelected = document.querySelectorAll('.search_selected');
+        allSelected.forEach(function(el) {
+            el.classList.remove('search_selected');
         });
 
         // Select current task
         const taskId = searchMatchedTasks[index];
-        const row = gantt.getTaskNode(taskId);
-        if (row) {
-            row.classList.add('search_selected');
-        }
 
-        // Select in gantt and scroll to it
-        gantt.selectTask(taskId);
-        gantt.showTask(taskId);
+        try {
+            // Highlight the selected task using multiple approaches
+            const taskNode = gantt.getTaskNode(taskId);
+            if (taskNode) {
+                taskNode.classList.add('search_selected');
+            }
+
+            const rowNode = gantt.getTaskRowNode(taskId);
+            if (rowNode) {
+                rowNode.classList.add('search_selected');
+            }
+
+            const gridRow = document.querySelector(`.gantt_row[task_id="${taskId}"]`);
+            if (gridRow) {
+                gridRow.classList.add('search_selected');
+            }
+
+            const taskBar = document.querySelector(`.gantt_task_line[task_id="${taskId}"]`);
+            if (taskBar) {
+                taskBar.classList.add('search_selected');
+            }
+
+            // Select in gantt and scroll to it
+            gantt.selectTask(taskId);
+            gantt.showTask(taskId);
+        } catch (e) {
+            console.log('Error navigating to task:', taskId, e);
+            // Try to at least show the task
+            try {
+                gantt.showTask(taskId);
+            } catch (e2) {
+                console.log('Could not show task:', taskId);
+            }
+        }
 
         // Update search results display
         showSearchResults();
@@ -4179,13 +4234,20 @@
         // Clear search input
         document.getElementById('taskSearch').value = '';
 
-        // Clear highlights
-        gantt.eachTask(function(task) {
-            const row = gantt.getTaskNode(task.id);
-            if (row) {
-                row.classList.remove('search_match', 'search_selected');
-            }
+        // Clear all highlights using DOM query
+        const allHighlighted = document.querySelectorAll('.search_match, .search_selected');
+        allHighlighted.forEach(function(el) {
+            el.classList.remove('search_match', 'search_selected');
         });
+
+        // Also try to clear using gantt methods
+        try {
+            gantt.eachTask(function(task) {
+                gantt.refreshTask(task.id);
+            });
+        } catch (e) {
+            console.log('Error refreshing tasks:', e);
+        }
 
         // Reset search state
         searchMatchedTasks = [];
@@ -4196,7 +4258,11 @@
         document.getElementById('clearSearchBtn').style.display = 'none';
 
         // Unselect task
-        gantt.unselectTask();
+        try {
+            gantt.unselectTask();
+        } catch (e) {
+            console.log('Error unselecting task:', e);
+        }
 
         // Force refresh
         gantt.render();
