@@ -221,7 +221,7 @@
 <!-- Gantt Chart Container -->
 <div class="card project-card">
     <div class="card-body p-0">
-        <div id="gantt_here" style="width:100%; height:700px; overflow: hidden; transition: height 0.3s ease;"></div>
+        <div id="gantt_here" style="width:100%; height:700px; overflow: auto; transition: height 0.3s ease;"></div>
     </div>
 </div>
 
@@ -566,9 +566,11 @@
         overflow-x: auto !important;
     }
 
-    /* Make sure horizontal scrollbar only affects timeline */
+    /* Ensure horizontal scrollbar is visible */
     .gantt_hor_scroll {
-        margin-left: 605px;
+        display: block !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
     }
 
     /* Ensure proper scrolling behavior */
@@ -1411,7 +1413,7 @@
 
     // Configure Lightbox (Task Edit Dialog)
     gantt.config.lightbox.sections = [
-        {name: "task_code", height: 38, map_to: "task_code", type: "textarea", focus: false},
+        {name: "task_code", height: 38, map_to: "task_code", type: "textarea", focus: false, readonly: false},
         {name: "description", height: 38, map_to: "text", type: "textarea", focus: true},
         {name: "chinese_title", height: 38, map_to: "title_cn", type: "textarea", focus: false},
         {name: "process_owner", height: 38, map_to: "process_owner_id", type: "select", options: [
@@ -1807,8 +1809,21 @@
         console.log('=== onBeforeLightbox triggered for task:', task_id);
         try {
             const task = gantt.getTask(task_id);
+
+            // Standardize or generate task code
+            if (!task.task_code || task.task_code === '') {
+                task.task_code = generateNextTaskCode();
+                console.log('Generated new task code:', task.task_code);
+            } else if (!task.task_code.match(/^T\d{4}$/)) {
+                // Standardize existing non-standard code
+                const oldCode = task.task_code;
+                task.task_code = standardizeTaskCode(task.task_code);
+                console.log('Standardized task code from', oldCode, 'to', task.task_code);
+            }
+
             console.log('Task data:', {
                 id: task.id,
+                task_code: task.task_code,
                 text: task.text,
                 start_date: task.start_date,
                 end_date: task.end_date,
@@ -2138,6 +2153,25 @@
 
     // Parse the data
     gantt.parse(ganttData);
+
+    // Standardize all existing task codes
+    console.log('=== Standardizing task codes to Txxxx format ===');
+    gantt.eachTask(function(task) {
+        if (!task.id || task.id.toString().startsWith('_tl_')) {
+            return; // Skip timeline tasks
+        }
+
+        const originalCode = task.task_code;
+        if (!task.task_code || task.task_code === '') {
+            task.task_code = generateNextTaskCode();
+            console.log('Task', task.id, 'assigned new code:', task.task_code);
+        } else if (!task.task_code.match(/^T\d{4}$/)) {
+            task.task_code = standardizeTaskCode(task.task_code);
+            if (originalCode !== task.task_code) {
+                console.log('Task', task.id, 'code standardized from', originalCode, 'to', task.task_code);
+            }
+        }
+    });
 
     console.log('=== Gantt initialized and data parsed ===');
     console.log('Total tasks loaded:', gantt.getTaskCount());
@@ -3010,8 +3044,53 @@
 
     const csrftoken = getCookie('csrftoken');
 
+    // Function to generate next task code in Txxxx format
+    function generateNextTaskCode() {
+        let maxNumber = 0;
+
+        // Find the highest task number
+        gantt.eachTask(function(task) {
+            if (task.task_code && task.task_code.match(/^T(\d{4})$/)) {
+                const num = parseInt(task.task_code.substring(1));
+                if (num > maxNumber) {
+                    maxNumber = num;
+                }
+            }
+        });
+
+        // Generate next code
+        const nextNumber = maxNumber + 1;
+        return 'T' + String(nextNumber).padStart(4, '0');
+    }
+
+    // Function to standardize task code format
+    function standardizeTaskCode(code) {
+        if (!code || code === '') {
+            return generateNextTaskCode();
+        }
+
+        // If already in Txxxx format, return as is
+        if (code.match(/^T\d{4}$/)) {
+            return code;
+        }
+
+        // Try to extract a number from existing code
+        const numbers = code.match(/\d+/);
+        if (numbers && numbers[0]) {
+            const num = parseInt(numbers[0]);
+            return 'T' + String(num).padStart(4, '0');
+        }
+
+        // If no number found, generate new code
+        return generateNextTaskCode();
+    }
+
     // Event handlers
     gantt.attachEvent("onAfterTaskAdd", function(id, item){
+        // Generate task code for new tasks
+        if (!item.task_code) {
+            item.task_code = generateNextTaskCode();
+        }
         // Task was created in Gantt - save to database
         fetch(`/project-management/{{ project.pk }}/api/gantt/tasks/create/`, {
             method: 'POST',
@@ -3021,6 +3100,7 @@
             },
             body: JSON.stringify({
                 text: item.text,
+                task_code: item.task_code,
                 start_date: item.start_date ? gantt.date.date_to_str("%Y-%m-%d")(item.start_date) : null,
                 duration: item.duration || 1,
                 parent: item.parent || 0
@@ -3385,6 +3465,14 @@
 
     // Handle lightbox save to update task title, Chinese title, process owner, and DoD
     gantt.attachEvent("onLightboxSave", function(id, task, is_new){
+        // Validate and standardize task code
+        if (!task.task_code || task.task_code === '') {
+            task.task_code = generateNextTaskCode();
+        } else if (!task.task_code.match(/^T\d{4}$/)) {
+            // If user entered a non-standard code, standardize it
+            task.task_code = standardizeTaskCode(task.task_code);
+        }
+
         console.log('Lightbox saved for task:', id);
         console.log('  Is new task:', is_new);
         console.log('  Task code:', task.task_code);
