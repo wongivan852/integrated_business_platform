@@ -954,10 +954,16 @@
                         {unit: "day", step: 1, format: "%d %M"},
                         {unit: "hour", step: 6, format: "%H"}
                     ],
+                    // CRITICAL: Explicitly set date range for day view
+                    start_date: new Date(2025, 0, 1),
+                    end_date: new Date(2026, 0, 7, 23, 59, 59),
                     // Force date range for day view
                     render: function(level) {
                         gantt.config.start_date = new Date(2025, 0, 1);
-                        gantt.config.end_date = new Date(2026, 0, 7, 23, 59, 59); // Extend to Jan 7, 2026
+                        gantt.config.end_date = new Date(2026, 0, 7, 23, 59, 59);
+                        gantt.config.fit_tasks = false;
+                        // Force immediate render with dates
+                        gantt.render();
                     }
                 },
                 {
@@ -968,10 +974,16 @@
                         {unit: "week", step: 1, format: "Week #%W"},
                         {unit: "day", step: 1, format: "%d %M"}
                     ],
+                    // CRITICAL: Explicitly set date range for week view
+                    start_date: new Date(2025, 0, 1),
+                    end_date: new Date(2026, 0, 7, 23, 59, 59),
                     // Force date range for week view
                     render: function(level) {
                         gantt.config.start_date = new Date(2025, 0, 1);
-                        gantt.config.end_date = new Date(2026, 0, 7, 23, 59, 59); // Extend to Jan 7, 2026
+                        gantt.config.end_date = new Date(2026, 0, 7, 23, 59, 59);
+                        gantt.config.fit_tasks = false;
+                        // Force immediate render with dates
+                        gantt.render();
                     }
                 },
                 {
@@ -1000,26 +1012,27 @@
         gantt.ext.zoom.setLevel = function(level) {
             console.log('Zoom level changing to:', level);
 
+            // Always force config first
+            gantt.config.start_date = new Date(2025, 0, 1);
+            gantt.config.end_date = new Date(2026, 0, 7, 23, 59, 59);
+            gantt.config.fit_tasks = false;
+            gantt.config.show_chart = true;
+
             // CRITICAL: For day and week views, we need special handling with data refresh
             if (level === 'day' || level === 'week') {
-                console.log('Applying AGGRESSIVE timeline extension with DATA REFRESH for', level, 'view');
+                console.log('Applying AGGRESSIVE timeline extension for', level, 'view');
 
-                // Step 1: Force config settings - extend into January 2026 to ensure Dec 31 is visible
-                gantt.config.start_date = new Date(2025, 0, 1);
-                gantt.config.end_date = new Date(2026, 0, 7, 23, 59, 59); // Jan 7, 2026
-                gantt.config.fit_tasks = false;
-                gantt.config.show_chart = true;
+                // Step 1: Modify the zoom level configuration before applying it
+                const levelConfig = gantt.ext.zoom.getLevels().find(l => l.name === level);
+                if (levelConfig) {
+                    levelConfig.start_date = new Date(2025, 0, 1);
+                    levelConfig.end_date = new Date(2026, 0, 7, 23, 59, 59);
+                }
 
-                // Step 2: Store current scroll position and selected task
+                // Step 2: Store current task
                 const currentTask = gantt.getSelectedId();
 
-                // Step 3: Clear and reload data to force timeline recalculation
-                const currentData = {
-                    data: gantt.getTaskByTime(),
-                    links: gantt.getLinks()
-                };
-
-                // Step 4: Call original setLevel
+                // Step 3: Call original setLevel with modified config
                 originalSetLevel.call(this, level);
 
                 // Step 5: CRITICAL - Clear all and re-parse to force timeline extension
@@ -1131,6 +1144,18 @@
             gantt.config.fit_tasks = false;
             console.log('onGanttReady: Enforcing full year 2025 range');
         });
+
+        // Override zoom extension's internal methods to force our dates
+        const originalGetScaleConfig = gantt.ext.zoom._getScaleConfig || function() {};
+        if (gantt.ext.zoom._getScaleConfig) {
+            gantt.ext.zoom._getScaleConfig = function(level) {
+                const config = originalGetScaleConfig.call(this, level);
+                // Force our date range regardless of what zoom calculates
+                config.date_scale_start = new Date(2025, 0, 1);
+                config.date_scale_end = new Date(2026, 0, 7, 23, 59, 59);
+                return config;
+            };
+        }
 
         // Set to month view by default
         gantt.ext.zoom.setLevel("month");
@@ -2318,7 +2343,7 @@
         return result;
     };
 
-    // Override _getProjectEnd to always return Dec 31, 2025 (extended to Jan 7, 2026)
+    // Override _getProjectEnd to always return extended date
     gantt._getProjectEnd = function() {
         return new Date(2026, 0, 7, 23, 59, 59);
     };
@@ -2327,6 +2352,27 @@
     gantt._getProjectStart = function() {
         return new Date(2025, 0, 1);
     };
+
+    // Override scale calculation methods
+    const originalCalculateScaleRange = gantt._calculateScaleRange;
+    if (originalCalculateScaleRange) {
+        gantt._calculateScaleRange = function(config) {
+            // Force our dates
+            config = config || {};
+            config.start_date = new Date(2025, 0, 1);
+            config.end_date = new Date(2026, 0, 7, 23, 59, 59);
+
+            const result = originalCalculateScaleRange.call(this, config);
+
+            // Ensure result uses our dates
+            if (result) {
+                result.start_date = new Date(2025, 0, 1);
+                result.end_date = new Date(2026, 0, 7, 23, 59, 59);
+            }
+
+            return result;
+        };
+    }
 
     // Force the timeline with real tasks
     forceTimelineExtension();
