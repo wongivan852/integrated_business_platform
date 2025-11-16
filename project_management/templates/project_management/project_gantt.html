@@ -1929,83 +1929,45 @@
 
     // Initialize Gantt
     gantt.init("gantt_here");
+
+    // Clear any existing data to prevent accumulation
+    gantt.clearAll();
+
+    // Parse the data
     gantt.parse(ganttData);
 
     console.log('=== Gantt initialized and data parsed ===');
     console.log('Total tasks loaded:', gantt.getTaskCount());
 
-    // REMOVED TIMELINE MARKERS APPROACH - Using config-only solution
-    console.log('Using configuration-only approach for timeline extension');
+    // Force timeline extension through configuration and override
+    console.log('=== Forcing timeline to extend to Dec 31, 2025 ===');
 
-    // Force render after adding placeholders
+    // Override the getSubtaskDates to always return full year range
+    const originalGetSubtaskDates = gantt.getSubtaskDates;
+    gantt.getSubtaskDates = function(task_id) {
+        const result = originalGetSubtaskDates.call(this, task_id);
+        // For root level (0), always return full year 2025
+        if (task_id === 0 || task_id === undefined) {
+            result.start_date = new Date(2025, 0, 1);
+            result.end_date = new Date(2025, 11, 31, 23, 59, 59);
+        }
+        return result;
+    };
+
+    // Override _getProjectEnd to always return Dec 31, 2025
+    gantt._getProjectEnd = function() {
+        return new Date(2025, 11, 31, 23, 59, 59);
+    };
+
+    // Override _getProjectStart to always return Jan 1, 2025
+    gantt._getProjectStart = function() {
+        return new Date(2025, 0, 1);
+    };
+
+    // Initial render
     gantt.render();
 
-    // Boundary tasks are now added server-side in the view
-    console.log('=== Boundary tasks loaded from server - checking... ===');
-    let boundaryTaskCount = 0;
-    let firstTask = null;
-    let lastTask = null;
-
-    ganttData.data.forEach(function(task) {
-        if (task.is_boundary === true) {
-            boundaryTaskCount++;
-            console.log('Found boundary task:', task.id, 'at', task.start_date);
-        }
-
-        // Track the earliest and latest tasks
-        if (task.start_date) {
-            const taskDate = new Date(task.start_date);
-            if (!firstTask || taskDate < new Date(firstTask.start_date)) {
-                firstTask = task;
-            }
-            if (!lastTask || taskDate > new Date(lastTask.start_date)) {
-                lastTask = task;
-            }
-        }
-    });
-
-    console.log('Total boundary tasks from server:', boundaryTaskCount);
-    console.log('Earliest task:', firstTask ? firstTask.id + ' at ' + firstTask.start_date : 'none');
-    console.log('Latest task:', lastTask ? lastTask.id + ' at ' + lastTask.start_date : 'none');
-
-    // CRITICAL: If boundary tasks are not present, add them client-side
-    if (boundaryTaskCount < 2) {
-        console.error('WARNING: Boundary tasks not found from server! Adding them client-side...');
-
-        // Add start boundary
-        ganttData.data.push({
-            id: 999998,
-            text: "",
-            title_cn: "",
-            task_code: "BOUNDARY_START",
-            start_date: "2025-01-01",
-            end_date: "2025-01-02",
-            duration: 1,
-            progress: 0,
-            parent: 0,
-            is_boundary: true,
-            priority: "low",
-            status: "pending"
-        });
-
-        // Add end boundary
-        ganttData.data.push({
-            id: 999999,
-            text: "",
-            title_cn: "",
-            task_code: "BOUNDARY_END",
-            start_date: "2025-12-31",
-            end_date: "2025-12-31",
-            duration: 1,
-            progress: 0,
-            parent: 0,
-            is_boundary: true,
-            priority: "low",
-            status: "pending"
-        });
-
-        console.log('Added client-side boundary tasks');
-    }
+    // Removed boundary task code - no longer using boundary tasks
 
     // Ensure month view is applied after initialization
     console.log('=== Setting Month View ===');
@@ -3099,8 +3061,16 @@
             console.log('View mode applied. End date:', gantt.config.end_date.toISOString());
             console.log('fit_tasks:', gantt.config.fit_tasks);
 
-            // Force timeline to extend by setting config
+            // Force timeline to extend by setting config and refreshing
             console.log('Forcing timeline extension through config...');
+
+            // Re-apply the overrides to ensure timeline extends
+            gantt._getProjectEnd = function() {
+                return new Date(2025, 11, 31, 23, 59, 59);
+            };
+            gantt._getProjectStart = function() {
+                return new Date(2025, 0, 1);
+            };
 
             // Force Gantt to render with full year timeline
             gantt.render();
