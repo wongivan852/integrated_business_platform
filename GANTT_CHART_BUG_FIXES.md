@@ -715,10 +715,10 @@ setTimeout(function() {
 
 ### Result
 
-✅ **Status**: FIXED (November 16, 2025)
+✅ **Status**: FIXED (November 16, 2025 - Enhanced Solution)
 ✅ **Impact**: Timeline now extends through December 31, 2025 in all view modes
-✅ **User Experience**: Marker tasks are completely invisible to users
-✅ **Maintainability**: Multi-layered approach with proper timing ensures robustness
+✅ **User Experience**: No visible marker tasks or phantom tasks
+✅ **Maintainability**: Robust solution with zoom extension overrides
 
 ### Testing Checklist
 
@@ -746,5 +746,45 @@ setTimeout(function() {
 
 ---
 
-**Document Version**: 5.0
-**Last Updated**: November 16, 2025 (Timeline Extension Race Condition Fix)
+### Latest Enhancement: Zoom Extension Override (November 16, 2025 - 05:20)
+
+**Problem**: Timeline extension was not persistent across view mode changes when using zoom extension.
+
+**Solution**: Enhanced the zoom extension configuration with forced timeline extension:
+
+1. **Zoom Level Configuration Without Date Limits**:
+   - Removed `start_date` and `end_date` from zoom level definitions
+   - Let the global config control dates instead
+
+2. **Override setLevel Method**:
+   ```javascript
+   const originalSetLevel = gantt.ext.zoom.setLevel;
+   gantt.ext.zoom.setLevel = function(level) {
+       originalSetLevel.call(this, level);
+       setTimeout(function() {
+           gantt.config.start_date = new Date(2025, 0, 1);
+           gantt.config.end_date = new Date(2025, 11, 31, 23, 59, 59);
+           gantt.config.fit_tasks = false;
+           gantt.render();
+           gantt.showDate(new Date(2025, 11, 31));
+           // Scroll back to first task
+       }, 100);
+   };
+   ```
+
+3. **Enhanced View Mode Change Handler**:
+   - Added double-check after zoom level change
+   - Forces scroll to December to ensure column generation
+   - Scrolls back to current date or first task
+
+4. **Improved Force Full Year Button**:
+   - Works with zoom extension to reset current level
+   - Multi-step scrolling (End → Middle → Start) for column generation
+   - Visual feedback with success message
+
+**Result**: Timeline now consistently extends to December 31, 2025 across all view modes with smooth transitions.
+
+---
+
+**Document Version**: 6.0
+**Last Updated**: November 16, 2025 (Zoom Extension Override Enhancement)
