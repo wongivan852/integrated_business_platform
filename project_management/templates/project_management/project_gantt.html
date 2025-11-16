@@ -681,6 +681,55 @@
         position: absolute !important;
         left: -9999px !important;
     }
+
+    /* Enhanced day column visibility */
+    .gantt_scale_cell {
+        border-right: 1px solid #cecece !important;
+        font-weight: 500;
+        font-size: 12px;
+    }
+
+    /* Weekend highlighting */
+    .weekend-day {
+        background-color: #f4f7f7 !important;
+        color: #666 !important;
+    }
+
+    /* Month scale header in Day view */
+    .month-scale {
+        background-color: #e8f4f8 !important;
+        font-weight: bold !important;
+        font-size: 13px !important;
+        border-bottom: 2px solid #94c1db !important;
+    }
+
+    /* Day numbers in Day and Week views - make them more prominent */
+    .gantt_scale_cell.weekend-day {
+        background-color: #fff5f5 !important;
+        color: #d32f2f !important;
+        font-weight: 600 !important;
+    }
+
+    /* Regular weekday columns */
+    .gantt_scale_line:last-child .gantt_scale_cell {
+        font-weight: 600 !important;
+        font-size: 13px !important;
+        color: #333 !important;
+        border-right: 1px solid #ddd !important;
+    }
+
+    /* Better contrast for day labels in Week view */
+    .gantt_scale_line:nth-child(2) .gantt_scale_cell {
+        background-color: #fafafa !important;
+        border-right: 1px solid #e0e0e0 !important;
+        font-size: 12px !important;
+        font-weight: 500 !important;
+    }
+
+    /* Alternate column shading for better visibility */
+    .gantt_task_bg .gantt_task_row:nth-child(odd) .gantt_task_cell:nth-child(even) {
+        background-color: rgba(0, 0, 0, 0.02);
+    }
 </style>
 
 <script>
@@ -3694,18 +3743,33 @@
                 case 'day':
                     console.log('Configuring Day view');
                     gantt.config.scales = [
-                        {unit: "day", step: 1, format: "%d %M %Y"}
+                        {unit: "month", step: 1, format: "%F %Y", css: function(date) {
+                            return "month-scale";
+                        }},
+                        {unit: "day", step: 1, format: "%d", css: function(date) {
+                            // Highlight weekends
+                            if (date.getDay() === 0 || date.getDay() === 6) {
+                                return "weekend-day";
+                            }
+                            return "";
+                        }}
                     ];
-                    gantt.config.min_column_width = 80;
+                    gantt.config.min_column_width = 40;  // Narrower to fit more days
                     break;
 
                 case 'week':
                     console.log('Configuring Week view');
                     gantt.config.scales = [
                         {unit: "week", step: 1, format: "Week #%W of %Y"},
-                        {unit: "day", step: 1, format: "%d %M"}
+                        {unit: "day", step: 1, format: "%d %D", css: function(date) {
+                            // Highlight weekends with special CSS
+                            if (date.getDay() === 0 || date.getDay() === 6) {
+                                return "weekend-day";
+                            }
+                            return "";
+                        }}
                     ];
-                    gantt.config.min_column_width = 30;
+                    gantt.config.min_column_width = 45;  // Wider for better visibility
                     break;
 
                 case 'month':
@@ -3741,23 +3805,53 @@
             // Force render with new scales
             gantt.render();
 
-            // Scroll to ensure columns are generated
+            // Scroll to ensure columns are generated - especially important for Day view
             setTimeout(function() {
                 console.log('Ensuring columns are generated for', viewMode, 'view...');
 
-                // Quick scroll to end and back
-                gantt.showDate(new Date(2026, 0, 7));
+                // For Day view, do a more aggressive scroll to generate all columns
+                if (viewMode === 'day') {
+                    // Scroll through multiple points to force column generation
+                    const scrollPoints = [
+                        new Date(2026, 0, 7),    // January 7, 2026
+                        new Date(2025, 11, 31),  // December 31, 2025
+                        new Date(2025, 11, 15),  // December 15, 2025
+                        new Date(2025, 11, 1),   // December 1, 2025
+                    ];
 
-                setTimeout(function() {
-                    // Return to first task or today
-                    const firstTask = gantt.getTaskByIndex(0);
-                    if (firstTask && firstTask.start_date) {
-                        gantt.showTask(firstTask.id);
-                    } else {
-                        gantt.scrollToToday();
-                    }
-                    console.log('View configuration complete for', viewMode);
-                }, 200);
+                    let index = 0;
+                    const scrollInterval = setInterval(function() {
+                        if (index < scrollPoints.length) {
+                            gantt.showDate(scrollPoints[index]);
+                            console.log('Day view: Scrolled to', scrollPoints[index].toDateString());
+                            index++;
+                        } else {
+                            clearInterval(scrollInterval);
+                            // Return to first task or November 2025
+                            const firstTask = gantt.getTaskByIndex(0);
+                            if (firstTask && firstTask.start_date) {
+                                gantt.showTask(firstTask.id);
+                            } else {
+                                gantt.showDate(new Date(2025, 10, 15)); // Mid-November
+                            }
+                            console.log('Day view configuration complete');
+                        }
+                    }, 100);
+                } else {
+                    // For other views, simple scroll
+                    gantt.showDate(new Date(2026, 0, 7));
+
+                    setTimeout(function() {
+                        // Return to first task or today
+                        const firstTask = gantt.getTaskByIndex(0);
+                        if (firstTask && firstTask.start_date) {
+                            gantt.showTask(firstTask.id);
+                        } else {
+                            gantt.scrollToToday();
+                        }
+                        console.log('View configuration complete for', viewMode);
+                    }, 200);
+                }
             }, 300);
 
             console.log('View mode applied. Start date:', gantt.config.start_date.toISOString());
