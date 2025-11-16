@@ -1135,9 +1135,14 @@
             width: 280,
             resize: true,
             template: function(task) {
-                // Hide boundary tasks completely in the grid
-                if (task.is_boundary === true || task.id == 999998 || task.id == 999999 ||
-                    task.id === 'boundary_start_2025' || task.id === 'boundary_end_2025') {
+                // Hide boundary tasks and timeline markers completely in the grid
+                if (task.is_timeline_marker === true ||
+                    task.is_boundary === true ||
+                    task.id == 999998 ||
+                    task.id == 999999 ||
+                    task.id === 'boundary_start_2025' ||
+                    task.id === 'boundary_end_2025' ||
+                    (typeof task.id === 'string' && task.id.startsWith('timeline_'))) {
                     return '';
                 }
                 // Show both English and Chinese if available
@@ -2009,26 +2014,44 @@
 
     // Add template to completely hide boundary tasks from rendering
     gantt.templates.task_class = function(start, end, task) {
-        if (task.is_boundary === true || task.id == 999998 || task.id == 999999 ||
-            task.id === 'boundary_start_2025' || task.id === 'boundary_end_2025') {
-            return "gantt_boundary_hidden";
+        // Hide all timeline markers
+        if (task.is_timeline_marker === true ||
+            task.is_boundary === true ||
+            task.id == 999998 ||
+            task.id == 999999 ||
+            task.id === 'boundary_start_2025' ||
+            task.id === 'boundary_end_2025' ||
+            (typeof task.id === 'string' && task.id.startsWith('timeline_'))) {
+            return "gantt_boundary_hidden gantt_hidden_task";
         }
         return "";
     };
 
-    // Prevent boundary tasks from being displayed in the grid rows
+    // Prevent boundary tasks and timeline markers from being displayed in the grid rows
     gantt.templates.grid_row_class = function(start, end, task) {
-        if (task.is_boundary === true || task.id == 999998 || task.id == 999999 ||
-            task.id === 'boundary_start_2025' || task.id === 'boundary_end_2025') {
+        // Hide all timeline markers
+        if (task.is_timeline_marker === true ||
+            task.is_boundary === true ||
+            task.id == 999998 ||
+            task.id == 999999 ||
+            task.id === 'boundary_start_2025' ||
+            task.id === 'boundary_end_2025' ||
+            (typeof task.id === 'string' && task.id.startsWith('timeline_'))) {
             return "gantt_hidden_row";
         }
         return "";
     };
 
-    // Return empty string for task text of boundary tasks
+    // Return empty string for task text of boundary tasks and timeline markers
     gantt.templates.task_text = function(start, end, task) {
-        if (task.is_boundary === true || task.id == 999998 || task.id == 999999 ||
-            task.id === 'boundary_start_2025' || task.id === 'boundary_end_2025') {
+        // Hide all timeline markers
+        if (task.is_timeline_marker === true ||
+            task.is_boundary === true ||
+            task.id == 999998 ||
+            task.id == 999999 ||
+            task.id === 'boundary_start_2025' ||
+            task.id === 'boundary_end_2025' ||
+            (typeof task.id === 'string' && task.id.startsWith('timeline_'))) {
             return "";
         }
         return task.text;
@@ -2041,6 +2064,16 @@
     console.log('BEFORE INIT - start_date:', gantt.config.start_date);
     console.log('BEFORE INIT - end_date:', gantt.config.end_date);
     console.log('BEFORE INIT - fit_tasks:', gantt.config.fit_tasks);
+
+    // Add filter to hide timeline markers from display
+    gantt.attachEvent("onBeforeTaskDisplay", function(id, task){
+        // Hide timeline markers from display
+        if (task.is_timeline_marker === true ||
+            (typeof id === 'string' && id.startsWith('timeline_'))) {
+            return false;  // Don't display timeline markers
+        }
+        return true;  // Display regular tasks
+    });
 
     // Initialize Gantt
     gantt.init("gantt_here");
@@ -3499,54 +3532,12 @@
     });
 
     // Handle timeline markers visibility toggle
-    document.getElementById('toggleTimelineMarkers').addEventListener('change', function(e) {
-        const showMarkers = e.target.checked;
-        console.log('Timeline markers visibility:', showMarkers);
-
-        // Toggle CSS class to show/hide timeline markers
-        if (showMarkers) {
-            // Show timeline markers with reduced opacity
-            const style = document.getElementById('timeline-markers-style');
-            if (style) {
-                style.textContent = `
-                    .gantt_task_line[task_id^="timeline_marker_"],
-                    .gantt_task_line[task_id^="timeline_w"],
-                    .gantt_task_line[task_id^="timeline_start"],
-                    .gantt_task_line[task_id^="timeline_end"] {
-                        opacity: 0.2 !important;
-                        display: block !important;
-                    }
-                    .gantt_row[task_id^="timeline_marker_"],
-                    .gantt_row[task_id^="timeline_w"],
-                    .gantt_row[task_id^="timeline_start"],
-                    .gantt_row[task_id^="timeline_end"] {
-                        opacity: 0.3 !important;
-                        display: table-row !important;
-                    }
-                `;
-            }
-        } else {
-            // Hide timeline markers completely
-            const style = document.getElementById('timeline-markers-style');
-            if (style) {
-                style.textContent = `
-                    .gantt_task_line[task_id^="timeline_marker_"],
-                    .gantt_task_line[task_id^="timeline_w"],
-                    .gantt_task_line[task_id^="timeline_start"],
-                    .gantt_task_line[task_id^="timeline_end"],
-                    .gantt_row[task_id^="timeline_marker_"],
-                    .gantt_row[task_id^="timeline_w"],
-                    .gantt_row[task_id^="timeline_start"],
-                    .gantt_row[task_id^="timeline_end"] {
-                        display: none !important;
-                    }
-                `;
-            }
-        }
-
-        // Re-render to apply changes
-        gantt.render();
-    });
+    // Note: This toggle is disabled since markers are now completely hidden
+    const toggleBtn = document.getElementById('toggleTimelineMarkers');
+    if (toggleBtn) {
+        // Hide the toggle since timeline markers are now invisible
+        toggleBtn.parentElement.style.display = 'none';
+    }
 
     // Toggle options
     document.getElementById('showCritical').addEventListener('change', function() {
