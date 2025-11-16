@@ -3125,37 +3125,24 @@
         return true;
     });
 
-    // View mode change - use zoom extension if available
+    // View mode change - BYPASS zoom extension for Day/Week (it ignores date configs)
     document.querySelectorAll('input[name="viewMode"]').forEach(radio => {
         radio.addEventListener('change', function() {
             console.log('View mode changed to:', this.value);
 
-            // If zoom extension is configured, use it
-            if (gantt.ext && gantt.ext.zoom) {
-                console.log('Using zoom extension to change view to:', this.value);
+            // CRITICAL: For Day/Week views, zoom extension ignores start_date/end_date
+            // Must use manual configuration instead
+            const useManualConfig = (this.value === 'day' || this.value === 'week');
+
+            if (!useManualConfig && gantt.ext && gantt.ext.zoom) {
+                // Use zoom extension for Month/Year (these work fine)
+                console.log('Using zoom extension for:', this.value);
                 gantt.ext.zoom.setLevel(this.value);
-
-                // CRITICAL: Don't return here! Must force date range after zoom
-                // Force date range AFTER zoom extension changes the view
-                setTimeout(function() {
-                    const startOfJan2025 = new Date(2025, 0, 1);
-                    const endOfDec2025 = new Date(2025, 11, 31, 23, 59, 59);
-                    gantt.config.start_date = startOfJan2025;
-                    gantt.config.end_date = endOfDec2025;
-                    gantt.config.fit_tasks = false;
-
-                    console.log('After zoom.setLevel: Forcing dates Jan 1 - Dec 31, 2025');
-                    console.log('After zoom.setLevel: fit_tasks =', gantt.config.fit_tasks);
-
-                    // Force re-render with new date range
-                    gantt.render();
-                    console.log('Re-rendered with forced date range');
-                }, 50);
-
-                return; // Now we can return after setting up the timeout
+                return;
             }
 
-            // Fallback to manual configuration (if zoom not available)
+            // Manual configuration for Day/Week (or fallback if zoom not available)
+            console.log('Using manual configuration for:', this.value);
             switch(this.value) {
                 case 'day':
                     gantt.config.scale_unit = "day";
@@ -3191,8 +3178,8 @@
             gantt.config.end_date = endOfDec2025;  // Lock to Dec 31, 2025
             gantt.config.fit_tasks = false;  // Ensure fit_tasks stays disabled
 
-            console.log('View mode applied. Start date:', gantt.config.start_date.toISOString());
-            console.log('View mode applied. End date:', gantt.config.end_date.toISOString());
+            console.log('Manual config applied. Start date:', gantt.config.start_date.toISOString());
+            console.log('Manual config applied. End date:', gantt.config.end_date.toISOString());
             console.log('fit_tasks:', gantt.config.fit_tasks);
 
             // Force Gantt to render with the new scale and date range
