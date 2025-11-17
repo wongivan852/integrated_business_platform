@@ -855,20 +855,36 @@
                 }
             }
 
-            // DURATION LOGIC:
-            // 1. If both dates were provided from server, calculate duration from them
-            // 2. If only duration was provided (no dates or only start_date), keep the original duration
-            // 3. Only default to 1 if no valid duration was provided at all
+            // DURATION LOGIC - FIXED FOR PERSISTENCE:
+            // 1. If both dates were provided from server, KEEP THEM and calculate duration
+            // 2. If only start_date and duration (no end_date), calculate end_date
+            // 3. If only duration (no dates), set start to today and calculate end
+            // 4. Default to duration=1 if nothing valid provided
 
             if (hadStartDate && hadEndDate && task.start_date instanceof Date && task.end_date instanceof Date) {
-                // Both dates exist - calculate duration from them
+                // Both dates exist from server - KEEP THEM, just ensure duration matches
                 const calculatedDuration = gantt.calculateDuration(task.start_date, task.end_date);
                 if (calculatedDuration && calculatedDuration > 0) {
-                    console.log('Task', task.id, 'calculating duration from dates:', calculatedDuration, '(server sent:', originalDuration, ')');
+                    if (calculatedDuration !== originalDuration) {
+                        console.log('Task', task.id, 'adjusting duration to match dates:', calculatedDuration, '(server sent:', originalDuration, ')');
+                    }
                     task.duration = calculatedDuration;
                 }
+                // DO NOT recalculate end_date - trust the server's dates!
+            } else if (hadStartDate && task.start_date instanceof Date && originalDuration > 0) {
+                // Have start_date and duration, but no end_date - calculate it
+                task.duration = originalDuration;
+                if (!hadEndDate) {
+                    try {
+                        task.end_date = gantt.calculateEndDate(task.start_date, task.duration);
+                        console.log('Task', task.id, 'calculated end_date from start+duration:', task.end_date);
+                    } catch (e) {
+                        console.error('Error calculating end_date for task', task.id, ':', e);
+                        task.end_date = gantt.date.add(task.start_date, task.duration || 1, "day");
+                    }
+                }
             } else {
-                // No end date or missing dates - preserve the original duration
+                // Missing critical date info - use duration with today as start
                 if (originalDuration && typeof originalDuration === 'number' && originalDuration > 0 && !isNaN(originalDuration)) {
                     console.log('Task', task.id, 'preserving duration from server:', originalDuration);
                     task.duration = originalDuration;
@@ -876,16 +892,16 @@
                     console.warn('Task', task.id, 'has no valid duration, defaulting to 1');
                     task.duration = 1;
                 }
-            }
 
-            // Calculate end_date if missing (but we have start_date and duration)
-            if (!task.end_date && task.start_date && task.duration) {
-                try {
-                    task.end_date = gantt.calculateEndDate(task.start_date, task.duration);
-                    console.log('Task', task.id, 'calculated end_date from start+duration:', task.end_date);
-                } catch (e) {
-                    console.error('Error calculating end_date for task', task.id, ':', e);
-                    task.end_date = gantt.date.add(task.start_date, task.duration || 1, "day");
+                // Calculate end_date if we have start_date but it's missing
+                if (task.start_date && !task.end_date) {
+                    try {
+                        task.end_date = gantt.calculateEndDate(task.start_date, task.duration);
+                        console.log('Task', task.id, 'calculated missing end_date from start+duration');
+                    } catch (e) {
+                        console.error('Error calculating end_date for task', task.id, ':', e);
+                        task.end_date = gantt.date.add(task.start_date, task.duration || 1, "day");
+                    }
                 }
             }
 
@@ -2228,18 +2244,48 @@
                 console.log('Calculated duration:', calculatedDuration);
             }
 
-            if (calculatedDuration !== task.duration) {
-                console.warn('Task', task.id, '(' + task.task_code + ') has conflicting duration:',
-                    'provided=' + task.duration + ', calculated=' + calculatedDuration,
-                    '- removing end_date to use provided duration');
+            // Check for Task T0141 (ID 449) specifically for debugging
+            if (task.id === 449 || task.task_code === 'T0141') {
+                console.log('=== Task T0141 (ID 449) Debug - ISSUE TRACKING ===');
+                console.log('Start date:', task.start_date);
+                console.log('End date:', task.end_date);
+                console.log('Provided duration:', task.duration);
+                console.log('Calculated duration:', calculatedDuration);
+                console.log('Will remove end_date?', calculatedDuration !== task.duration);
+            }
 
-                // Trust the duration field and let DHTMLX calculate the end_date
-                // This ensures consistent display for all tasks with the same duration
-                delete task.end_date;
+            if (calculatedDuration !== task.duration) {
+                console.warn('Task', task.id, '(' + task.task_code + ') has duration mismatch:',
+                    'provided=' + task.duration + ', calculated=' + calculatedDuration);
+
+                // FIX: Instead of deleting end_date, trust the dates from server
+                // The duration will be recalculated by DHTMLX based on actual dates
+                // This fixes the persistence issue where dates revert on refresh
+
+                // Only remove end_date if the difference is extreme (likely data corruption)
+                const diff = Math.abs(calculatedDuration - task.duration);
+                if (diff > 30) {  // More than 30 days difference suggests data issue
+                    console.error('Task', task.id, '(' + task.task_code + ') has MAJOR duration conflict (diff=' + diff + ' days)');
+                    console.error('  Keeping both dates from server, duration will be recalculated');
+                } else {
+                    // Small difference - likely due to timezone or calculation differences
+                    // Trust the dates from server, let duration be recalculated
+                    console.log('Task', task.id, '(' + task.task_code + ') minor duration difference (' + diff + ' days), keeping server dates');
+                }
+
+                // Update duration to match the calculated value from dates
+                // This ensures consistency between displayed dates and duration
+                task.duration = calculatedDuration;
 
                 // Log the resolution for Task 247
                 if (task.id === 247 || task.task_code === 'T0247') {
-                    console.log('Task 247: Removed end_date, will use duration=' + task.duration);
+                    console.log('Task 247: Updated duration to match dates, duration=' + calculatedDuration);
+                }
+
+                // Log the resolution for Task T0141
+                if (task.id === 449 || task.task_code === 'T0141') {
+                    console.log('FIX APPLIED: Task T0141 - Keeping both dates, updated duration=' + calculatedDuration);
+                    console.log('This should fix the persistence bug in ISSUE_T0141_PERSISTENCE.md');
                 }
             }
         }

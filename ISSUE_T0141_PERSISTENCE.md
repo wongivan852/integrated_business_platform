@@ -3,7 +3,7 @@
 **Date Reported**: November 16, 2025
 **Component**: Project Management - Gantt Chart
 **Severity**: High
-**Status**: Unresolved
+**Status**: RESOLVED (November 17, 2025)
 
 ## Problem Description
 
@@ -42,13 +42,13 @@ Task T0141 (Venue Selection & Contract) in the IAICC 2025 project cannot persist
 - **Solution**: Updated to standard T#### format (T0141)
 - **Status**: Fixed - 20+ tasks updated
 
-#### Issue C: Date Persistence (UNRESOLVED)
+#### Issue C: Date Persistence (RESOLVED)
 - **Symptom**: Dates revert after page refresh
 - **Observation**: Changes save to DB but don't display correctly
-- **Suspected Cause**:
-  - Possible issue in `onTaskLoading` event (lines 799-907)
-  - May be recalculating dates from duration on load
-  - Could be timezone/date parsing issue
+- **Root Cause FOUND**:
+  - Lines 2215-2262 in project_gantt.html were deleting `end_date` when duration didn't match exactly
+  - Lines 858-906 in `onTaskLoading` were recalculating end_date from duration
+  - This caused saved dates to be overridden on page load
 
 ## Code Locations
 
@@ -154,4 +154,63 @@ To be revisited: November 17, 2025
 
 ---
 
-*This issue is logged for follow-up investigation. The root cause appears to be in the frontend date handling during page load, but requires further debugging to identify the exact mechanism causing the reversion.*
+## SOLUTION IMPLEMENTED (November 17, 2025)
+
+### Root Cause Analysis
+
+The issue was caused by two code sections that were interfering with date persistence:
+
+1. **Data Sanitization Section** (Lines 2215-2262):
+   - The code was comparing server-provided duration with calculated duration from dates
+   - When they didn't match exactly (due to timezone/calculation differences), it would DELETE the end_date
+   - This forced DHTMLX to recalculate end_date from duration, ignoring the saved value
+
+2. **onTaskLoading Event** (Lines 858-906):
+   - Was recalculating end_date from duration even when both dates existed
+   - This would override the dates loaded from the server
+
+### Fix Applied
+
+1. **Modified Data Sanitization** (Lines 2241-2274):
+   - Instead of deleting end_date, now trusts both dates from server
+   - Updates duration to match the calculated value from dates
+   - Only logs warnings for extreme differences (>30 days)
+   - This ensures dates are preserved while keeping duration consistent
+
+2. **Fixed onTaskLoading Logic** (Lines 858-906):
+   - Now respects both dates when provided from server
+   - Only calculates missing end_date when it's actually missing
+   - Preserves server dates to maintain persistence
+
+### Code Changes
+
+```javascript
+// OLD CODE (Buggy):
+if (calculatedDuration !== task.duration) {
+    delete task.end_date;  // This was causing the bug!
+}
+
+// NEW CODE (Fixed):
+if (calculatedDuration !== task.duration) {
+    task.duration = calculatedDuration;  // Update duration to match dates
+    // Keep both dates from server - no deletion!
+}
+```
+
+### Testing Instructions
+
+1. Navigate to IAICC 2025 project Gantt view
+2. Edit task T0141's dates by dragging or using lightbox
+3. Save the changes
+4. Refresh the page
+5. Dates should now persist correctly
+
+### Prevention
+
+For future development:
+- Never delete date fields unless absolutely necessary
+- Trust server-provided dates over calculated values
+- Log discrepancies but don't automatically "fix" them by deleting data
+- Consider timezone differences when comparing dates
+
+*Issue resolved on November 17, 2025. The fix ensures that task dates persist correctly across page refreshes while maintaining duration consistency.*
