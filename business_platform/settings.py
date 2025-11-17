@@ -74,6 +74,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    'authentication.middleware.MaintenanceModeMiddleware',  # Check for maintenance mode
     'authentication.middleware.PasswordChangeRequiredMiddleware',  # Force password change on first login
     # 'business_platform.middleware.AppAccessMiddleware',  # TODO: Create custom middleware for app access control
     'django.middleware.clickjacking.XFrameOptionsMiddleware',

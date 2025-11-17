@@ -1,0 +1,164 @@
+{% load static %}
+{% load i18n %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% trans "Maintenance Mode" %} - {{ app_name }}</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans CJK SC", "Microsoft YaHei", "PingFang SC", sans-serif;
+        }
+
+        .maintenance-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 60px 40px;
+            max-width: 600px;
+            text-align: center;
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .maintenance-icon {
+            font-size: 80px;
+            color: {{ app_color|default:"#667eea" }};
+            margin-bottom: 30px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.1);
+            }
+        }
+
+        .maintenance-title {
+            font-size: 32px;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 20px;
+        }
+
+        .maintenance-subtitle {
+            font-size: 18px;
+            color: #718096;
+            margin-bottom: 30px;
+        }
+
+        .maintenance-message {
+            background: #f7fafc;
+            border-left: 4px solid {{ app_color|default:"#667eea" }};
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            text-align: left;
+            color: #4a5568;
+            line-height: 1.6;
+        }
+
+        .maintenance-message p:last-child {
+            margin-bottom: 0;
+        }
+
+        .back-button {
+            background: {{ app_color|default:"#667eea" }};
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .back-button:hover {
+            background: {{ app_color|default:"#5a67d8" }};
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            color: white;
+        }
+
+        .app-badge {
+            background: {{ app_color|default:"#667eea" }};
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+
+        /* Chinese text support */
+        .maintenance-message,
+        .maintenance-title,
+        .maintenance-subtitle {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans CJK SC", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <div class="maintenance-container">
+        <div class="app-badge">
+            <i class="{{ app_icon|default:"fas fa-tools" }}"></i> {{ app_name }}
+        </div>
+
+        <div class="maintenance-icon">
+            <i class="fas fa-tools"></i>
+        </div>
+
+        <h1 class="maintenance-title">
+            {% trans "Under Maintenance" %}
+        </h1>
+
+        <p class="maintenance-subtitle">
+            {% trans "We're currently performing scheduled maintenance" %}
+        </p>
+
+        <div class="maintenance-message">
+            {{ maintenance_message|safe }}
+        </div>
+
+        <a href="{% url 'dashboard:home' %}" class="back-button">
+            <i class="fas fa-arrow-left"></i> {% trans "Back to Dashboard" %}
+        </a>
+
+        <p style="margin-top: 30px; color: #a0aec0; font-size: 14px;">
+            <i class="far fa-clock"></i> {% trans "Please check back later" %}
+        </p>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

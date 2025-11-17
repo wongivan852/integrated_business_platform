@@ -307,6 +307,31 @@ class ApplicationConfig(models.Model):
         help_text=_('Whether this application is available for use')
     )
 
+    # Maintenance mode fields
+    is_maintenance = models.BooleanField(
+        _('Maintenance Mode'),
+        default=False,
+        help_text=_('Enable maintenance mode to show a message to users')
+    )
+
+    maintenance_message = models.TextField(
+        _('Maintenance Message'),
+        blank=True,
+        help_text=_('Message to display when in maintenance mode (supports HTML)')
+    )
+
+    maintenance_message_cn = models.TextField(
+        _('Maintenance Message (Chinese)'),
+        blank=True,
+        help_text=_('Chinese version of maintenance message')
+    )
+
+    allow_superuser_access = models.BooleanField(
+        _('Allow Superuser Access'),
+        default=True,
+        help_text=_('Allow superusers to bypass maintenance mode')
+    )
+
     requires_sso = models.BooleanField(
         _('Requires SSO'),
         default=True,

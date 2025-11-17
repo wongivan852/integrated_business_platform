@@ -1591,6 +1591,7 @@
             {% endfor %}
         ]},
         {name: "definition_of_done", height: 70, map_to: "definition_of_done", type: "textarea", focus: false},
+        {name: "attachments", height: 250, map_to: "auto", type: "template", focus: false},
         {name: "move_task", height: 120, map_to: "auto", type: "template", focus: false},
         {name: "predecessors", height: 350, map_to: "auto", type: "template", focus: false},
         {name: "time", height: 72, map_to: "auto", type: "time", time_format: ["%Y", "%m", "%d"]},
@@ -1603,6 +1604,7 @@
     gantt.locale.labels.section_chinese_title = "Task Title (中文)";
     gantt.locale.labels.section_process_owner = "Process Owner";
     gantt.locale.labels.section_definition_of_done = "Definition of Done (DoD)";
+    gantt.locale.labels.section_attachments = "File Attachments";
     gantt.locale.labels.section_move_task = "Move / Reorder Task";
     gantt.locale.labels.section_predecessors = "Dependencies / Predecessors";
     gantt.locale.labels.section_time = "Task Dates";
@@ -1668,6 +1670,42 @@
 </div>`;
 
                 console.log('Move task HTML generated');
+                return html;
+            }
+
+            if (sns.name === "attachments") {
+                console.log('Rendering attachments section...');
+
+                const html = `<div id="attachments_container">
+    <!-- Upload Section -->
+    <div style="margin-bottom: 16px; padding: 12px; background: #f8f9fa; border-radius: 6px; border: 2px dashed #dee2e6;">
+        <label style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 13px; color: #495057;">
+            <i class="fas fa-upload" style="margin-right: 4px;"></i> Upload New File
+        </label>
+        <input type="file" id="task_attachment_file"
+               style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 13px; background: white;"
+               accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.png,.jpg,.jpeg,.gif">
+        <div style="margin-top: 6px; font-size: 11px; color: #6c757d;">
+            Max 10MB - Supported: PDF, Office docs, images
+        </div>
+        <button type="button" id="upload_attachment_btn"
+                style="margin-top: 8px; padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; font-size: 13px;">
+            <i class="fas fa-cloud-upload-alt" style="margin-right: 4px;"></i> Upload File
+        </button>
+    </div>
+
+    <!-- Existing Attachments List -->
+    <div id="task_attachments_list" style="max-height: 150px; overflow-y: auto;">
+        <!-- Populated dynamically -->
+    </div>
+
+    <div id="no_attachments_msg" style="text-align: center; padding: 20px; color: #6c757d; font-size: 13px; display: none;">
+        <i class="fas fa-paperclip" style="font-size: 24px; margin-bottom: 8px; opacity: 0.5;"></i>
+        <div>No attachments yet</div>
+    </div>
+</div>`;
+
+                console.log('Attachments HTML generated');
                 return html;
             }
 
@@ -1756,6 +1794,26 @@
                 setupMoveTask(parentSelect, moveUpBtn, moveDownBtn, task);
             } catch (error) {
                 console.error('Error in move_task section:', error);
+            }
+        } else if (section.name === "attachments") {
+            console.log('=== Setting up attachments section for task:', task.id);
+            try {
+                const parentNode = node.parentNode;
+                const uploadBtn = parentNode.querySelector('#upload_attachment_btn');
+                const fileInput = parentNode.querySelector('#task_attachment_file');
+                const attachmentsList = parentNode.querySelector('#task_attachments_list');
+                const noAttachmentsMsg = parentNode.querySelector('#no_attachments_msg');
+
+                if (!uploadBtn || !fileInput || !attachmentsList) {
+                    console.error('Attachments UI elements not found');
+                    return;
+                }
+
+                // Setup upload button
+                setupAttachments(uploadBtn, fileInput, attachmentsList, noAttachmentsMsg, task);
+
+            } catch (error) {
+                console.error('Error in attachments section:', error);
             }
         } else if (section.name === "predecessors") {
             console.log('=== Setting up predecessors section for task:', task.id);
@@ -1939,6 +1997,118 @@
 
         // Initialize
         populateParentOptions();
+    }
+
+    // Helper function to setup attachments UI
+    function setupAttachments(uploadBtn, fileInput, attachmentsList, noAttachmentsMsg, task) {
+        console.log('Setting up attachments UI for task:', task.id);
+
+        // Load existing attachments
+        loadAttachments(task, attachmentsList, noAttachmentsMsg);
+
+        // Handle file upload
+        uploadBtn.addEventListener('click', function() {
+            const file = fileInput.files[0];
+            if (!file) {
+                alert('Please select a file first');
+                return;
+            }
+
+            // Validate file size (10MB max)
+            const maxSize = 10 * 1024 * 1024; // 10MB
+            if (file.size > maxSize) {
+                alert('File size exceeds 10MB limit');
+                return;
+            }
+
+            // Upload file via AJAX
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+            uploadBtn.disabled = true;
+            uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+
+            fetch(`/project-management/{{ project.pk }}/tasks/${task.id}/attachments/upload/`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Upload failed');
+                }
+                return response.text();
+            })
+            .then(() => {
+                // Success - reload attachments
+                fileInput.value = '';
+                loadAttachments(task, attachmentsList, noAttachmentsMsg);
+                alert('File uploaded successfully!');
+            })
+            .catch(error => {
+                console.error('Upload error:', error);
+                alert('Failed to upload file. Please try again.');
+            })
+            .finally(() => {
+                uploadBtn.disabled = false;
+                uploadBtn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Upload File';
+            });
+        });
+    }
+
+    // Function to load and display attachments
+    function loadAttachments(task, attachmentsList, noAttachmentsMsg) {
+        fetch(`/project-management/{{ project.pk }}/tasks/${task.id}/`)
+            .then(response => response.text())
+            .then(html => {
+                // Parse HTML to extract attachments data
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const attachmentItems = doc.querySelectorAll('.attachment-item');
+
+                if (attachmentItems.length === 0) {
+                    attachmentsList.innerHTML = '';
+                    noAttachmentsMsg.style.display = 'block';
+                } else {
+                    noAttachmentsMsg.style.display = 'none';
+                    let html = '';
+                    attachmentItems.forEach(item => {
+                        const fileName = item.querySelector('.attachment-name a')?.textContent || 'Unknown';
+                        const fileUrl = item.querySelector('.attachment-name a')?.href || '#';
+                        const fileMeta = item.querySelector('.attachment-meta')?.textContent || '';
+                        const fileIcon = item.querySelector('.attachment-icon i')?.className || 'fas fa-file';
+
+                        html += `
+                            <div style="padding: 8px; border: 1px solid #dee2e6; border-radius: 4px; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; background: white;">
+                                <div style="font-size: 20px; color: #6c757d;">
+                                    <i class="${fileIcon}"></i>
+                                </div>
+                                <div style="flex: 1; min-width: 0;">
+                                    <a href="${fileUrl}" target="_blank" style="color: #0d6efd; text-decoration: none; font-weight: 500; font-size: 13px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                        ${fileName}
+                                    </a>
+                                    <div style="font-size: 11px; color: #6c757d; margin-top: 2px;">
+                                        ${fileMeta}
+                                    </div>
+                                </div>
+                                <div>
+                                    <a href="${fileUrl}" target="_blank" style="padding: 4px 8px; background: #0d6efd; color: white; text-decoration: none; border-radius: 3px; font-size: 11px; display: inline-block;">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    attachmentsList.innerHTML = html;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading attachments:', error);
+                attachmentsList.innerHTML = '<div style="color: red; padding: 10px;">Error loading attachments</div>';
+            });
     }
 
     // Helper function to setup predecessors UI
