@@ -21,6 +21,7 @@ class PasswordChangeRequiredMiddleware:
         exempt_urls = [
             reverse('authentication:logout'),
             reverse('authentication:change_password'),
+            reverse('authentication:change_password_required'),
         ]
 
         # Check if user is authenticated and has password_change_required flag
@@ -40,8 +41,8 @@ class PasswordChangeRequiredMiddleware:
                 )
                 request.session['password_change_message_shown'] = True
 
-            # Redirect to password change page
-            return redirect('authentication:change_password')
+            # Redirect to the forced password change page (not the voluntary one)
+            return redirect('authentication:change_password_required')
 
         response = self.get_response(request)
         return response

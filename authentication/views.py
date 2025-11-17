@@ -422,6 +422,9 @@ def change_password_required(request):
             from django.contrib.auth import update_session_auth_hash
             update_session_auth_hash(request, user)
 
+            # Refresh user in request to ensure middleware sees updated flag
+            request.user.refresh_from_db()
+
             messages.success(
                 request,
                 _('Your password has been changed successfully! You can now access all applications.')
