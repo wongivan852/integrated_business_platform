@@ -73,13 +73,13 @@
         <div class="row align-items-center">
             <div class="col-md-6">
                 <div class="btn-group btn-group-sm" role="group">
-                    <input type="radio" class="btn-check" name="viewMode" id="viewDay" value="day">
+                    <input type="radio" class="btn-check" name="viewMode" id="viewDay" value="day" checked>
                     <label class="btn btn-outline-secondary" for="viewDay">Day</label>
 
                     <input type="radio" class="btn-check" name="viewMode" id="viewWeek" value="week">
                     <label class="btn btn-outline-secondary" for="viewWeek">Week</label>
 
-                    <input type="radio" class="btn-check" name="viewMode" id="viewMonth" value="month" checked>
+                    <input type="radio" class="btn-check" name="viewMode" id="viewMonth" value="month">
                     <label class="btn btn-outline-secondary" for="viewMonth">Month</label>
 
                     <input type="radio" class="btn-check" name="viewMode" id="viewYear" value="year">
@@ -928,12 +928,20 @@
     gantt.config.duration_unit = "day";  // Ensure duration is always in days
     gantt.config.duration_step = 1;  // 1 day increments
 
-    // Default to Month view using modern scales API
+    // Default to Day view using modern scales API
     gantt.config.scales = [
-        {unit: "month", step: 1, format: "%F %Y"},
-        {unit: "week", step: 1, format: "Week #%W"}
+        {unit: "month", step: 1, format: "%F %Y", css: function(date) {
+            return "month-scale";
+        }},
+        {unit: "day", step: 1, format: "%d", css: function(date) {
+            // Highlight weekends
+            if (date.getDay() === 0 || date.getDay() === 6) {
+                return "weekend-day";
+            }
+            return "";
+        }}
     ];
-    gantt.config.min_column_width = 120;
+    gantt.config.min_column_width = 40;
     gantt.config.scale_height = 90;
     gantt.config.row_height = 50;  // Increased for bilingual text
     gantt.config.grid_width = 605;  // Fixed grid width
@@ -4383,11 +4391,11 @@
         });
     });
 
-    // Ensure Month button is checked on page load
-    const monthButton = document.getElementById('viewMonth');
-    if (monthButton && !monthButton.checked) {
-        console.log('Month button not checked, checking it now');
-        monthButton.checked = true;
+    // Ensure Day button is checked on page load
+    const dayButton = document.getElementById('viewDay');
+    if (dayButton && !dayButton.checked) {
+        console.log('Day button not checked, checking it now');
+        dayButton.checked = true;
     }
 
     // Handle Force Full Year button - ENHANCED VERSION WITH DATA REFRESH
