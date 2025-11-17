@@ -1596,8 +1596,15 @@
 <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd;">
     <div style="margin-bottom: 8px;">
         <label style="display: block; margin-bottom: 4px; font-weight: 500; font-size: 12px;">Select Predecessor Task:</label>
-        <select id="predecessor_select" style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 3px; font-size: 13px;">
-            <option value="">-- Select Task (by Code) --</option>
+        <div style="position: relative;">
+            <input type="text" id="predecessor_search" placeholder="Search tasks by code or name..."
+                style="width: 100%; padding: 6px 30px 6px 6px; border: 1px solid #ccc; border-radius: 3px; font-size: 13px; box-sizing: border-box;">
+            <span style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); color: #999; pointer-events: none;">
+                🔍
+            </span>
+        </div>
+        <select id="predecessor_select" size="5" style="width: 100%; margin-top: 4px; padding: 4px; border: 1px solid #ccc; border-radius: 3px; font-size: 13px; display: none;">
+            <option value="">-- No tasks found --</option>
         </select>
     </div>
     <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
@@ -1617,7 +1624,8 @@
         </div>
     </div>
     <div style="margin-top: 5px; padding: 6px; background: #f8f9fa; border-radius: 3px; font-size: 11px; color: #666;">
-        <strong>Types:</strong> FS=Finish-to-Start, SS=Start-to-Start, FF=Finish-to-Finish, SF=Start-to-Finish
+        <div style="margin-bottom: 3px;"><strong>💡 Tips:</strong> Type to search tasks, press Enter to add first result, or double-click to add</div>
+        <div><strong>Types:</strong> FS=Finish-to-Start, SS=Start-to-Start, FF=Finish-to-Finish, SF=Start-to-Finish</div>
     </div>
 </div>`;
 
@@ -1716,6 +1724,10 @@
         // Get parent node to find other elements
         const parentNode = listContainer.parentNode;
         const depTypeSelect = parentNode.querySelector('#dependency_type_select');
+        const searchInput = parentNode.querySelector('#predecessor_search');
+
+        // Store all available tasks for filtering
+        let allAvailableTasks = [];
 
         // Check if taskB is a descendant of taskA (with depth limit to prevent infinite loops)
         function isDescendant(taskId, ancestorId, depth = 0) {
@@ -1736,21 +1748,85 @@
 
         // Populate task dropdown (exclude current task and its descendants)
         function populateTaskDropdown(currentTaskId) {
-            predecessorSelect.innerHTML = '<option value="">-- Select Task --</option>';
+            allAvailableTasks = [];
 
             try {
                 gantt.eachTask(function(t) {
-                    // Exclude current task and its descendants
-                    if (t.id !== currentTaskId && !isDescendant(t.id, currentTaskId)) {
-                        const option = document.createElement('option');
-                        option.value = t.id;
-                        option.textContent = `${t.task_code || t.id} - ${t.text}`;
-                        predecessorSelect.appendChild(option);
+                    // Exclude current task and its descendants, and hidden timeline tasks
+                    if (t.id !== currentTaskId &&
+                        !isDescendant(t.id, currentTaskId) &&
+                        !(t.id && t.id.toString().startsWith('_tl_'))) {
+                        allAvailableTasks.push({
+                            id: t.id,
+                            code: t.task_code || '',
+                            text: t.text || '',
+                            title_cn: t.title_cn || ''
+                        });
                     }
                 });
+
+                // Sort tasks by code
+                allAvailableTasks.sort((a, b) => {
+                    const codeA = a.code || '';
+                    const codeB = b.code || '';
+                    return codeA.localeCompare(codeB);
+                });
+
+                console.log('Available tasks for predecessors:', allAvailableTasks.length);
             } catch (e) {
                 console.error('Error populating task dropdown:', e);
             }
+        }
+
+        // Filter and display tasks based on search term
+        function filterTasks(searchTerm) {
+            const term = searchTerm.toLowerCase().trim();
+
+            // Clear current options
+            predecessorSelect.innerHTML = '';
+
+            if (!term) {
+                // No search term - hide the select
+                predecessorSelect.style.display = 'none';
+                return;
+            }
+
+            // Filter tasks
+            const filtered = allAvailableTasks.filter(t => {
+                const code = (t.code || '').toLowerCase();
+                const text = (t.text || '').toLowerCase();
+                const titleCn = (t.title_cn || '').toLowerCase();
+
+                return code.includes(term) || text.includes(term) || titleCn.includes(term);
+            });
+
+            if (filtered.length === 0) {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = '-- No tasks found --';
+                option.disabled = true;
+                predecessorSelect.appendChild(option);
+                predecessorSelect.style.display = 'block';
+            } else {
+                // Add filtered tasks to select
+                filtered.forEach(t => {
+                    const option = document.createElement('option');
+                    option.value = t.id;
+                    option.textContent = `${t.code} - ${t.text}`;
+                    if (t.title_cn) {
+                        option.textContent += ` (${t.title_cn})`;
+                    }
+                    predecessorSelect.appendChild(option);
+                });
+                predecessorSelect.style.display = 'block';
+
+                // Auto-select first item if only one result
+                if (filtered.length === 1) {
+                    predecessorSelect.selectedIndex = 0;
+                }
+            }
+
+            console.log(`Filtered ${filtered.length} tasks from ${allAvailableTasks.length} total`);
         }
 
         // Display current predecessors
@@ -1848,11 +1924,66 @@
             if (linkId) {
                 console.log('Refreshing predecessors display...');
                 displayPredecessors();
-                predecessorSelect.value = '';
+                // Clear search and hide select
+                if (searchInput) {
+                    searchInput.value = '';
+                }
+                predecessorSelect.style.display = 'none';
             } else {
                 console.error('Failed to create link - linkId is:', linkId);
             }
         };
+
+        // Add search input event listener
+        if (searchInput) {
+            searchInput.addEventListener('input', function(e) {
+                const searchTerm = e.target.value;
+                filterTasks(searchTerm);
+            });
+
+            // Handle Enter key to select first result
+            searchInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (predecessorSelect.options.length > 0 && predecessorSelect.options[0].value) {
+                        predecessorSelect.selectedIndex = 0;
+                        // Trigger add button click
+                        addBtn.click();
+                    }
+                } else if (e.key === 'ArrowDown') {
+                    // Focus on select dropdown if visible
+                    e.preventDefault();
+                    if (predecessorSelect.style.display !== 'none' && predecessorSelect.options.length > 0) {
+                        predecessorSelect.focus();
+                        predecessorSelect.selectedIndex = 0;
+                    }
+                }
+            });
+
+            // Focus search input when section opens
+            setTimeout(() => {
+                searchInput.focus();
+            }, 100);
+        }
+
+        // Handle double-click on select to add
+        if (predecessorSelect) {
+            predecessorSelect.addEventListener('dblclick', function(e) {
+                if (this.value) {
+                    addBtn.click();
+                }
+            });
+
+            // Handle Enter key on select
+            predecessorSelect.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (this.value) {
+                        addBtn.click();
+                    }
+                }
+            });
+        }
 
         // Initialize the UI
         populateTaskDropdown(task.id);
