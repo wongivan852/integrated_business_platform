@@ -1143,6 +1143,9 @@
                 // Day and Week views should not use zoom extension
                 console.log('WARNING: Zoom extension called for', level, '- this should be bypassed');
 
+                // Save current links before clearing
+                const currentLinks = gantt.getLinks();
+
                 // If somehow we get here, configure manually
                 gantt.clearAll();
 
@@ -1165,7 +1168,10 @@
                     gantt.config.min_column_width = 30;
                 }
 
-                gantt.parse(ganttData);
+                gantt.parse({
+                    data: ganttData.data,
+                    links: currentLinks  // Preserve current dependencies
+                });
                 if (typeof forceTimelineExtension === 'function') {
                     forceTimelineExtension();
                 }
@@ -1175,6 +1181,9 @@
                 setTimeout(function() {
                     console.log('Refreshing Gantt data for', level, 'view...');
 
+                    // Save links again before second clear
+                    const currentLinks2 = gantt.getLinks();
+
                     // Clear everything
                     gantt.clearAll();
 
@@ -1183,8 +1192,11 @@
                     gantt.config.end_date = new Date(2026, 0, 7, 23, 59, 59); // Jan 7, 2026
                     gantt.config.fit_tasks = false;
 
-                    // Re-parse the original data
-                    gantt.parse(ganttData);
+                    // Re-parse the original data with current links
+                    gantt.parse({
+                        data: ganttData.data,
+                        links: currentLinks2  // Preserve current dependencies
+                    });
 
                     // Force timeline extension function
                     if (typeof forceTimelineExtension === 'function') {
@@ -4121,11 +4133,19 @@
                     break;
             }
 
+            // IMPORTANT: Save current links before clearing
+            // This preserves dependencies added after page load
+            const currentLinks = gantt.getLinks();
+            console.log('Saving current links before mode switch:', currentLinks.length);
+
             // Clear and reload everything
             gantt.clearAll();
 
-            // Re-parse data
-            gantt.parse(ganttData);
+            // Re-parse data with original tasks
+            gantt.parse({
+                data: ganttData.data,
+                links: currentLinks  // Use current links instead of original ganttData.links
+            });
 
             // Force timeline extension
             if (typeof forceTimelineExtension === 'function') {
@@ -4206,6 +4226,10 @@
         const currentLevel = document.querySelector('input[name="viewMode"]:checked')?.value || 'month';
         const selectedTask = gantt.getSelectedId();
 
+        // IMPORTANT: Save current links before clearing
+        const currentLinks = gantt.getLinks();
+        console.log('Saving current links before force full year:', currentLinks.length);
+
         // Step 1: Clear and refresh data completely
         console.log('Clearing and refreshing all data...');
         gantt.clearAll();
@@ -4216,8 +4240,11 @@
         gantt.config.fit_tasks = false;
         gantt.config.show_chart = true;
 
-        // Step 3: Re-parse data
-        gantt.parse(ganttData);
+        // Step 3: Re-parse data with current links
+        gantt.parse({
+            data: ganttData.data,
+            links: currentLinks  // Preserve current dependencies
+        });
 
         // Step 4: Add timeline extension placeholders
         if (typeof forceTimelineExtension === 'function') {
