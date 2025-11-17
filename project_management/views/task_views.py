@@ -527,6 +527,8 @@ def task_upload_attachment(request, project_pk, task_pk):
         return redirect('project_management:task_detail', project_pk=project_pk, pk=task_pk)
     
     if 'file' not in request.FILES:
+        if request.content_type == 'multipart/form-data':
+            return JsonResponse({'success': False, 'error': 'No file was uploaded.'}, status=400)
         messages.error(request, 'No file was uploaded.')
         return redirect('project_management:task_detail', project_pk=project_pk, pk=task_pk)
     
@@ -535,7 +537,10 @@ def task_upload_attachment(request, project_pk, task_pk):
     # Validate file size (max 10MB)
     max_size = 10 * 1024 * 1024  # 10MB
     if uploaded_file.size > max_size:
-        messages.error(request, f'File size exceeds 10MB limit. Your file is {round(uploaded_file.size / (1024 * 1024), 2)}MB.')
+        error_msg = f'File size exceeds 10MB limit. Your file is {round(uploaded_file.size / (1024 * 1024), 2)}MB.'
+        if request.content_type == 'multipart/form-data':
+            return JsonResponse({'success': False, 'error': error_msg}, status=400)
+        messages.error(request, error_msg)
         return redirect('project_management:task_detail', project_pk=project_pk, pk=task_pk)
     
     # Get file extension and type
@@ -565,6 +570,15 @@ def task_upload_attachment(request, project_pk, task_pk):
         }
     )
     
+    # Return JSON response for AJAX requests
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type == 'multipart/form-data':
+        return JsonResponse({
+            'success': True,
+            'message': f'File "{uploaded_file.name}" uploaded successfully!',
+            'filename': uploaded_file.name,
+            'file_size': uploaded_file.size,
+        })
+
     messages.success(request, f'File "{uploaded_file.name}" uploaded successfully!')
     return redirect('project_management:task_detail', project_pk=project_pk, pk=task_pk)
 
