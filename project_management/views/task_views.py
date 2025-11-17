@@ -502,3 +502,119 @@ def api_task_update_field(request, project_pk, pk):
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+# =============================================================================
+# Task Attachment Views
+# =============================================================================
+
+@login_required
+@require_http_methods(["POST"])
+def task_upload_attachment(request, project_pk, task_pk):
+    """
+    Upload file attachment to a task
+    """
+    from ..models import TaskAttachment, TaskActivity
+    import os
+    
+    project = get_object_or_404(Project, pk=project_pk)
+    task = get_object_or_404(Task, pk=task_pk, project=project)
+    
+    # Check access - members and above can upload
+    has_access, user_role = check_project_access(request.user, project, required_role='member')
+    if not has_access:
+        messages.error(request, 'You do not have permission to upload files.')
+        return redirect('project_management:task_detail', project_pk=project_pk, pk=task_pk)
+    
+    if 'file' not in request.FILES:
+        messages.error(request, 'No file was uploaded.')
+        return redirect('project_management:task_detail', project_pk=project_pk, pk=task_pk)
+    
+    uploaded_file = request.FILES['file']
+    
+    # Validate file size (max 10MB)
+    max_size = 10 * 1024 * 1024  # 10MB
+    if uploaded_file.size > max_size:
+        messages.error(request, f'File size exceeds 10MB limit. Your file is {round(uploaded_file.size / (1024 * 1024), 2)}MB.')
+        return redirect('project_management:task_detail', project_pk=project_pk, pk=task_pk)
+    
+    # Get file extension and type
+    file_ext = os.path.splitext(uploaded_file.name)[1].lower()
+    file_type = uploaded_file.content_type
+    
+    # Create attachment
+    attachment = TaskAttachment.objects.create(
+        task=task,
+        file=uploaded_file,
+        filename=uploaded_file.name,
+        file_size=uploaded_file.size,
+        file_type=file_type,
+        uploaded_by=request.user,
+        description=request.POST.get('description', '')
+    )
+    
+    # Log activity
+    TaskActivity.objects.create(
+        task=task,
+        user=request.user,
+        action='file_uploaded',
+        details={
+            'filename': uploaded_file.name,
+            'file_size': uploaded_file.size,
+            'file_type': file_type
+        }
+    )
+    
+    messages.success(request, f'File "{uploaded_file.name}" uploaded successfully!')
+    return redirect('project_management:task_detail', project_pk=project_pk, pk=task_pk)
+
+
+@login_required
+@require_http_methods(["POST"])
+def task_delete_attachment(request, project_pk, task_pk, attachment_pk):
+    """
+    Delete file attachment from a task
+    """
+    from ..models import TaskAttachment, TaskActivity
+    import os
+    
+    project = get_object_or_404(Project, pk=project_pk)
+    task = get_object_or_404(Task, pk=task_pk, project=project)
+    attachment = get_object_or_404(TaskAttachment, pk=attachment_pk, task=task)
+    
+    # Check access - only uploader, admins, or owners can delete
+    has_access, user_role = check_project_access(request.user, project)
+    can_delete = (
+        attachment.uploaded_by == request.user or
+        user_role in ['owner', 'admin']
+    )
+    
+    if not can_delete:
+        messages.error(request, 'You do not have permission to delete this file.')
+        return redirect('project_management:task_detail', project_pk=project_pk, pk=task_pk)
+    
+    filename = attachment.filename
+    
+    # Delete the physical file
+    if attachment.file:
+        try:
+            if os.path.isfile(attachment.file.path):
+                os.remove(attachment.file.path)
+        except Exception as e:
+            print(f"Error deleting file: {e}")
+    
+    # Delete the database record
+    attachment.delete()
+    
+    # Log activity
+    TaskActivity.objects.create(
+        task=task,
+        user=request.user,
+        action='file_deleted',
+        details={
+            'filename': filename
+        }
+    )
+    
+    messages.success(request, f'File "{filename}" deleted successfully!')
+    return redirect('project_management:task_detail', project_pk=project_pk, pk=task_pk)

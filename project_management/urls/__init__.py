@@ -30,6 +30,10 @@ urlpatterns = [
     path('<int:project_pk>/tasks/<int:pk>/edit/', task_views.task_edit, name='task_edit'),
     path('<int:project_pk>/tasks/<int:pk>/delete/', task_views.task_delete, name='task_delete'),
 
+    # Task Attachment URLs
+    path('<int:project_pk>/tasks/<int:task_pk>/attachments/upload/', task_views.task_upload_attachment, name='task_upload_attachment'),
+    path('<int:project_pk>/tasks/<int:task_pk>/attachments/<int:attachment_pk>/delete/', task_views.task_delete_attachment, name='task_delete_attachment'),
+
     # Task API endpoints (Kanban)
     path('<int:project_pk>/api/tasks/quick-create/', task_views.api_task_quick_create, name='api_task_quick_create'),
     path('<int:project_pk>/api/tasks/<int:pk>/move/', task_views.api_task_move, name='api_task_move'),
