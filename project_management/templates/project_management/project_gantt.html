@@ -1551,6 +1551,7 @@
             {% endfor %}
         ]},
         {name: "definition_of_done", height: 70, map_to: "definition_of_done", type: "textarea", focus: false},
+        {name: "move_task", height: 120, map_to: "auto", type: "template", focus: false},
         {name: "predecessors", height: 350, map_to: "auto", type: "template", focus: false},
         {name: "time", height: 72, map_to: "auto", type: "time", time_format: ["%Y", "%m", "%d"]},
         {name: "duration", height: 38, map_to: "duration", type: "textarea", focus: false}
@@ -1562,6 +1563,7 @@
     gantt.locale.labels.section_chinese_title = "Task Title (中文)";
     gantt.locale.labels.section_process_owner = "Process Owner";
     gantt.locale.labels.section_definition_of_done = "Definition of Done (DoD)";
+    gantt.locale.labels.section_move_task = "Move / Reorder Task";
     gantt.locale.labels.section_predecessors = "Dependencies / Predecessors";
     gantt.locale.labels.section_time = "Task Dates";
     gantt.locale.labels.section_duration = "Duration (days)";
@@ -1594,10 +1596,40 @@
     const originalTemplateGetValue = gantt.form_blocks["template"].get_value;
     const originalTemplateFocus = gantt.form_blocks["template"].focus;
 
-    // Template function to render the predecessors UI
+    // Template function to render the move_task and predecessors UI
     gantt.form_blocks["template"].render = function(sns) {
         try {
             console.log('Template render called for:', sns.name, 'type:', sns.type);
+
+            if (sns.name === "move_task") {
+                console.log('Rendering move_task section...');
+
+                const html = `<div id="move_task_container">
+    <div style="margin-bottom: 12px;">
+        <label style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 13px;">Parent Task:</label>
+        <select id="parent_task_select" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 3px; font-size: 13px;">
+            <option value="0">-- Root Level (No Parent) --</option>
+        </select>
+        <div style="margin-top: 4px; font-size: 11px; color: #666;">
+            Select a parent task to make this a subtask
+        </div>
+    </div>
+    <div style="display: flex; gap: 8px; margin-top: 12px;">
+        <button type="button" id="move_up_btn" style="flex: 1; padding: 8px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 13px;">
+            ↑ Move Up
+        </button>
+        <button type="button" id="move_down_btn" style="flex: 1; padding: 8px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 13px;">
+            ↓ Move Down
+        </button>
+    </div>
+    <div style="margin-top: 8px; padding: 6px; background: #f8f9fa; border-radius: 3px; font-size: 11px; color: #666;">
+        <strong>💡 Tips:</strong> Change parent to move task to different level, or use arrows to reorder within same level
+    </div>
+</div>`;
+
+                console.log('Move task HTML generated');
+                return html;
+            }
 
             if (sns.name === "predecessors") {
                 console.log('Rendering predecessors section...');
@@ -1657,7 +1689,7 @@
         }
     };
 
-    // Set value function - populate the predecessors list when opening lightbox
+    // Set value function - populate the move_task and predecessors sections when opening lightbox
     gantt.form_blocks["template"].set_value = function(node, value, task, section) {
         console.log('=== set_value called for section:', section.name);
         console.log('node type:', typeof node);
@@ -1665,7 +1697,27 @@
         console.log('node is HTMLElement:', node instanceof HTMLElement);
         console.log('node.nodeType:', node ? node.nodeType : 'undefined');
 
-        if (section.name === "predecessors") {
+        if (section.name === "move_task") {
+            console.log('=== Setting up move_task section for task:', task.id);
+            try {
+                const parentNode = node.parentNode;
+                const lightbox = document.querySelector('.gantt_cal_light');
+
+                // Find elements
+                const parentSelect = (lightbox || parentNode).querySelector('#parent_task_select');
+                const moveUpBtn = (lightbox || parentNode).querySelector('#move_up_btn');
+                const moveDownBtn = (lightbox || parentNode).querySelector('#move_down_btn');
+
+                if (!parentSelect || !moveUpBtn || !moveDownBtn) {
+                    console.error('Move task UI elements not found');
+                    return;
+                }
+
+                setupMoveTask(parentSelect, moveUpBtn, moveDownBtn, task);
+            } catch (error) {
+                console.error('Error in move_task section:', error);
+            }
+        } else if (section.name === "predecessors") {
             console.log('=== Setting up predecessors section for task:', task.id);
             try {
                 // node is just the first element, we need to find siblings in the parent
@@ -1728,6 +1780,126 @@
             }
         }
     };
+
+    // Helper function to setup move task UI
+    function setupMoveTask(parentSelect, moveUpBtn, moveDownBtn, task) {
+        console.log('Setting up move task UI for task:', task.id);
+
+        // Populate parent task dropdown
+        function populateParentOptions() {
+            parentSelect.innerHTML = '<option value="0">-- Root Level (No Parent) --</option>';
+
+            gantt.eachTask(function(t) {
+                // Exclude the current task and its descendants
+                if (t.id !== task.id && !isTaskDescendant(t.id, task.id)) {
+                    const option = document.createElement('option');
+                    option.value = t.id;
+                    const indent = getTaskLevel(t) > 0 ? '  '.repeat(getTaskLevel(t)) : '';
+                    option.textContent = `${indent}${t.task_code || t.id} - ${t.text}`;
+                    parentSelect.appendChild(option);
+                }
+            });
+
+            // Set current parent
+            if (task.parent && task.parent !== 0) {
+                parentSelect.value = task.parent;
+            } else {
+                parentSelect.value = "0";
+            }
+        }
+
+        // Check if a task is descendant of another
+        function isTaskDescendant(taskId, ancestorId) {
+            try {
+                const t = gantt.getTask(taskId);
+                if (!t) return false;
+                if (t.parent === ancestorId) return true;
+                if (t.parent && t.parent !== 0) {
+                    return isTaskDescendant(t.parent, ancestorId);
+                }
+                return false;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        // Get task level (depth)
+        function getTaskLevel(t) {
+            let level = 0;
+            let current = t;
+            while (current.parent && current.parent !== 0) {
+                level++;
+                try {
+                    current = gantt.getTask(current.parent);
+                } catch (e) {
+                    break;
+                }
+            }
+            return level;
+        }
+
+        // Get siblings (tasks with same parent)
+        function getSiblings() {
+            const siblings = [];
+            gantt.eachTask(function(t) {
+                if (t.parent === task.parent && t.id !== task.id) {
+                    siblings.push(t);
+                }
+            }, task.parent || 0);
+            return siblings;
+        }
+
+        // Parent selection change handler
+        parentSelect.onchange = function() {
+            const newParent = parseInt(this.value) || 0;
+            console.log('Changing parent from', task.parent, 'to', newParent);
+
+            if (newParent !== (task.parent || 0)) {
+                task.parent = newParent;
+                gantt.updateTask(task.id);
+                console.log('Task parent updated to:', newParent);
+            }
+        };
+
+        // Move up button handler
+        moveUpBtn.onclick = function(e) {
+            e.preventDefault();
+            console.log('Move up clicked for task:', task.id);
+
+            const siblings = gantt.getChildren(task.parent || 0);
+            const currentIndex = siblings.indexOf(task.id);
+
+            if (currentIndex > 0) {
+                // Swap with previous sibling
+                gantt.moveTask(task.id, currentIndex - 1, task.parent || 0);
+                console.log('Task moved up');
+                gantt.render();
+            } else {
+                console.log('Task is already at the top');
+            }
+        };
+
+        // Move down button handler
+        moveDownBtn.onclick = function(e) {
+            e.preventDefault();
+            console.log('Move down clicked for task:', task.id);
+
+            const siblings = gantt.getChildren(task.parent || 0);
+            const currentIndex = siblings.indexOf(task.id);
+
+            if (currentIndex < siblings.length - 1) {
+                // Swap with next sibling
+                gantt.moveTask(task.id, currentIndex + 1, task.parent || 0);
+                console.log('Task moved down');
+                gantt.render();
+            } else {
+                console.log('Task is already at the bottom');
+            }
+        };
+
+        // Initialize
+        populateParentOptions();
+    }
 
     // Helper function to setup predecessors UI
     function setupPredecessors(listContainer, predecessorSelect, addBtn, task) {
