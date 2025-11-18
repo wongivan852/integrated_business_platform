@@ -65,8 +65,9 @@ LOCAL_APPS = [
     'attendance_integration',
     # Leave Management System
     'leave_management',
-    # QR Code Attendance System
-    'attendance',
+    # Attendance Systems
+    'attendance',  # Basic attendance tracking
+    'qr_attendance',  # QR code-based event attendance
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
