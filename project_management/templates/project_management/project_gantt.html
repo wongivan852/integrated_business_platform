@@ -252,8 +252,25 @@
 
 <!-- Gantt Chart Container -->
 <div class="card project-card">
-    <div class="card-body p-0">
+    <div class="card-body p-0" style="position: relative;">
         <div id="gantt_here" style="width:100%; height:700px; overflow: auto; transition: height 0.3s ease;"></div>
+
+        <!-- Recent Task Updates Notification Panel -->
+        <div id="task_updates_panel" style="position: absolute; top: 20px; right: 20px; width: 350px; max-height: 500px; overflow-y: auto; z-index: 1000; display: none;">
+            <div style="background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border: 1px solid #dee2e6;">
+                <div style="padding: 12px 16px; border-bottom: 1px solid #dee2e6; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px 8px 0 0; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="font-weight: 600; font-size: 14px;">
+                        <i class="fas fa-bell"></i> Recent Updates
+                    </div>
+                    <button id="close_all_updates" style="background: transparent; border: none; color: white; cursor: pointer; font-size: 16px; padding: 0; width: 24px; height: 24px;">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div id="task_updates_list" style="max-height: 450px; overflow-y: auto;">
+                    <!-- Notifications will be populated here -->
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -5188,6 +5205,221 @@
             e.preventDefault();
             adjustChartHeight('decrease');
         }
+    });
+
+    // ============================================================================
+    // TASK UPDATE NOTIFICATIONS SYSTEM
+    // ============================================================================
+
+    // Track recent task updates
+    let taskUpdatesQueue = [];
+    let dismissedUpdates = new Set();
+    let currentScrollIndex = 0;
+    let scrollInterval = null;
+
+    // Initialize notification system
+    function initTaskUpdateNotifications() {
+        const panel = document.getElementById('task_updates_panel');
+        const closeBtn = document.getElementById('close_all_updates');
+        const updatesList = document.getElementById('task_updates_list');
+
+        // Close all notifications button
+        closeBtn.addEventListener('click', function() {
+            panel.style.display = 'none';
+            stopAutoScroll();
+            taskUpdatesQueue = [];
+            dismissedUpdates.clear();
+        });
+
+        // Start monitoring task updates
+        startTaskUpdateMonitoring();
+    }
+
+    // Monitor for task updates via Gantt events
+    function startTaskUpdateMonitoring() {
+        // Track when tasks are updated
+        gantt.attachEvent("onAfterTaskUpdate", function(id, task) {
+            addTaskUpdateNotification(task, 'updated');
+            return true;
+        });
+
+        // Track when tasks are created
+        gantt.attachEvent("onAfterTaskAdd", function(id, task) {
+            addTaskUpdateNotification(task, 'created');
+            return true;
+        });
+    }
+
+    // Add notification for task update
+    function addTaskUpdateNotification(task, action) {
+        const updateId = `${task.id}_${Date.now()}`;
+
+        // Skip if already dismissed
+        if (dismissedUpdates.has(updateId)) {
+            return;
+        }
+
+        const update = {
+            id: updateId,
+            taskId: task.id,
+            taskCode: task.task_code || task.id,
+            taskName: task.text,
+            action: action,
+            processOwner: getProcessOwnerName(task.process_owner_id),
+            updatedBy: '{{ request.user.get_full_name|default:request.user.email|escapejs }}',
+            timestamp: new Date()
+        };
+
+        taskUpdatesQueue.unshift(update); // Add to beginning of queue
+
+        // Limit queue size
+        if (taskUpdatesQueue.length > 10) {
+            taskUpdatesQueue = taskUpdatesQueue.slice(0, 10);
+        }
+
+        renderTaskUpdates();
+        showNotificationPanel();
+        startAutoScroll();
+    }
+
+    // Get process owner name from ID
+    function getProcessOwnerName(ownerId) {
+        if (!ownerId) return 'Unassigned';
+
+        const members = [
+            {% for member in project.team_members.all %}
+            {id: '{{ member.pk }}', name: '{{ member.get_full_name|default:member.email|escapejs }}'},
+            {% endfor %}
+        ];
+
+        const member = members.find(m => m.id === String(ownerId));
+        return member ? member.name : 'Unknown';
+    }
+
+    // Render task updates in the panel
+    function renderTaskUpdates() {
+        const updatesList = document.getElementById('task_updates_list');
+
+        if (taskUpdatesQueue.length === 0) {
+            updatesList.innerHTML = `
+                <div style="padding: 20px; text-align: center; color: #6c757d;">
+                    <i class="fas fa-inbox" style="font-size: 32px; margin-bottom: 8px; opacity: 0.5;"></i>
+                    <div style="font-size: 13px;">No recent updates</div>
+                </div>
+            `;
+            return;
+        }
+
+        let html = '';
+        taskUpdatesQueue.forEach((update, index) => {
+            const isActive = index === currentScrollIndex;
+            const actionIcon = update.action === 'created' ? 'fa-plus-circle' : 'fa-edit';
+            const actionColor = update.action === 'created' ? '#28a745' : '#0d6efd';
+            const timeAgo = getTimeAgo(update.timestamp);
+
+            html += `
+                <div class="task-update-item" data-update-id="${update.id}"
+                     style="padding: 12px 16px; border-bottom: 1px solid #e9ecef; cursor: pointer; transition: all 0.3s; ${isActive ? 'background: #f8f9fa; border-left: 4px solid #667eea;' : ''}"
+                     onclick="dismissUpdate('${update.id}')">
+                    <div style="display: flex; align-items: start; gap: 10px;">
+                        <div style="flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; background: ${actionColor}20; display: flex; align-items: center; justify-content: center;">
+                            <i class="fas ${actionIcon}" style="color: ${actionColor}; font-size: 16px;"></i>
+                        </div>
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-weight: 600; font-size: 13px; color: #212529; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                ${update.taskCode} - ${update.taskName}
+                            </div>
+                            <div style="font-size: 12px; color: #6c757d; margin-bottom: 4px;">
+                                <i class="fas fa-user" style="width: 14px;"></i> Owner: <strong>${update.processOwner}</strong>
+                            </div>
+                            <div style="font-size: 12px; color: #6c757d; margin-bottom: 4px;">
+                                <i class="fas fa-user-edit" style="width: 14px;"></i> Edited by: <strong>${update.updatedBy}</strong>
+                            </div>
+                            <div style="font-size: 11px; color: #adb5bd;">
+                                <i class="far fa-clock"></i> ${timeAgo}
+                            </div>
+                        </div>
+                        <div style="flex-shrink: 0;">
+                            <i class="fas fa-times" style="color: #adb5bd; font-size: 14px;"></i>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        updatesList.innerHTML = html;
+    }
+
+    // Show notification panel
+    function showNotificationPanel() {
+        const panel = document.getElementById('task_updates_panel');
+        panel.style.display = 'block';
+    }
+
+    // Start auto-scrolling through updates
+    function startAutoScroll() {
+        stopAutoScroll(); // Clear any existing interval
+
+        if (taskUpdatesQueue.length <= 1) {
+            return; // No need to scroll if only 1 or 0 items
+        }
+
+        currentScrollIndex = 0;
+        renderTaskUpdates();
+
+        scrollInterval = setInterval(() => {
+            currentScrollIndex = (currentScrollIndex + 1) % taskUpdatesQueue.length;
+            renderTaskUpdates();
+
+            // Scroll to the active item
+            const updatesList = document.getElementById('task_updates_list');
+            const activeItem = updatesList.querySelector('.task-update-item[style*="background: #f8f9fa"]');
+            if (activeItem) {
+                activeItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }, 3000); // Scroll every 3 seconds
+    }
+
+    // Stop auto-scrolling
+    function stopAutoScroll() {
+        if (scrollInterval) {
+            clearInterval(scrollInterval);
+            scrollInterval = null;
+        }
+    }
+
+    // Dismiss an update (remove from scrolling list)
+    function dismissUpdate(updateId) {
+        dismissedUpdates.add(updateId);
+        taskUpdatesQueue = taskUpdatesQueue.filter(u => u.id !== updateId);
+
+        if (taskUpdatesQueue.length === 0) {
+            document.getElementById('task_updates_panel').style.display = 'none';
+            stopAutoScroll();
+        } else {
+            currentScrollIndex = Math.min(currentScrollIndex, taskUpdatesQueue.length - 1);
+            renderTaskUpdates();
+            if (taskUpdatesQueue.length > 1) {
+                startAutoScroll();
+            } else {
+                stopAutoScroll();
+            }
+        }
+    }
+
+    // Get time ago string
+    function getTimeAgo(timestamp) {
+        const seconds = Math.floor((new Date() - timestamp) / 1000);
+
+        if (seconds < 60) return 'Just now';
+        if (seconds < 3600) return `${Math.floor(seconds / 60)} min ago`;
+        if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
+        return `${Math.floor(seconds / 86400)} days ago`;
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(initTaskUpdateNotifications, 1000); // Wait for Gantt to initialize
     });
 </script>
 {% endblock %}
