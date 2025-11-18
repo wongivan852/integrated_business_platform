@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Create Venue{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'qr_attendance:dashboard' %}">QR Attendance</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'qr_attendance:venue_list' %}">Venues</a></li>
+                    <li class="breadcrumb-item active">Create Venue</li>
+                </ol>
+            </nav>
+            <h2><i class="fas fa-plus"></i> Create New Venue</h2>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-building"></i> Venue Information</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{% url 'qr_attendance:venue_create' %}">
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Venue Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="name" name="name" required>
+                            <div class="form-text">Friendly name for this venue (e.g., Main Hall, Conference Room A)</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="code" class="form-label">Venue Code <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="code" name="code" required pattern="[A-Z0-9_]+" style="text-transform: uppercase;">
+                            <div class="form-text">Short uppercase code (e.g., HALL_A, ROOM_101)</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="location" class="form-label">Location/Address</label>
+                            <input type="text" class="form-control" id="location" name="location">
+                            <div class="form-text">Physical address or location description</div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="max_capacity" class="form-label">Maximum Capacity <span class="text-danger">*</span></label>
+                                    <input type="number" class="form-control" id="max_capacity" name="max_capacity" value="100" min="1" required>
+                                    <div class="form-text">Maximum number of people allowed</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="warning_threshold" class="form-label">Warning Threshold (%)</label>
+                                    <input type="number" class="form-control" id="warning_threshold" name="warning_threshold" value="90" min="0" max="100">
+                                    <div class="form-text">Show warning at this percentage</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="enable_capacity_limit" name="enable_capacity_limit" checked>
+                                <label class="form-check-label" for="enable_capacity_limit">
+                                    Enable Capacity Limit
+                                </label>
+                                <div class="form-text">Block check-ins when venue reaches maximum capacity</div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                            <div class="form-text">Additional notes about this venue</div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-save"></i> Create Venue
+                            </button>
+                            <a href="{% url 'qr_attendance:venue_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

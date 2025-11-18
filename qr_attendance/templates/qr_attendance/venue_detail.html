@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ venue.name }} - Venue Details{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'qr_attendance:dashboard' %}">QR Attendance</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'qr_attendance:venue_list' %}">Venues</a></li>
+                    <li class="breadcrumb-item active">{{ venue.name }}</li>
+                </ol>
+            </nav>
+            <h2><i class="fas fa-building"></i> {{ venue.name }}</h2>
+        </div>
+    </div>
+
+    <!-- Venue Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="text-muted">Current Occupancy</h5>
+                    <h2 class="{% if venue.is_at_capacity %}text-danger{% elif venue.is_at_warning_level %}text-warning{% else %}text-success{% endif %}">
+                        {{ venue.get_current_occupancy }}
+                    </h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="text-muted">Max Capacity</h5>
+                    <h2>{{ venue.max_capacity }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="text-muted">Available</h5>
+                    <h2>{{ venue.get_available_capacity }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="text-muted">Occupancy</h5>
+                    <h2>{{ venue.get_occupancy_percentage }}%</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Venue Info -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Venue Information</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Code:</strong> <code>{{ venue.code }}</code></p>
+                    <p><strong>Location:</strong> {{ venue.location|default:"-" }}</p>
+                    <p><strong>Status:</strong>
+                        {% if venue.is_active %}
+                            <span class="badge bg-success">Active</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Inactive</span>
+                        {% endif %}
+                    </p>
+                    {% if venue.description %}
+                        <p><strong>Description:</strong><br>{{ venue.description }}</p>
+                    {% endif %}
+                    <a href="{% url 'qr_attendance:scanner' %}?venue={{ venue.id }}" class="btn btn-success">
+                        <i class="fas fa-qrcode"></i> Open Scanner for This Venue
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Currently Checked In -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Currently Checked In ({{ checked_in_participants.count }})</h5>
+                </div>
+                <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                    {% if checked_in_participants %}
+                        <ul class="list-group">
+                            {% for participant in checked_in_participants %}
+                                <li class="list-group-item">
+                                    {{ participant.name }}
+                                    <span class="badge bg-info">{{ participant.get_participant_class_display }}</span>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted">No participants currently checked in.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Recent Activity</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_records %}
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Participant</th>
+                                        <th>Check In</th>
+                                        <th>Check Out</th>
+                                        <th>Duration</th>
+                                        <th>Scanned By</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for record in recent_records %}
+                                        <tr>
+                                            <td>{{ record.participant.name }}</td>
+                                            <td>{{ record.time_in|date:"Y-m-d H:i" }}</td>
+                                            <td>
+                                                {% if record.time_out %}
+                                                    {{ record.time_out|date:"Y-m-d H:i" }}
+                                                {% else %}
+                                                    <span class="badge bg-success">In Venue</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if record.get_duration %}
+                                                    {{ record.get_duration }}
+                                                {% else %}
+                                                    -
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ record.scanned_by.email|default:"-" }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No activity records yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

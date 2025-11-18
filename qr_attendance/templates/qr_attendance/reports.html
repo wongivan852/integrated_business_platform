@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Attendance Reports{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'qr_attendance:dashboard' %}">QR Attendance</a></li>
+                    <li class="breadcrumb-item active">Reports</li>
+                </ol>
+            </nav>
+            <h2><i class="fas fa-chart-bar"></i> Attendance Reports</h2>
+        </div>
+    </div>
+
+    <!-- Report Options -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-filter"></i> Generate Report</h5>
+                </div>
+                <div class="card-body">
+                    <form method="get" action="">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label for="start_date" class="form-label">Start Date</label>
+                                <input type="date" class="form-control" id="start_date" name="start_date">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="end_date" class="form-label">End Date</label>
+                                <input type="date" class="form-control" id="end_date" name="end_date">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="participant_class" class="form-label">Participant Class</label>
+                                <select class="form-select" id="participant_class" name="participant_class">
+                                    <option value="">All Classes</option>
+                                    <option value="regular">Regular</option>
+                                    <option value="vip">VIP</option>
+                                    <option value="staff">Staff</option>
+                                    <option value="volunteer">Volunteer</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-md-12">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search"></i> Generate Report
+                                </button>
+                                <button type="button" class="btn btn-success" onclick="exportToExcel()">
+                                    <i class="fas fa-file-excel"></i> Export to Excel
+                                </button>
+                                <button type="button" class="btn btn-secondary" onclick="window.print()">
+                                    <i class="fas fa-print"></i> Print Report
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Summary -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="text-muted">Total Participants</h5>
+                    <h2 class="text-primary" id="total-participants">-</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="text-muted">Total Check-Ins</h5>
+                    <h2 class="text-success" id="total-checkins">-</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="text-muted">Currently Inside</h5>
+                    <h2 class="text-warning" id="currently-inside">-</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="text-muted">Avg. Duration</h5>
+                    <h2 class="text-info" id="avg-duration">-</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Report -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-table"></i> Detailed Attendance Log</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> Select date range and click "Generate Report" to view detailed attendance data.
+                    </div>
+
+                    <div id="report-table" style="display: none;">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover" id="attendance-table">
+                                <thead>
+                                    <tr>
+                                        <th>Participant</th>
+                                        <th>Class</th>
+                                        <th>Check In</th>
+                                        <th>Check Out</th>
+                                        <th>Duration</th>
+                                        <th>Scanned By</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="report-body">
+                                    <!-- Report data will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function exportToExcel() {
+    alert('Excel export functionality will be implemented soon.');
+    // TODO: Implement Excel export using a library like SheetJS
+}
+
+// Example function to load report data
+function loadReportData(startDate, endDate, participantClass) {
+    // This would make an AJAX call to fetch report data
+    // For now, this is a placeholder
+    console.log('Loading report data...', {startDate, endDate, participantClass});
+}
+</script>
+{% endblock %}

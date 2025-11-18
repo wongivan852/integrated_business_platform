@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Participants{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'qr_attendance:dashboard' %}">QR Attendance</a></li>
+                    <li class="breadcrumb-item active">Participants</li>
+                </ol>
+            </nav>
+            <h2><i class="fas fa-users"></i> Event Participants</h2>
+        </div>
+        <div class="col-auto">
+            <a href="{% url 'qr_attendance:participant_create' %}" class="btn btn-primary">
+                <i class="fas fa-user-plus"></i> Add Participant
+            </a>
+        </div>
+    </div>
+
+    <!-- Participants Table -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-list"></i> All Participants</h5>
+                </div>
+                <div class="card-body">
+                    {% if participants %}
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Email</th>
+                                        <th>Phone</th>
+                                        <th>Class</th>
+                                        <th>SSO User</th>
+                                        <th>Created</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for participant in participants %}
+                                        <tr>
+                                            <td>
+                                                <a href="{% url 'qr_attendance:participant_detail' participant.pk %}">
+                                                    {{ participant.name }}
+                                                </a>
+                                            </td>
+                                            <td>{{ participant.email|default:"-" }}</td>
+                                            <td>{{ participant.phone|default:"-" }}</td>
+                                            <td>
+                                                <span class="badge bg-{% if participant.participant_class == 'vip' %}warning{% elif participant.participant_class == 'staff' %}info{% else %}secondary{% endif %}">
+                                                    {{ participant.get_participant_class_display }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                {% if participant.user %}
+                                                    <i class="fas fa-check text-success"></i> {{ participant.user.username }}
+                                                {% else %}
+                                                    <i class="fas fa-times text-muted"></i> External
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ participant.created_at|date:"Y-m-d H:i" }}</td>
+                                            <td>
+                                                <a href="{% url 'qr_attendance:participant_detail' participant.pk %}" class="btn btn-sm btn-info">
+                                                    <i class="fas fa-eye"></i> View
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> No participants registered yet.
+                            <a href="{% url 'qr_attendance:participant_create' %}">Add the first participant</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

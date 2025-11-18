@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Add Participant{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'qr_attendance:dashboard' %}">QR Attendance</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'qr_attendance:participant_list' %}">Participants</a></li>
+                    <li class="breadcrumb-item active">Add Participant</li>
+                </ol>
+            </nav>
+            <h2><i class="fas fa-user-plus"></i> Register New Participant</h2>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-qrcode"></i> Participant Information</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{% url 'qr_attendance:participant_create' %}">
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Full Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="name" name="name" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" name="email">
+                            <div class="form-text">Optional - for sending QR code</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="phone" class="form-label">Phone Number</label>
+                            <input type="text" class="form-control" id="phone" name="phone">
+                            <div class="form-text">Optional - contact information</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="participant_class" class="form-label">Participant Class</label>
+                            <select class="form-select" id="participant_class" name="participant_class">
+                                <option value="regular">Regular</option>
+                                <option value="vip">VIP</option>
+                                <option value="staff">Staff</option>
+                                <option value="volunteer">Volunteer</option>
+                            </select>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> <strong>Note:</strong> A unique QR code will be automatically generated upon registration.
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-save"></i> Register & Generate QR Code
+                            </button>
+                            <a href="{% url 'qr_attendance:participant_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

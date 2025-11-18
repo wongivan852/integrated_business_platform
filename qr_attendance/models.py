@@ -119,13 +119,22 @@ class Participant(models.Model):
 
 class QRAttendanceRecord(models.Model):
     """
-    QR-based attendance check-in/check-out records.
+    QR-based attendance check-in/check-out records with venue tracking.
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     participant = models.ForeignKey(
         Participant,
         on_delete=models.CASCADE,
-        related_name='qr_attendance_records'
+        related_name='qr_records'
+    )
+
+    venue = models.ForeignKey(
+        'Venue',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='attendance_records',
+        help_text=_('Venue/Location where check-in occurred')
     )
 
     time_in = models.DateTimeField(_('Check-In Time'))
@@ -168,6 +177,7 @@ class QRAttendanceRecord(models.Model):
         ordering = ['-time_in']
         indexes = [
             models.Index(fields=['participant', '-time_in']),
+            models.Index(fields=['venue', 'checked_in']),
             models.Index(fields=['checked_in']),
         ]
 
@@ -192,14 +202,37 @@ class QRAttendanceRecord(models.Model):
         self.save()
 
 
-class VenueSettings(models.Model):
+class Venue(models.Model):
     """
-    Venue configuration for capacity management (Singleton).
+    Venue/Location model for multi-venue event management.
+    Each venue can have its own capacity settings.
     """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    name = models.CharField(
+        _('Venue Name'),
+        max_length=100,
+        help_text=_('Name of the venue/location')
+    )
+
+    code = models.CharField(
+        _('Venue Code'),
+        max_length=50,
+        unique=True,
+        help_text=_('Short code for the venue (e.g., HALL_A, ROOM_101)')
+    )
+
+    location = models.CharField(
+        _('Location/Address'),
+        max_length=255,
+        blank=True,
+        help_text=_('Physical address or location description')
+    )
+
     max_capacity = models.IntegerField(
         _('Maximum Capacity'),
         default=100,
-        help_text=_('Maximum number of people allowed in venue')
+        help_text=_('Maximum number of people allowed in this venue')
     )
 
     warning_threshold = models.IntegerField(
@@ -214,53 +247,92 @@ class VenueSettings(models.Model):
         help_text=_('Block check-ins when venue is at maximum capacity')
     )
 
+    is_active = models.BooleanField(
+        _('Is Active'),
+        default=True,
+        help_text=_('Whether this venue is currently active')
+    )
+
+    description = models.TextField(
+        _('Description'),
+        blank=True,
+        help_text=_('Additional venue information')
+    )
+
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(
+        CompanyUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_venues'
+    )
     updated_by = models.ForeignKey(
         CompanyUser,
         on_delete=models.SET_NULL,
         null=True,
-        blank=True
+        blank=True,
+        related_name='updated_venues'
     )
 
     class Meta:
-        verbose_name = _('Venue Settings')
-        verbose_name_plural = _('Venue Settings')
+        verbose_name = _('Venue')
+        verbose_name_plural = _('Venues')
+        ordering = ['name']
 
     def __str__(self):
-        return f"Venue Settings (Max: {self.max_capacity})"
-
-    def save(self, *args, **kwargs):
-        # Singleton pattern - only one settings record
-        self.pk = 1
-        super().save(*args, **kwargs)
+        return f"{self.name} ({self.code})"
 
     @classmethod
-    def get_settings(cls):
-        """Get or create the single settings instance"""
-        settings, created = cls.objects.get_or_create(pk=1)
-        return settings
+    def get_default_venue(cls):
+        """Get or create a default venue for backward compatibility"""
+        venue, created = cls.objects.get_or_create(
+            code='DEFAULT',
+            defaults={
+                'name': 'Main Venue',
+                'max_capacity': 100,
+                'warning_threshold': 90,
+                'enable_capacity_limit': True,
+                'is_active': True
+            }
+        )
+        return venue
 
     def get_current_occupancy(self):
-        """Get current number of people in venue"""
-        return QRAttendanceRecord.objects.filter(checked_in=True).count()
+        """Get current number of people checked in at this venue"""
+        return QRAttendanceRecord.objects.filter(
+            venue=self,
+            checked_in=True
+        ).count()
 
     def get_available_capacity(self):
-        """Get number of available seats"""
+        """Get number of available seats in this venue"""
         return self.max_capacity - self.get_current_occupancy()
 
     def get_occupancy_percentage(self):
-        """Get occupancy as percentage"""
+        """Get occupancy as percentage for this venue"""
         if self.max_capacity == 0:
             return 0
         return int((self.get_current_occupancy() / self.max_capacity) * 100)
 
     def is_at_capacity(self):
-        """Check if venue is at maximum capacity"""
+        """Check if this venue is at maximum capacity"""
+        if not self.enable_capacity_limit:
+            return False
         return self.get_current_occupancy() >= self.max_capacity
 
     def is_at_warning_level(self):
-        """Check if venue is at warning threshold"""
+        """Check if this venue is at warning threshold"""
         return self.get_occupancy_percentage() >= self.warning_threshold
+
+    def get_checked_in_participants(self):
+        """Get list of participants currently checked in at this venue"""
+        return Participant.objects.filter(
+            qr_records__venue=self,
+            qr_records__checked_in=True
+        ).distinct()
 
 
 class AuditLog(models.Model):

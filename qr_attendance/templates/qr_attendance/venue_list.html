@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Venue Management{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'qr_attendance:dashboard' %}">QR Attendance</a></li>
+                    <li class="breadcrumb-item active">Venues</li>
+                </ol>
+            </nav>
+            <h2><i class="fas fa-map-marker-alt"></i> Venue Management</h2>
+        </div>
+        <div class="col-auto">
+            <a href="{% url 'qr_attendance:venue_create' %}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Add Venue
+            </a>
+        </div>
+    </div>
+
+    <!-- Venues List -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-building"></i> All Venues</h5>
+                </div>
+                <div class="card-body">
+                    {% if venues %}
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Code</th>
+                                        <th>Location</th>
+                                        <th>Capacity</th>
+                                        <th>Current Occupancy</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for venue in venues %}
+                                        {% with occupancy=venue.get_current_occupancy percentage=venue.get_occupancy_percentage %}
+                                        <tr>
+                                            <td>
+                                                <a href="{% url 'qr_attendance:venue_detail' venue.pk %}">
+                                                    {{ venue.name }}
+                                                </a>
+                                            </td>
+                                            <td><code>{{ venue.code }}</code></td>
+                                            <td>{{ venue.location|default:"-" }}</td>
+                                            <td>{{ venue.max_capacity }}</td>
+                                            <td>
+                                                <div class="progress" style="width: 150px;">
+                                                    <div class="progress-bar {% if percentage >= 90 %}bg-danger{% elif percentage >= 70 %}bg-warning{% else %}bg-success{% endif %}"
+                                                         role="progressbar"
+                                                         style="width: {{ percentage }}%"
+                                                         aria-valuenow="{{ percentage }}"
+                                                         aria-valuemin="0"
+                                                         aria-valuemax="100">
+                                                        {{ occupancy }}/{{ venue.max_capacity }}
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                {% if venue.is_active %}
+                                                    <span class="badge bg-success">Active</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">Inactive</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <a href="{% url 'qr_attendance:venue_detail' venue.pk %}" class="btn btn-sm btn-info">
+                                                    <i class="fas fa-eye"></i> View
+                                                </a>
+                                                <a href="{% url 'qr_attendance:scanner' %}?venue={{ venue.id }}" class="btn btn-sm btn-success">
+                                                    <i class="fas fa-qrcode"></i> Scan
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endwith %}
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> No venues registered yet.
+                            <a href="{% url 'qr_attendance:venue_create' %}">Create the first venue</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

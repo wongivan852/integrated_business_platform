@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}QR Scanner{% endblock %}
+
+{% block extra_css %}
+<style>
+    #qr-reader {
+        width: 100%;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+    #qr-reader__dashboard_section_csr {
+        border: none !important;
+    }
+    .scan-result {
+        padding: 15px;
+        margin: 15px 0;
+        border-radius: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'qr_attendance:dashboard' %}">QR Attendance</a></li>
+                    <li class="breadcrumb-item active">Scanner</li>
+                </ol>
+            </nav>
+            <h2><i class="fas fa-camera"></i> QR Code Scanner</h2>
+        </div>
+    </div>
+
+    <!-- Venue Selection and Capacity -->
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-map-marker-alt"></i> Venue Selection</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label for="venue-selector" class="form-label"><strong>Select Venue:</strong></label>
+                            <select class="form-select form-select-lg" id="venue-selector">
+                                {% for v in all_venues %}
+                                    <option value="{{ v.id }}" {% if selected_venue_id == v.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ v.name }} ({{ v.code }})
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    {% if venue %}
+                    <hr>
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <strong>Current:</strong> <span id="current-occupancy">{{ venue.get_current_occupancy }}</span>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Max:</strong> <span id="max-capacity">{{ venue.max_capacity }}</span>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Available:</strong> <span id="available-capacity">{{ venue.get_available_capacity }}</span>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Occupancy:</strong> <span id="occupancy-percentage">{{ venue.get_occupancy_percentage }}</span>%
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i> No venue available. Please create a venue first.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scanner Interface -->
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-qrcode"></i> Scan QR Code</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Camera Scanner -->
+                    <div id="qr-reader"></div>
+
+                    <!-- Manual Input -->
+                    <div class="mt-4">
+                        <h6>Or Enter Code Manually:</h6>
+                        <form id="manual-scan-form">
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="manual-code" placeholder="Enter participant code">
+                                <button class="btn btn-primary" type="submit">
+                                    <i class="fas fa-search"></i> Scan
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Scan Result -->
+                    <div id="scan-result" class="mt-4" style="display: none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- HTML5 QR Code Scanner Library -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+<script>
+let html5QrCode;
+const csrftoken = '{{ csrf_token }}';
+
+// Initialize QR Scanner
+function initScanner() {
+    html5QrCode = new Html5Qrcode("qr-reader");
+
+    const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+    html5QrCode.start(
+        { facingMode: "environment" },
+        config,
+        onScanSuccess,
+        onScanError
+    ).catch(err => {
+        console.error("Unable to start scanner:", err);
+        showResult('error', 'Unable to start camera. Please check permissions or use manual input.');
+    });
+}
+
+// Handle successful QR scan
+function onScanSuccess(decodedText, decodedResult) {
+    console.log(`QR Code scanned: ${decodedText}`);
+    processParticipant(decodedText);
+}
+
+// Handle scan errors (can be ignored for continuous scanning)
+function onScanError(errorMessage) {
+    // Errors occur continuously while scanning, ignore them
+}
+
+// Process participant check-in/out
+function processParticipant(code) {
+    const venueSelector = document.getElementById('venue-selector');
+    const venueId = venueSelector ? venueSelector.value : null;
+
+    if (!venueId) {
+        showResult('error', 'Please select a venue first');
+        playSound('error');
+        return;
+    }
+
+    fetch(`/qr-attendance/api/scan/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken
+        },
+        body: JSON.stringify({
+            code: code,
+            venue_id: venueId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const action = data.action === 'check_in' ? 'Checked In to' : 'Checked Out from';
+            showResult('success', `${data.participant_name} - ${action} ${data.venue_name}!`);
+
+            // Update capacity counters
+            updateCapacity(data.current_occupancy, data.available_capacity, data.occupancy_percentage);
+
+            // Play success sound
+            playSound('success');
+        } else {
+            showResult('error', data.error || 'Unknown error occurred');
+            playSound('error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showResult('error', 'Failed to process scan. Please try again.');
+        playSound('error');
+    });
+}
+
+// Show scan result
+function showResult(type, message) {
+    const resultDiv = document.getElementById('scan-result');
+    const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+
+    resultDiv.className = `alert ${alertClass} scan-result`;
+    resultDiv.innerHTML = `<strong>${type === 'success' ? '✓' : '✗'}</strong> ${message}`;
+    resultDiv.style.display = 'block';
+
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+        resultDiv.style.display = 'none';
+    }, 5000);
+}
+
+// Update capacity counters
+function updateCapacity(current, available, percentage) {
+    document.getElementById('current-occupancy').textContent = current;
+    document.getElementById('available-capacity').textContent = available;
+    document.getElementById('occupancy-percentage').textContent = percentage;
+}
+
+// Play sound feedback
+function playSound(type) {
+    // Create audio context and play beep
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    oscillator.frequency.value = type === 'success' ? 800 : 400;
+    oscillator.type = 'sine';
+
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.2);
+}
+
+// Manual scan form handler
+document.getElementById('manual-scan-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const code = document.getElementById('manual-code').value.trim();
+    if (code) {
+        processParticipant(code);
+        document.getElementById('manual-code').value = '';
+    }
+});
+
+// Handle venue selection change
+document.getElementById('venue-selector').addEventListener('change', function() {
+    const venueId = this.value;
+    if (venueId) {
+        window.location.href = `/qr-attendance/scanner/?venue=${venueId}`;
+    }
+});
+
+// Initialize scanner on page load
+document.addEventListener('DOMContentLoaded', function() {
+    initScanner();
+});
+
+// Stop scanner when leaving page
+window.addEventListener('beforeunload', function() {
+    if (html5QrCode) {
+        html5QrCode.stop();
+    }
+});
+</script>
+{% endblock %}
