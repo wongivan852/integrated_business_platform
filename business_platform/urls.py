@@ -60,8 +60,9 @@ urlpatterns = [
     # Leave Management System
     path('leave/', include('leave_management.urls')),
 
-    # Attendance System
-    path('attendance/', include('attendance.urls')),
+    # Attendance Systems
+    path('attendance/', include('attendance.urls')),  # Staff daily attendance
+    path('qr-attendance/', include('qr_attendance.urls')),  # QR event attendance
 
     # API endpoints (commented out until api module is created)
     # path('api/v1/', include('app_integration.api.urls')),

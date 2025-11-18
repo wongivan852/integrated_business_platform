@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}QR Code Attendance{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2><i class="fas fa-qrcode"></i> QR Code Attendance System</h2>
+            <p class="text-muted">Event participant check-in/out with venue capacity management</p>
+        </div>
+    </div>
+
+    <!-- Venue Capacity Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card {% if is_at_capacity %}border-danger{% elif is_at_warning %}border-warning{% else %}border-success{% endif %}">
+                <div class="card-body text-center">
+                    <h5 class="text-muted mb-2">Current Occupancy</h5>
+                    <h2 class="{% if is_at_capacity %}text-danger{% elif is_at_warning %}text-warning{% else %}text-success{% endif %}">
+                        {{ current_occupancy }}
+                    </h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5 class="text-muted mb-2">Max Capacity</h5>
+                    <h2>{{ max_capacity }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5 class="text-muted mb-2">Available</h5>
+                    <h2>{{ available_capacity }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5 class="text-muted mb-2">Occupancy</h5>
+                    <h2>{{ occupancy_percentage }}%</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-tasks"></i> Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <a href="{% url 'qr_attendance:scanner' %}" class="btn btn-success btn-lg w-100">
+                                <i class="fas fa-camera"></i> Open Scanner
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <a href="{% url 'qr_attendance:participant_list' %}" class="btn btn-primary btn-lg w-100">
+                                <i class="fas fa-users"></i> View Participants
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <a href="{% url 'qr_attendance:participant_create' %}" class="btn btn-info btn-lg w-100">
+                                <i class="fas fa-user-plus"></i> Add Participant
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Alert -->
+    {% if is_at_capacity %}
+        <div class="alert alert-danger" role="alert">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>Venue at Maximum Capacity!</strong> No more check-ins allowed.
+        </div>
+    {% elif is_at_warning %}
+        <div class="alert alert-warning" role="alert">
+            <i class="fas fa-exclamation-circle"></i>
+            <strong>Warning:</strong> Venue is at {{ occupancy_percentage }}% capacity.
+        </div>
+    {% endif %}
+
+    <!-- System Info -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5><i class="fas fa-info-circle"></i> About QR Code Attendance</h5>
+                    <p>This system allows you to:</p>
+                    <ul>
+                        <li>Register event participants with automatic QR code generation</li>
+                        <li>Scan QR codes for quick check-in/check-out</li>
+                        <li>Track venue capacity in real-time</li>
+                        <li>Prevent duplicate entries</li>
+                        <li>Generate attendance reports</li>
+                    </ul>
+                    <p class="mb-0"><strong>Note:</strong> This is separate from Staff Attendance (daily employee clock-in/out).</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
