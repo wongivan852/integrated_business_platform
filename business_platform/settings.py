@@ -68,6 +68,8 @@ LOCAL_APPS = [
     # Attendance Systems
     'attendance',  # Basic attendance tracking
     'qr_attendance',  # QR code-based event attendance
+    # CRM System
+    'crm',  # Customer Relationship Management
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -200,6 +202,17 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
+
+# Cache time to live settings (for CRM and other apps)
+CACHE_TTL = {
+    'customer_list': 60 * 2,  # 2 minutes
+    'customer_search': 60 * 5,  # 5 minutes
+    'course_list': 60 * 10,  # 10 minutes
+    'country_codes': 60 * 60 * 24,  # 24 hours
+    'dashboard_stats': 60 * 5,  # 5 minutes
+    'api_responses': 60 * 3,  # 3 minutes
+    'query_cache': 60 * 1,  # 1 minute
+}
 
 # Crispy Forms
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"

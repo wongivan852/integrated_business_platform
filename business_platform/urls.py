@@ -64,6 +64,9 @@ urlpatterns = [
     path('attendance/', include('attendance.urls')),  # Staff daily attendance
     path('qr-attendance/', include('qr_attendance.urls')),  # QR event attendance
 
+    # CRM System
+    path('crm/', include('crm.urls')),  # Customer Relationship Management
+
     # API endpoints (commented out until api module is created)
     # path('api/v1/', include('app_integration.api.urls')),
 ]

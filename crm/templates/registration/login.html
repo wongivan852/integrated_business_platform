@@ -1,0 +1,157 @@
+{% extends 'crm/base.html' %}
+
+{% block title %}Secure Login - Learning Institute CRM{% endblock %}
+
+{% block extra_head %}
+<style>
+.login-container {
+    max-width: 400px;
+    margin: 80px auto;
+}
+
+.login-card {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border: none;
+    border-radius: 10px;
+}
+
+.login-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    text-align: center;
+    padding: 2rem;
+    border-radius: 10px 10px 0 0;
+}
+
+.security-badge {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 15px;
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+    display: inline-block;
+}
+
+.form-floating label {
+    color: #6c757d;
+}
+
+.btn-login {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    padding: 12px;
+    font-weight: 500;
+}
+
+.btn-login:hover {
+    background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.alert-security {
+    background-color: #fff3cd;
+    border-color: #ffecb5;
+    color: #856404;
+    border-left: 4px solid #ffc107;
+}
+
+.footer-text {
+    text-align: center;
+    color: #6c757d;
+    font-size: 0.875rem;
+    margin-top: 2rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="login-container">
+        <div class="card login-card">
+            <div class="login-header">
+                <h2><i class="fas fa-shield-alt"></i> Secure Access</h2>
+                <p class="mb-2">Learning Institute CRM</p>
+                <span class="security-badge">
+                    <i class="fas fa-lock"></i> Authentication Required
+                </span>
+            </div>
+            
+            <div class="card-body p-4">
+                {% if form.errors %}
+                    <div class="alert alert-danger" role="alert">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Login Failed:</strong>
+                        {% for field, errors in form.errors.items %}
+                            {% for error in errors %}
+                                {{ error }}
+                            {% endfor %}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+                <div class="alert alert-security" role="alert">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Security Notice:</strong> UAT public access has been disabled. All CRM functions now require secure authentication.
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="form-floating mb-3">
+                        {{ form.username }}
+                        <label for="{{ form.username.id_for_label }}">
+                            <i class="fas fa-user"></i> Username
+                        </label>
+                        {% if form.username.errors %}
+                            <div class="text-danger mt-1">{{ form.username.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-floating mb-4">
+                        {{ form.password }}
+                        <label for="{{ form.password.id_for_label }}">
+                            <i class="fas fa-key"></i> Password
+                        </label>
+                        {% if form.password.errors %}
+                            <div class="text-danger mt-1">{{ form.password.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg btn-login">
+                            <i class="fas fa-sign-in-alt"></i> Secure Login
+                        </button>
+                    </div>
+                </form>
+                
+                <div class="text-center mt-3">
+                    <a href="{% url 'password_change' %}" class="text-decoration-none">
+                        <i class="fas fa-cog"></i> Change Password
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer-text">
+            <p>
+                <i class="fas fa-shield-alt text-success"></i>
+                Secure authentication protects your customer data
+            </p>
+            <p class="small text-muted">
+                Contact your administrator if you need access credentials
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

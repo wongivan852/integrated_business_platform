@@ -1,0 +1,176 @@
+{% extends 'crm/base.html' %}
+
+{% block title %}Dashboard - Learning Institute CRM{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="fas fa-dashboard"></i> Dashboard</h1>
+</div>
+
+<!-- Key Metrics -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">Total Customers</h5>
+                        <h2>{{ total_customers }}</h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-users fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">Active Customers</h5>
+                        <h2>{{ active_customers }}</h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-user-check fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">Active Courses</h5>
+                        <h2>{{ total_courses }}</h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-book fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">Enrollments</h5>
+                        <h2>{{ total_enrollments }}</h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-user-graduate fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-user-plus"></i> Recent Customers</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_customers %}
+                    <div class="list-group">
+                        {% for customer in recent_customers %}
+                            <a href="{% url 'crm:customer_detail' customer.id %}" class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">{{ customer.first_name }} {{ customer.last_name }}</h6>
+                                    <small>{{ customer.created_at|timesince }} ago</small>
+                                </div>
+                                <p class="mb-1">{{ customer.email }}</p>
+                                <small>{{ customer.get_customer_type_display }} - {{ customer.get_status_display }}</small>
+                            </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted">No customers yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-calendar"></i> Upcoming Courses</h5>
+            </div>
+            <div class="card-body">
+                {% if upcoming_courses %}
+                    <div class="list-group">
+                        {% for course in upcoming_courses %}
+                            <div class="list-group-item">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">{{ course.title }}</h6>
+                                    <small>{{ course.start_date|date:"M d, Y" }}</small>
+                                </div>
+                                <p class="mb-1">{{ course.get_course_type_display }}</p>
+                                <small>${{ course.price }} - {{ course.duration_hours }} hours</small>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted">No upcoming courses.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-bolt"></i> Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-2">
+                        <a href="{% url 'crm:test_customer_create' %}" class="btn btn-primary btn-lg w-100 mb-2">
+                            <i class="fas fa-user-plus"></i><br>Add Customer
+                        </a>
+                    </div>
+                    <div class="col-md-2">
+                        <a href="/admin/crm/course/add/" class="btn btn-success btn-lg w-100 mb-2">
+                            <i class="fas fa-book-plus"></i><br>Add Course
+                        </a>
+                    </div>
+                    <div class="col-md-2">
+                        <a href="/admin/crm/conference/add/" class="btn btn-info btn-lg w-100 mb-2">
+                            <i class="fas fa-calendar-plus"></i><br>Add Conference
+                        </a>
+                    </div>
+                    <div class="col-md-2">
+                        <a href="{% url 'crm:test_export_csv' %}" class="btn btn-warning btn-lg w-100 mb-2">
+                            <i class="fas fa-download"></i><br>Export CSV
+                        </a>
+                    </div>
+                    <div class="col-md-2">
+                        <a href="{% url 'crm:customer_list' %}" class="btn btn-dark btn-lg w-100 mb-2">
+                            <i class="fas fa-list"></i><br>View Customers
+                        </a>
+                    </div>
+                    <div class="col-md-2">
+                        <a href="/api/v1/" class="btn btn-secondary btn-lg w-100 mb-2">
+                            <i class="fas fa-code"></i><br>API Explorer
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

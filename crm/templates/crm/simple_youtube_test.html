@@ -1,0 +1,109 @@
+{% extends 'crm/base.html' %}
+
+{% block title %}Simple YouTube Test{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5>🎯 SIMPLE YouTube Data Entry</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <strong>No form validation!</strong> Just enter your YouTube handle and click submit.
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label h5">📹 YouTube Handle</label>
+                        <input type="text" id="youtube-input" class="form-control form-control-lg" 
+                               placeholder="Enter @robbybranham or robbybranham" 
+                               style="border: 3px solid #28a745;">
+                        <div class="form-text">Just paste your @handle here - that's all you need!</div>
+                    </div>
+                    
+                    <button type="button" onclick="submitData()" class="btn btn-success btn-lg">
+                        💾 Save YouTube Data
+                    </button>
+                    
+                    <div id="result" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5>📋 Status</h5>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }}">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    <div id="debug-info"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function submitData() {
+    const youtubeHandle = document.getElementById('youtube-input').value;
+    const resultDiv = document.getElementById('result');
+    const debugDiv = document.getElementById('debug-info');
+    
+    // Show what we're sending
+    debugDiv.innerHTML = `
+        <h6>Sending:</h6>
+        <ul>
+            <li>YouTube Handle: "${youtubeHandle}"</li>
+            <li>Method: POST</li>
+            <li>URL: ${window.location.href}</li>
+        </ul>
+    `;
+    
+    // Prepare form data
+    const formData = new FormData();
+    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+    formData.append('first_name', 'Test');
+    formData.append('last_name', 'User');
+    formData.append('email_primary', 'test@example.com');
+    formData.append('customer_type', 'individual');
+    formData.append('status', 'prospect');
+    formData.append('preferred_communication_method', 'email');
+    formData.append('youtube_handle', youtubeHandle);
+    
+    // Show loading
+    resultDiv.innerHTML = '<div class="alert alert-info">🔄 Saving...</div>';
+    
+    // Submit via JavaScript
+    fetch(window.location.href, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.text())
+    .then(html => {
+        // Reload the page to show Django messages
+        window.location.reload();
+    })
+    .catch(error => {
+        resultDiv.innerHTML = `<div class="alert alert-danger">❌ Error: ${error}</div>`;
+    });
+}
+
+// Auto-focus on the YouTube input
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('youtube-input').focus();
+});
+</script>
+{% endblock %}

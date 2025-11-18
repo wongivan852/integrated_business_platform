@@ -1,0 +1,111 @@
+{% extends 'crm/base.html' %}
+
+{% block title %}API YouTube Test{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card border-success">
+                <div class="card-header bg-success text-white">
+                    <h5>🎯 Direct API YouTube Entry</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <strong>No forms, no validation issues!</strong><br>
+                        Direct API call to save YouTube data.
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label h5">📹 YouTube Handle</label>
+                        <input type="text" id="youtube-handle" class="form-control form-control-lg" 
+                               placeholder="@robbybranham" 
+                               style="border: 3px solid #28a745;">
+                        <div class="form-text">Enter @handle or just the handle name</div>
+                    </div>
+                    
+                    <button onclick="saveYouTubeData()" class="btn btn-success btn-lg w-100">
+                        💾 Save YouTube Data via API
+                    </button>
+                    
+                    <div id="results" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function saveYouTubeData() {
+    const handle = document.getElementById('youtube-handle').value.trim();
+    const resultsDiv = document.getElementById('results');
+    
+    if (!handle) {
+        resultsDiv.innerHTML = '<div class="alert alert-warning">⚠️ Please enter a YouTube handle</div>';
+        return;
+    }
+    
+    resultsDiv.innerHTML = '<div class="alert alert-info">🔄 Saving via API...</div>';
+    
+    try {
+        const response = await fetch('/crm/api/v1/customers/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                first_name: 'YouTube',
+                last_name: 'User',
+                email_primary: `youtube_${Date.now()}@example.com`,
+                customer_type: 'individual',
+                status: 'prospect',
+                preferred_communication_method: 'email',
+                youtube_handle: handle
+            })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            resultsDiv.innerHTML = `
+                <div class="alert alert-success">
+                    <h6>✅ SUCCESS!</h6>
+                    <ul>
+                        <li><strong>Customer ID:</strong> ${data.id}</li>
+                        <li><strong>YouTube Handle:</strong> @${data.youtube_handle}</li>
+                        <li><strong>Auto-generated URL:</strong> <a href="${data.youtube_channel_url}" target="_blank">${data.youtube_channel_url}</a></li>
+                        <li><strong>Email:</strong> ${data.email_primary}</li>
+                    </ul>
+                </div>
+            `;
+        } else {
+            const error = await response.json();
+            resultsDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <h6>❌ API Error</h6>
+                    <pre>${JSON.stringify(error, null, 2)}</pre>
+                </div>
+            `;
+        }
+    } catch (error) {
+        resultsDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <h6>❌ Network Error</h6>
+                <p>${error.message}</p>
+            </div>
+        `;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('youtube-handle').focus();
+    
+    // Allow Enter key to save
+    document.getElementById('youtube-handle').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            saveYouTubeData();
+        }
+    });
+});
+</script>
+{% endblock %}

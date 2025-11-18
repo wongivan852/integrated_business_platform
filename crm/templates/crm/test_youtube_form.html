@@ -1,0 +1,128 @@
+{% extends 'crm/base.html' %}
+
+{% block title %}Test YouTube Entry{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>🧪 Test YouTube Data Entry</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" novalidate onsubmit="return false;"id="test-form">
+                        {% csrf_token %}
+                        
+                        <!-- Minimal Required Fields - NO VALIDATION -->
+                        <div class="mb-3">
+                            <label class="form-label">First Name</label>
+                            <input type="text" name="first_name" class="form-control" value="Test">
+                            <small class="text-success">✅ Pre-filled</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Last Name</label>
+                            <input type="text" name="last_name" class="form-control" value="User">
+                            <small class="text-success">✅ Pre-filled</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Primary Email</label>
+                            <input type="text" name="email_primary" class="form-control" value="test@example.com">
+                            <small class="text-success">✅ Pre-filled</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Customer Type</label>
+                            <select name="customer_type" class="form-control">
+                                <option value="individual" selected>Individual Learner</option>
+                                <option value="corporate">Corporate Client</option>
+                            </select>
+                            <small class="text-success">✅ Pre-selected</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Status</label>
+                            <select name="status" class="form-control">
+                                <option value="prospect" selected>Prospect</option>
+                                <option value="active">Active</option>
+                            </select>
+                            <small class="text-success">✅ Pre-selected</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Preferred Communication</label>
+                            <select name="preferred_communication_method" class="form-control">
+                                <option value="email" selected>Email</option>
+                                <option value="phone">Phone</option>
+                            </select>
+                            <small class="text-success">✅ Pre-selected</small>
+                        </div>
+                        
+                        <!-- YouTube Field -->
+                        <div class="mb-3 border p-3 bg-light">
+                            <label class="form-label">📹 YouTube Handle</label>
+                            <input type="text" name="youtube_handle" class="form-control" placeholder="Enter @robbybranham or robbybranham">
+                            <small class="text-muted">Just paste your @handle here</small>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            💾 Save Customer
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>📋 Debug Info</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>This is a simplified test form.</strong></p>
+                    <p>All required fields are pre-filled.</p>
+                    <p>Just enter your YouTube handle and click Save.</p>
+                    
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }}">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    {% if form.errors %}
+                        <div class="alert alert-danger">
+                            <strong>Form Errors:</strong>
+                            <ul>
+                                {% for field, errors in form.errors.items %}
+                                    <li><strong>{{ field }}:</strong> {{ errors }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🧪 Test form loaded');
+    
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function(e) {
+        console.log('🚀 Form submitted');
+        
+        const formData = new FormData(form);
+        console.log('📝 Form data:');
+        for (let [key, value] of formData.entries()) {
+            console.log(`  ${key}: "${value}"`);
+        }
+    });
+});
+</script>
+{% endblock %}

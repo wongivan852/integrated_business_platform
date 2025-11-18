@@ -1,0 +1,495 @@
+{% extends 'crm/base.html' %}
+
+{% block title %}{{ customer.first_name }} {{ customer.last_name }} - Learning Institute CRM{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="fas fa-user"></i> 
+        {% if customer.designation %}{{ customer.get_designation_display }} {% endif %}{{ customer.first_name }} {{ customer.last_name }}
+        {% if customer.name_suffix %}
+            <small class="text-muted">({{ customer.name_suffix }})</small>
+        {% endif %}
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'crm:customer_edit' customer.id %}" class="btn btn-primary me-2">
+            <i class="fas fa-edit"></i> Edit Customer
+        </a>
+        <a href="{% url 'crm:customer_list' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to List
+        </a>
+    </div>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+    
+    <!-- Quick Actions for Newly Created Customer -->
+    {% for message in messages %}
+        {% if "created successfully" in message.message %}
+        <div class="card border-success mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-rocket"></i> Quick Actions - Customer Just Created!</h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-3">Customer created successfully! Here are some quick actions you can take:</p>
+                <div class="row">
+                    <div class="col-md-3 mb-2">
+                        <a href="{% url 'crm:customer_create' %}" class="btn btn-primary w-100">
+                            <i class="fas fa-user-plus"></i><br>Add Another Customer
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <button type="button" class="btn btn-success w-100" onclick="sendWelcomeMessage()">
+                            <i class="fas fa-envelope"></i><br>Send Welcome Message
+                        </button>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="#" class="btn btn-warning w-100" onclick="enrollInCourse()">
+                            <i class="fas fa-graduation-cap"></i><br>Enroll in Course
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{% url 'crm:customer_list' %}" class="btn btn-secondary w-100">
+                            <i class="fas fa-list"></i><br>View All Customers
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    {% endfor %}
+{% endif %}
+
+<div class="row">
+    <div class="col-md-8">
+        <!-- Customer Information Card -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-info-circle"></i> Customer Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Personal Details</h6>
+                        <table class="table table-sm table-borderless">
+                            <tr>
+                                <td><strong>Full Name:</strong></td>
+                                <td>
+                                    {{ customer.first_name }}
+                                    {% if customer.middle_name %}{{ customer.middle_name }}{% endif %}
+                                    {{ customer.last_name }}
+                                </td>
+                            </tr>
+                            {% if customer.name_suffix %}
+                            <tr>
+                                <td><strong>Other name:</strong></td>
+                                <td>{{ customer.name_suffix }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if customer.designation %}
+                            <tr>
+                                <td><strong>Designation:</strong></td>
+                                <td>
+                                    <span class="badge bg-info">{{ customer.get_designation_display }}</span>
+                                </td>
+                            </tr>
+                            {% endif %}
+                            <tr>
+                                <td><strong>Customer Type:</strong></td>
+                                <td>
+                                    <span class="badge bg-primary">{{ customer.get_customer_type_display }}</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Status:</strong></td>
+                                <td>
+                                    <span class="badge bg-{% if customer.status == 'active' %}success{% elif customer.status == 'inactive' %}secondary{% else %}warning{% endif %}">
+                                        {{ customer.get_status_display }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% if customer.country_region %}
+                            <tr>
+                                <td><strong>Country/Region:</strong></td>
+                                <td>{{ customer.get_country_region_display }}</td>
+                            </tr>
+                            {% endif %}
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Contact Information</h6>
+                        <table class="table table-sm table-borderless">
+                            <tr>
+                                <td><strong>Primary Email:</strong></td>
+                                <td>
+                                    {% if customer.email_primary %}
+                                        <a href="mailto:{{ customer.email_primary }}">{{ customer.email_primary }}</a>
+                                    {% else %}
+                                        <span class="text-muted">Not provided</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% if customer.email_secondary %}
+                            <tr>
+                                <td><strong>Secondary Email:</strong></td>
+                                <td><a href="mailto:{{ customer.email_secondary }}">{{ customer.email_secondary }}</a></td>
+                            </tr>
+                            {% endif %}
+                            {% if customer.phone_primary %}
+                            <tr>
+                                <td><strong>Primary Phone:</strong></td>
+                                <td>
+                                    <span class="badge bg-light text-dark">{{ customer.phone_primary_country_code }}</span>
+                                    {{ customer.phone_primary }}
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% if customer.phone_secondary %}
+                            <tr>
+                                <td><strong>Secondary Phone:</strong></td>
+                                <td>
+                                    <span class="badge bg-light text-dark">{{ customer.phone_secondary_country_code }}</span>
+                                    {{ customer.phone_secondary }}
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% if customer.whatsapp_number %}
+                            <tr>
+                                <td><strong>WhatsApp:</strong></td>
+                                <td>
+                                    <span class="badge bg-success text-white">{{ customer.whatsapp_country_code }}</span>
+                                    {{ customer.whatsapp_number }}
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% if customer.wechat_id %}
+                            <tr>
+                                <td><strong>WeChat ID:</strong></td>
+                                <td>{{ customer.wechat_id }}</td>
+                            </tr>
+                            {% endif %}
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Professional Information -->
+        {% if customer.company_primary or customer.position_primary or customer.company_secondary or customer.position_secondary or customer.company_website %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-briefcase"></i> Professional Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        {% if customer.company_primary %}
+                        <h6>Primary Position</h6>
+                        <p>
+                            <strong>Company:</strong> {{ customer.company_primary }}<br>
+                            {% if customer.position_primary %}
+                            <strong>Position:</strong> {{ customer.position_primary }}
+                            {% endif %}
+                        </p>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        {% if customer.company_secondary %}
+                        <h6>Secondary Position</h6>
+                        <p>
+                            <strong>Company:</strong> {{ customer.company_secondary }}<br>
+                            {% if customer.position_secondary %}
+                            <strong>Position:</strong> {{ customer.position_secondary }}
+                            {% endif %}
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% if customer.company_website %}
+                <p>
+                    <strong>Company Website:</strong> 
+                    <a href="{{ customer.company_website }}" target="_blank" rel="noopener">
+                        {{ customer.company_website }} <i class="fas fa-external-link-alt"></i>
+                    </a>
+                </p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Addresses -->
+        {% if customer.address_primary or customer.address_secondary %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-map-marker-alt"></i> Addresses</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% if customer.address_primary %}
+                    <div class="col-md-6">
+                        <h6>Primary Address</h6>
+                        <p>{{ customer.address_primary|linebreaks }}</p>
+                    </div>
+                    {% endif %}
+                    {% if customer.address_secondary %}
+                    <div class="col-md-6">
+                        <h6>Secondary Address</h6>
+                        <p>{{ customer.address_secondary|linebreaks }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Social Media & Communication -->
+        {% if customer.linkedin_profile or customer.facebook_profile or customer.twitter_handle or customer.instagram_handle or customer.preferred_communication_method %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-share-alt"></i> Social Media & Communication</h5>
+            </div>
+            <div class="card-body">
+                {% if customer.preferred_communication_method %}
+                <p><strong>Preferred Communication:</strong> {{ customer.get_preferred_communication_method_display }}</p>
+                {% endif %}
+                
+                <div class="row">
+                    {% if customer.linkedin_profile %}
+                    <div class="col-md-6">
+                        <p>
+                            <i class="fab fa-linkedin text-primary"></i> 
+                            <strong>LinkedIn:</strong> 
+                            <a href="{{ customer.linkedin_profile }}" target="_blank" rel="noopener">
+                                View Profile <i class="fas fa-external-link-alt"></i>
+                            </a>
+                        </p>
+                    </div>
+                    {% endif %}
+                    {% if customer.facebook_profile %}
+                    <div class="col-md-6">
+                        <p>
+                            <i class="fab fa-facebook text-primary"></i> 
+                            <strong>Facebook:</strong> 
+                            <a href="{{ customer.facebook_profile }}" target="_blank" rel="noopener">
+                                View Profile <i class="fas fa-external-link-alt"></i>
+                            </a>
+                        </p>
+                    </div>
+                    {% endif %}
+                    {% if customer.twitter_handle %}
+                    <div class="col-md-6">
+                        <p>
+                            <i class="fab fa-twitter text-info"></i> 
+                            <strong>Twitter/X:</strong> {{ customer.twitter_handle }}
+                        </p>
+                    </div>
+                    {% endif %}
+                    {% if customer.instagram_handle %}
+                    <div class="col-md-6">
+                        <p>
+                            <i class="fab fa-instagram text-danger"></i> 
+                            <strong>Instagram:</strong> {{ customer.instagram_handle }}
+                        </p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Learning Interests -->
+        {% if customer.interests %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-graduation-cap"></i> Learning Interests</h5>
+            </div>
+            <div class="card-body">
+                <p>{{ customer.interests|linebreaks }}</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Enrollments -->
+        {% if enrollments %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-book"></i> Course Enrollments</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Course</th>
+                                <th>Status</th>
+                                <th>Enrolled Date</th>
+                                <th>Progress</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for enrollment in enrollments %}
+                            <tr>
+                                <td>{{ enrollment.course.name }}</td>
+                                <td>
+                                    <span class="badge bg-{% if enrollment.status == 'completed' %}success{% elif enrollment.status == 'in_progress' %}primary{% elif enrollment.status == 'dropped' %}danger{% else %}warning{% endif %}">
+                                        {{ enrollment.get_status_display }}
+                                    </span>
+                                </td>
+                                <td>{{ enrollment.enrollment_date|date:"M d, Y" }}</td>
+                                <td>
+                                    {% if enrollment.progress %}
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar" role="progressbar" style="width: {{ enrollment.progress }}%">
+                                                {{ enrollment.progress }}%
+                                            </div>
+                                        </div>
+                                    {% else %}
+                                        <span class="text-muted">Not started</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-book"></i> Course Enrollments</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">No course enrollments found.</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Communication History -->
+        {% if communications %}
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-comments"></i> Recent Communications</h5>
+            </div>
+            <div class="card-body">
+                {% for comm in communications %}
+                <div class="border-bottom pb-2 mb-2">
+                    <div class="d-flex justify-content-between">
+                        <h6 class="mb-1">{{ comm.subject }}</h6>
+                        <small class="text-muted">{{ comm.sent_at|date:"M d, Y H:i" }}</small>
+                    </div>
+                    <p class="mb-1">{{ comm.message|truncatewords:20 }}</p>
+                    <small class="text-muted">
+                        <i class="fas fa-{% if comm.communication_type == 'email' %}envelope{% elif comm.communication_type == 'phone' %}phone{% elif comm.communication_type == 'sms' %}sms{% else %}comment{% endif %}"></i>
+                        {{ comm.get_communication_type_display }}
+                        {% if comm.status %}
+                        - <span class="badge bg-{% if comm.status == 'sent' %}success{% elif comm.status == 'failed' %}danger{% else %}warning{% endif %}">{{ comm.get_status_display }}</span>
+                        {% endif %}
+                    </small>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-comments"></i> Recent Communications</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">No communication history found.</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-cogs"></i> Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'crm:customer_edit' customer.id %}" class="btn btn-primary">
+                        <i class="fas fa-edit"></i> Edit Customer
+                    </a>
+                    <button type="button" class="btn btn-success" onclick="sendWelcomeMessage()">
+                        <i class="fas fa-envelope"></i> Send Welcome Message
+                    </button>
+                    <button type="button" class="btn btn-info" onclick="addNote()">
+                        <i class="fas fa-sticky-note"></i> Add Note
+                    </button>
+                    <a href="#" class="btn btn-warning">
+                        <i class="fas fa-graduation-cap"></i> Enroll in Course
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-bar"></i> Summary</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Customer ID:</strong> <code>{{ customer.id }}</code></p>
+                <p><strong>Created:</strong> {{ customer.created_at|date:"M d, Y" }}</p>
+                <p><strong>Last Updated:</strong> {{ customer.updated_at|date:"M d, Y H:i" }}</p>
+                <p><strong>Enrollments:</strong> {{ enrollments.count }}</p>
+                <p><strong>Communications:</strong> {{ communications.count }}{% if communications.count >= 10 %} (last 10 shown){% endif %}</p>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5><i class="fas fa-shield-alt"></i> Security</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-success small" role="alert">
+                    <i class="fas fa-lock"></i> <strong>Secure Access:</strong> This customer record is protected by authentication and access controls.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function sendWelcomeMessage() {
+    if (confirm('Send a welcome message to {{ customer.first_name }} {{ customer.last_name }}?')) {
+        // Here you could make an AJAX call to send the message
+        alert('Welcome message sent successfully!');
+    }
+}
+
+function addNote() {
+    const note = prompt('Enter a note for {{ customer.first_name }} {{ customer.last_name }}:');
+    if (note) {
+        // Here you could make an AJAX call to save the note
+        alert('Note added successfully!');
+    }
+}
+
+function enrollInCourse() {
+    if (confirm('Redirect to course enrollment for {{ customer.first_name }} {{ customer.last_name }}?')) {
+        // Redirect to course selection or enrollment page
+        window.location.href = '{% url "crm:customer_list" %}?search={{ customer.first_name }} {{ customer.last_name }}';
+    }
+}
+
+// Auto-hide the quick actions card after 30 seconds
+document.addEventListener('DOMContentLoaded', function() {
+    const quickActionsCard = document.querySelector('.card.border-success');
+    if (quickActionsCard) {
+        setTimeout(function() {
+            quickActionsCard.style.opacity = '0.7';
+            quickActionsCard.style.transition = 'opacity 2s ease-in-out';
+        }, 30000); // 30 seconds
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,1319 @@
+{% extends 'crm/base.html' %}
+
+{% block title %}{{ title }} - Learning Institute CRM{% endblock %}
+
+{% block extra_head %}
+<style>
+.country-code {
+    max-width: 80px;
+    text-align: center;
+    font-weight: 500;
+    border-right: none !important;
+    background-color: #ffeb3b !important;
+    border: 2px solid #f44336 !important;
+    color: #000 !important;
+    display: block !important;
+    visibility: visible !important;
+}
+
+.country-code:focus {
+    border-color: #86b7fe !important;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
+    background-color: #fff !important;
+}
+
+.country-code-display {
+    background-color: #e9ecef;
+    color: #495057;
+    font-weight: 500;
+    min-width: 60px;
+    justify-content: center;
+}
+
+.input-group .country-code + .form-control {
+    border-left: none;
+}
+
+.form-text .fa-edit {
+    color: #6c757d;
+}
+
+.form-text .fa-info-circle {
+    color: #0dcaf0;
+}
+</style>
+<script>
+// Country code mapping for automatic phone code assignment
+const countryCodeMap = {
+    'CN': '+86', 'HK': '+852', 'TW': '+886', 'MO': '+853',
+    'SG': '+65', 'MY': '+60', 'TH': '+66', 'VN': '+84',
+    'PH': '+63', 'ID': '+62', 'KR': '+82', 'JP': '+81',
+    'IN': '+91', 'AU': '+61', 'NZ': '+64',
+    'GB': '+44', 'DE': '+49', 'FR': '+33', 'IT': '+39',
+    'ES': '+34', 'NL': '+31', 'BE': '+32', 'CH': '+41',
+    'AT': '+43', 'SE': '+46', 'NO': '+47', 'DK': '+45', 'FI': '+358',
+    'US': '+1', 'CA': '+1', 'MX': '+52', 'BR': '+55',
+    'AR': '+54', 'CL': '+56', 'CO': '+57', 'PE': '+51',
+    'AE': '+971', 'SA': '+966', 'IL': '+972', 'ZA': '+27',
+    'EG': '+20', 'KE': '+254', 'NG': '+234',
+    'RU': '+7', 'TR': '+90'
+};
+
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 DOM Content Loaded - Initializing CRM form');
+    
+    // Find the country dropdown
+    const countrySelect = document.getElementById('id_country_region');
+    console.log('🌍 Country select found:', !!countrySelect);
+    
+    if (countrySelect) {
+        // Remove any existing listeners to avoid duplicates
+        countrySelect.removeEventListener('change', handleCountryChange);
+        
+        // Add the event listener
+        countrySelect.addEventListener('change', function(event) {
+            console.log('🔄 Country changed!', event.target.value);
+            const selectedCountry = event.target.value;
+            
+            if (selectedCountry) {
+                updateCountryCodes(selectedCountry);
+            } else {
+                console.log('⚠️ No country selected');
+            }
+        });
+        console.log('👂 Event listener attached to country select');
+        
+        // Also verify the onchange attribute exists
+        console.log('🔍 Country select onchange attribute:', countrySelect.getAttribute('onchange'));
+    } else {
+        console.log('❌ Country select field not found!');
+    }
+    
+    // Test if primary phone field exists and inspect its properties
+    const primaryPhoneField = document.getElementById('id_phone_primary_country_code');
+    console.log('📞 Primary phone field check:', !!primaryPhoneField);
+    if (primaryPhoneField) {
+        console.log('📞 Primary phone field details:', {
+            id: primaryPhoneField.id,
+            name: primaryPhoneField.name,
+            value: primaryPhoneField.value,
+            type: primaryPhoneField.type,
+            className: primaryPhoneField.className,
+            visible: primaryPhoneField.offsetWidth > 0 && primaryPhoneField.offsetHeight > 0,
+            disabled: primaryPhoneField.disabled,
+            readonly: primaryPhoneField.readOnly
+        });
+    } else {
+        console.log('❌ Primary phone field NOT FOUND - searching for alternatives...');
+        
+        // Search for any phone-related fields
+        const allInputs = document.querySelectorAll('input');
+        console.log('🔍 All inputs on page:', allInputs.length);
+        
+        allInputs.forEach((input, index) => {
+            if (input.name?.includes('phone') || input.id?.includes('phone')) {
+                console.log(`📱 Phone input ${index}:`, {
+                    id: input.id,
+                    name: input.name,
+                    value: input.value,
+                    type: input.type,
+                    visible: input.offsetWidth > 0 && input.offsetHeight > 0
+                });
+            }
+        });
+    }
+    
+    // Log all available form fields for debugging
+    console.log('📋 All form fields with IDs:');
+    document.querySelectorAll('[id]').forEach(element => {
+        if (element.id.includes('phone') || element.id.includes('country')) {
+            console.log(`  - ${element.tagName}: ID="${element.id}", Name="${element.name || 'N/A'}", Value="${element.value || element.textContent || 'N/A'}"`);
+        }
+    });
+    
+    // Initialize visual displays with default values and sync with form fields
+    const visualDisplays = [
+        'primary-country-code',
+        'secondary-country-code', 
+        'whatsapp-country-code',
+        'fax-country-code'
+    ];
+    
+    const countryCodeFields = [
+        'id_phone_primary_country_code',
+        'id_phone_secondary_country_code',
+        'id_whatsapp_country_code',
+        'id_fax_country_code'
+    ];
+    
+    // Sync existing field values with visual displays
+    countryCodeFields.forEach((fieldId, index) => {
+        const field = document.getElementById(fieldId);
+        const display = document.getElementById(visualDisplays[index]);
+        if (field && display) {
+            const fieldValue = field.value || '+1';
+            display.textContent = fieldValue;
+            field.value = fieldValue; // Ensure field has default value
+            console.log(`🔗 Synced ${fieldId} (${fieldValue}) with ${visualDisplays[index]}`);
+        } else {
+            console.log(`❌ Could not sync ${fieldId} - Field: ${!!field}, Display: ${!!display}`);
+        }
+    });
+    
+    // Setup event listeners for manual country code editing
+    setupCountryCodeFieldListeners();
+    
+    // Set default country codes on page load if country is already selected
+    if (countrySelect && countrySelect.value) {
+        console.log('🏁 Setting default country codes for:', countrySelect.value);
+        updateCountryCodes(countrySelect.value);
+    }
+    
+    // Setup URL auto-formatting for company website field
+    setupWebsiteUrlFormatting();
+    
+    // Setup URL auto-formatting for social media fields
+    setupSocialMediaUrlFormatting();
+});
+
+// Fallback initialization in case DOMContentLoaded doesn't fire
+window.onload = function() {
+    console.log('🟡 WINDOW ONLOAD: Fallback initialization triggered');
+    
+    // Simple test to see if elements exist
+    const countrySelect = document.getElementById('id_country_region');
+    const primaryField = document.getElementById('id_phone_primary_country_code');
+    
+    console.log('🟡 FALLBACK CHECK - Country select:', !!countrySelect);
+    console.log('🟡 FALLBACK CHECK - Primary field:', !!primaryField);
+    
+    if (countrySelect) {
+        console.log('🟡 Country select value:', countrySelect.value);
+        console.log('🟡 Country select options count:', countrySelect.options.length);
+    }
+};
+
+// Add global error handler
+window.onerror = function(message, source, lineno, colno, error) {
+    console.error('🔴 JAVASCRIPT ERROR:', {
+        message: message,
+        source: source,
+        line: lineno,
+        column: colno,
+        error: error
+    });
+    return false;
+};
+
+function updateCountryCodes(countryCode) {
+    console.log('🔄 START updateCountryCodes with:', countryCode);
+    
+    if (!countryCode) {
+        console.log('❌ No country code provided');
+        return;
+    }
+    
+    const phoneCode = countryCodeMap[countryCode] || '+1';
+    console.log('📞 Mapped phone code:', phoneCode);
+    
+    // Try multiple ways to find the primary phone country code field
+    let primaryField = null;
+    
+    // Method 1: Direct ID lookup
+    primaryField = document.getElementById('id_phone_primary_country_code');
+    console.log('🎯 Method 1 - Direct ID lookup:', !!primaryField);
+    
+    // Method 2: Query selector
+    if (!primaryField) {
+        primaryField = document.querySelector('input[name="phone_primary_country_code"]');
+        console.log('🎯 Method 2 - Name selector:', !!primaryField);
+    }
+    
+    // Method 3: Find by class
+    if (!primaryField) {
+        const countryCodeFields = document.querySelectorAll('.country-code');
+        console.log('🎯 Method 3 - Found country-code fields:', countryCodeFields.length);
+        if (countryCodeFields.length > 0) {
+            primaryField = countryCodeFields[0]; // Take the first one (should be primary)
+            console.log('🎯 Using first country-code field as primary');
+        }
+    }
+    
+    // Update the field if found
+    if (primaryField) {
+        console.log('✅ Primary field found, updating...');
+        console.log('📝 Before update:', primaryField.value);
+        primaryField.value = phoneCode;
+        console.log('📝 After update:', primaryField.value);
+        
+        // Trigger events
+        primaryField.dispatchEvent(new Event('input', { bubbles: true }));
+        primaryField.dispatchEvent(new Event('change', { bubbles: true }));
+        
+        // Visual feedback for the input field itself
+        primaryField.style.backgroundColor = '#90EE90';
+        setTimeout(() => {
+            primaryField.style.backgroundColor = 'yellow';
+        }, 1000);
+    } else {
+        console.log('❌ PRIMARY FIELD NOT FOUND!');
+        console.log('🔍 Available inputs with phone in name or id:');
+        document.querySelectorAll('input').forEach(input => {
+            if (input.name?.includes('phone') || input.id?.includes('phone')) {
+                console.log(`  - ID: "${input.id}", Name: "${input.name}", Value: "${input.value}"`);
+            }
+        });
+    }
+    
+    // Update visual display
+    const primaryDisplay = document.getElementById('primary-country-code');
+    if (primaryDisplay) {
+        console.log('�️ Updating visual display');
+        primaryDisplay.textContent = phoneCode;
+        // Add visual feedback
+        primaryDisplay.style.backgroundColor = '#4caf50';
+        primaryDisplay.style.color = 'white';
+        setTimeout(() => {
+            primaryDisplay.style.backgroundColor = '#e9ecef';
+            primaryDisplay.style.color = '#495057';
+        }, 1000);
+    } else {
+        console.log('❌ Visual display not found');
+    }
+    
+    console.log('🏁 END updateCountryCodes');
+}
+
+function syncVisualDisplay(countryCodeField) {
+    // Map field IDs to their corresponding visual display IDs
+    const fieldToDisplayMap = {
+        'id_phone_primary_country_code': 'primary-country-code',
+        'id_phone_secondary_country_code': 'secondary-country-code',
+        'id_whatsapp_country_code': 'whatsapp-country-code',
+        'id_fax_country_code': 'fax-country-code'
+    };
+    
+    const displayId = fieldToDisplayMap[countryCodeField.id];
+    if (displayId) {
+        const display = document.getElementById(displayId);
+        if (display) {
+            display.textContent = countryCodeField.value || '+1';
+            console.log('Synced visual display', displayId, 'to:', countryCodeField.value); // Debug log
+        }
+    }
+}
+
+function setupCountryCodeFieldListeners() {
+    const countryCodeFields = [
+        'id_phone_primary_country_code',
+        'id_phone_secondary_country_code',
+        'id_whatsapp_country_code',
+        'id_fax_country_code'
+    ];
+    
+    countryCodeFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            // Listen for changes to manually edited country codes
+            field.addEventListener('input', function() {
+                console.log('Manual country code change:', this.id, 'to:', this.value); // Debug log
+                syncVisualDisplay(this);
+            });
+            
+            // Also listen for blur event to ensure final value is synced
+            field.addEventListener('blur', function() {
+                // Validate format (should start with +)
+                if (this.value && !this.value.startsWith('+')) {
+                    this.value = '+' + this.value.replace(/[^0-9]/g, '');
+                }
+                syncVisualDisplay(this);
+            });
+        }
+    });
+}
+
+function showCountryCodeNotification(countryName, phoneCode) {
+    // Remove existing notification
+    const existingNotification = document.getElementById('country-code-notification');
+    if (existingNotification) {
+        existingNotification.remove();
+    }
+    
+    // Create new notification
+    const notification = document.createElement('div');
+    notification.id = 'country-code-notification';
+    notification.className = 'alert alert-info alert-dismissible fade show mt-2';
+    notification.innerHTML = `
+        <i class="fas fa-info-circle"></i> 
+        <strong>Country code updated:</strong> ${countryName} phone numbers will use ${phoneCode}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    // Insert after country selection
+    const countryField = document.getElementById('id_country_region').parentElement;
+    countryField.appendChild(notification);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (notification) {
+            notification.remove();
+        }
+    }, 5000);
+}
+
+// Add manual country change handler for testing
+function testCountryCode() {
+    console.log('🧪 === TESTING COUNTRY CODE FUNCTIONALITY ===');
+    
+    // Check country dropdown
+    const countrySelect = document.getElementById('id_country_region');
+    console.log('Country dropdown:', countrySelect ? 'FOUND' : 'NOT FOUND');
+    if (countrySelect) {
+        console.log('Current value:', countrySelect.value);
+        console.log('Selected option:', countrySelect.options[countrySelect.selectedIndex]?.text);
+    }
+    
+    // Check primary phone field
+    const primaryField = document.getElementById('id_phone_primary_country_code');
+    console.log('Primary phone field:', primaryField ? 'FOUND' : 'NOT FOUND');
+    if (primaryField) {
+        console.log('Current value:', primaryField.value);
+        console.log('Field type:', primaryField.type);
+        console.log('Field class:', primaryField.className);
+    }
+    
+    // Test manual update
+    if (primaryField) {
+        console.log('🔧 Testing manual update...');
+        const oldValue = primaryField.value;
+        primaryField.value = '+86';
+        console.log('Changed from', oldValue, 'to', primaryField.value);
+        
+        // Trigger events
+        primaryField.dispatchEvent(new Event('input'));
+        primaryField.dispatchEvent(new Event('change'));
+        
+        // Visual feedback
+        primaryField.style.backgroundColor = '#90EE90';
+        setTimeout(() => {
+            primaryField.style.backgroundColor = 'yellow';
+        }, 1000);
+    }
+    
+    console.log('🧪 === TEST COMPLETE ===');
+}
+
+// Add manual country change handler for testing
+function manualCountryChange() {
+    const countrySelect = document.getElementById('id_country_region');
+    if (countrySelect) {
+        console.log('🔄 Manual country change triggered, value:', countrySelect.value);
+        updateCountryCodes(countrySelect.value);
+    }
+}
+
+// Force field creation if it doesn't exist
+function forceFixCountryCodeField() {
+    console.log('🔧 Force fixing country code field...');
+    
+    let primaryField = document.getElementById('id_phone_primary_country_code');
+    if (!primaryField) {
+        console.log('❌ Field not found, creating manually...');
+        // Find the input group for primary phone
+        const primaryPhoneGroup = document.querySelector('#primary-country-code').parentElement;
+        if (primaryPhoneGroup) {
+            primaryField = document.createElement('input');
+            primaryField.type = 'text';
+            primaryField.id = 'id_phone_primary_country_code';
+            primaryField.name = 'phone_primary_country_code';
+            primaryField.className = 'form-control country-code';
+            primaryField.value = '+1';
+            primaryField.style.display = 'block';
+            primaryPhoneGroup.insertBefore(primaryField, primaryPhoneGroup.children[1]);
+            console.log('✅ Field created manually');
+        }
+    }
+    
+    return primaryField;
+}
+
+// Setup URL auto-formatting for company website field
+function setupWebsiteUrlFormatting() {
+    const websiteField = document.getElementById('id_company_website');
+    if (websiteField) {
+        console.log('🌐 Setting up website URL auto-formatting');
+        
+        websiteField.addEventListener('blur', function() {
+            const value = this.value.trim();
+            
+            // Only process if there's a value and it doesn't already have a protocol
+            if (value && !value.match(/^https?:\/\//i)) {
+                // Auto-add https:// for common domain patterns
+                if (value.match(/^(www\.|[a-zA-Z0-9-]+\.)/)) {
+                    this.value = 'https://' + value;
+                    console.log('🌐 Auto-formatted URL from', value, 'to', this.value);
+                    
+                    // Add visual feedback
+                    this.style.backgroundColor = '#d4edda';
+                    setTimeout(() => {
+                        this.style.backgroundColor = '';
+                    }, 1500);
+                }
+            }
+        });
+        
+        // Also add helpful placeholder behavior on focus
+        websiteField.addEventListener('focus', function() {
+            if (!this.value) {
+                this.placeholder = 'Example: www.hkana.hk (https:// will be added automatically)';
+            }
+        });
+        
+        websiteField.addEventListener('blur', function() {
+            // Restore original placeholder
+            this.placeholder = 'https://www.example.com (include https:// or http://)';
+        });
+    }
+}
+
+// Setup URL auto-formatting for social media profile fields
+function setupSocialMediaUrlFormatting() {
+    // LinkedIn Profile Auto-formatting
+    const linkedinField = document.getElementById('id_linkedin_profile');
+    if (linkedinField) {
+        console.log('🔗 Setting up LinkedIn URL auto-formatting');
+        
+        linkedinField.addEventListener('blur', function() {
+            let value = this.value.trim();
+            if (value && !value.match(/^https?:\/\//i)) {
+                // Remove @ if present
+                value = value.replace(/^@/, '');
+                
+                // Check if it looks like a LinkedIn username
+                if (value && !value.includes('/')) {
+                    this.value = 'https://www.linkedin.com/in/' + value;
+                    console.log('🔗 Auto-formatted LinkedIn URL to', this.value);
+                    
+                    // Add visual feedback
+                    this.style.backgroundColor = '#d4edda';
+                    setTimeout(() => {
+                        this.style.backgroundColor = '';
+                    }, 1500);
+                }
+            }
+        });
+        
+        linkedinField.addEventListener('focus', function() {
+            if (!this.value) {
+                this.placeholder = 'Example: john-doe or @john-doe (full URL will be added automatically)';
+            }
+        });
+        
+        linkedinField.addEventListener('blur', function() {
+            this.placeholder = 'https://www.linkedin.com/in/username';
+        });
+    }
+    
+    // Facebook Profile Auto-formatting
+    const facebookField = document.getElementById('id_facebook_profile');
+    if (facebookField) {
+        console.log('📘 Setting up Facebook URL auto-formatting');
+        
+        facebookField.addEventListener('blur', function() {
+            let value = this.value.trim();
+            if (value && !value.match(/^https?:\/\//i)) {
+                // Remove @ if present
+                value = value.replace(/^@/, '');
+                
+                // Check if it looks like a Facebook username
+                if (value && !value.includes('/')) {
+                    this.value = 'https://www.facebook.com/' + value;
+                    console.log('📘 Auto-formatted Facebook URL to', this.value);
+                    
+                    // Add visual feedback
+                    this.style.backgroundColor = '#d4edda';
+                    setTimeout(() => {
+                        this.style.backgroundColor = '';
+                    }, 1500);
+                }
+            }
+        });
+        
+        facebookField.addEventListener('focus', function() {
+            if (!this.value) {
+                this.placeholder = 'Example: greengoldtv or @greengoldtv (full URL will be added automatically)';
+            }
+        });
+        
+        facebookField.addEventListener('blur', function() {
+            this.placeholder = 'https://www.facebook.com/username';
+        });
+    }
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="fas fa-user-plus"></i> {{ title }}</h1>
+    <a href="{% url 'crm:customer_list' %}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Customer List
+    </a>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+    
+    <!-- Quick Actions for Newly Created Customer (on form page) -->
+    {% for message in messages %}
+        {% if "created successfully" in message.message %}
+        <div class="card border-success mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-rocket"></i> Customer Created - Quick Actions Available!</h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-3">Great! Your customer was added successfully. Here are some things you can do next:</p>
+                <div class="row">
+                    <div class="col-md-3 mb-2">
+                        <button type="button" class="btn btn-primary w-100" onclick="addAnotherCustomer()">
+                            <i class="fas fa-user-plus"></i><br>Add Another Customer
+                        </button>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{% url 'crm:customer_list' %}" class="btn btn-info w-100">
+                            <i class="fas fa-list"></i><br>View All Customers
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <button type="button" class="btn btn-warning w-100" onclick="exportData()">
+                            <i class="fas fa-download"></i><br>Export Customer Data
+                        </button>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{% url 'crm:dashboard' %}" class="btn btn-secondary w-100">
+                            <i class="fas fa-home"></i><br>Back to Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    {% endfor %}
+{% endif %}
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-user"></i> Customer Information</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    
+                    <!-- Basic Name Information -->
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="{{ form.first_name.id_for_label }}" class="form-label">First Name *</label>
+                            {{ form.first_name }}
+                            {% if form.first_name.errors %}
+                                <div class="text-danger">{{ form.first_name.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <label for="{{ form.middle_name.id_for_label }}" class="form-label">Middle Name</label>
+                            {{ form.middle_name }}
+                            {% if form.middle_name.errors %}
+                                <div class="text-danger">{{ form.middle_name.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <label for="{{ form.last_name.id_for_label }}" class="form-label">Last Name *</label>
+                            {{ form.last_name }}
+                            {% if form.last_name.errors %}
+                                <div class="text-danger">{{ form.last_name.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Enhanced Name Information -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="{{ form.name_suffix.id_for_label }}" class="form-label">Other name</label>
+                            {{ form.name_suffix }}
+                            {% if form.name_suffix.errors %}
+                                <div class="text-danger">{{ form.name_suffix.errors }}</div>
+                            {% endif %}
+                            <div class="form-text">Nickname, alias, or alternative name</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ form.designation.id_for_label }}" class="form-label">Professional Designation</label>
+                            {{ form.designation }}
+                            {% if form.designation.errors %}
+                                <div class="text-danger">{{ form.designation.errors }}</div>
+                            {% endif %}
+                            <div class="form-text">Academic or professional title (e.g., Prof., Dr., Ir., etc.)</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Contact Information -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="{{ form.email_primary.id_for_label }}" class="form-label">Primary Email *</label>
+                            {{ form.email_primary }}
+                            {% if form.email_primary.errors %}
+                                <div class="text-danger">{{ form.email_primary.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ form.email_secondary.id_for_label }}" class="form-label">Secondary Email</label>
+                            {{ form.email_secondary }}
+                            {% if form.email_secondary.errors %}
+                                <div class="text-danger">{{ form.email_secondary.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Geographic Information -->
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label for="{{ form.country_region.id_for_label }}" class="form-label">Country/Region *</label>
+                            {{ form.country_region }}
+                            {% if form.country_region.errors %}
+                                <div class="text-danger">{{ form.country_region.errors }}</div>
+                            {% endif %}
+                            <div class="form-text">
+                                <i class="fas fa-info-circle text-primary"></i> Selecting a country will automatically update the <strong>primary phone</strong> country code
+                                <br>
+                                <small class="text-muted">
+                                    <i class="fas fa-hand-point-right"></i> Secondary phone, WhatsApp, and Fax codes remain manually selectable
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Address Information -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="{{ form.address_primary.id_for_label }}" class="form-label">Primary Address</label>
+                            {{ form.address_primary }}
+                            {% if form.address_primary.errors %}
+                                <div class="text-danger">{{ form.address_primary.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ form.address_secondary.id_for_label }}" class="form-label">Secondary Address</label>
+                            {{ form.address_secondary }}
+                            {% if form.address_secondary.errors %}
+                                <div class="text-danger">{{ form.address_secondary.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Phone Numbers with Enhanced Country Code Display -->
+                    <div class="card mb-3 border-light">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fas fa-phone"></i> Contact Numbers</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="{{ form.phone_primary.id_for_label }}" class="form-label">Primary Phone</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text country-code-display" id="primary-country-code">+1</span>
+                                        {{ form.phone_primary_country_code }}
+                                        {{ form.phone_primary }}
+                                    </div>
+                                    <div class="form-text">
+                                        <small class="text-muted">
+                                            <i class="fas fa-magic text-primary"></i> 
+                                            Auto-updates when country/region is selected
+                                        </small>
+                                    </div>
+                                    {% if form.phone_primary.errors %}
+                                        <div class="text-danger">{{ form.phone_primary.errors }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="{{ form.phone_secondary.id_for_label }}" class="form-label">Secondary Phone</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text country-code-display" id="secondary-country-code">+1</span>
+                                        {{ form.phone_secondary_country_code }}
+                                        {{ form.phone_secondary }}
+                                    </div>
+                                    <div class="form-text">
+                                        <small class="text-muted">
+                                            <i class="fas fa-edit text-warning"></i> 
+                                            Manually selectable - independent of country selection
+                                        </small>
+                                    </div>
+                                    {% if form.phone_secondary.errors %}
+                                        <div class="text-danger">{{ form.phone_secondary.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="{{ form.whatsapp_number.id_for_label }}" class="form-label">WhatsApp</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text country-code-display" id="whatsapp-country-code">+1</span>
+                                        {{ form.whatsapp_country_code }}
+                                        {{ form.whatsapp_number }}
+                                    </div>
+                                    <div class="form-text">
+                                        <small class="text-muted">
+                                            <i class="fas fa-edit"></i> 
+                                            Can use different country code for international WhatsApp
+                                        </small>
+                                    </div>
+                                    {% if form.whatsapp_number.errors %}
+                                        <div class="text-danger">{{ form.whatsapp_number.errors }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="{{ form.fax.id_for_label }}" class="form-label">Fax</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text country-code-display" id="fax-country-code">+1</span>
+                                        {{ form.fax_country_code }}
+                                        {{ form.fax }}
+                                    </div>
+                                    <div class="form-text">
+                                        <small class="text-muted">
+                                            <i class="fas fa-edit"></i> 
+                                            Can use different country code if needed
+                                        </small>
+                                    </div>
+                                    {% if form.fax.errors %}
+                                        <div class="text-danger">{{ form.fax.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Customer Type and Status -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="{{ form.customer_type.id_for_label }}" class="form-label">Customer Type *</label>
+                            {{ form.customer_type }}
+                            {% if form.customer_type.errors %}
+                                <div class="text-danger">{{ form.customer_type.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ form.status.id_for_label }}" class="form-label">Status</label>
+                            {{ form.status }}
+                            {% if form.status.errors %}
+                                <div class="text-danger">{{ form.status.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Additional Business Information -->
+                    <div class="accordion mb-3" id="additionalFields">
+                        <!-- Professional Information Section -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingProfessional">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseProfessional">
+                                    <i class="fas fa-briefcase"></i> Professional Information
+                                </button>
+                            </h2>
+                            <div id="collapseProfessional" class="accordion-collapse collapse" data-bs-parent="#additionalFields">
+                                <div class="accordion-body">
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label for="{{ form.company_primary.id_for_label }}" class="form-label">Primary Company</label>
+                                            {{ form.company_primary }}
+                                            {% if form.company_primary.errors %}
+                                                <div class="text-danger">{{ form.company_primary.errors }}</div>
+                                            {% endif %}
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="{{ form.position_primary.id_for_label }}" class="form-label">Primary Position</label>
+                                            {{ form.position_primary }}
+                                            {% if form.position_primary.errors %}
+                                                <div class="text-danger">{{ form.position_primary.errors }}</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label for="{{ form.company_secondary.id_for_label }}" class="form-label">Secondary Company</label>
+                                            {{ form.company_secondary }}
+                                            {% if form.company_secondary.errors %}
+                                                <div class="text-danger">{{ form.company_secondary.errors }}</div>
+                                            {% endif %}
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="{{ form.position_secondary.id_for_label }}" class="form-label">Secondary Position</label>
+                                            {{ form.position_secondary }}
+                                            {% if form.position_secondary.errors %}
+                                                <div class="text-danger">{{ form.position_secondary.errors }}</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="row mb-3">
+                                        <div class="col-md-12">
+                                            <label for="{{ form.company_website.id_for_label }}" class="form-label">Company Website</label>
+                                            {{ form.company_website }}
+                                            {% if form.company_website.errors %}
+                                                <div class="text-danger">{{ form.company_website.errors }}</div>
+                                            {% endif %}
+                                            <div class="form-text">
+                                                <i class="fas fa-info-circle text-primary"></i> 
+                                                Please include <strong>https://</strong> or <strong>http://</strong> at the beginning
+                                                <br>
+                                                <small class="text-muted">
+                                                    Example: <code>https://www.hkana.hk</code> instead of <code>www.hkana.hk</code>
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Communication & Social Media Section -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingCommunication">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCommunication">
+                                    <i class="fas fa-share-alt"></i> Communication & Social Media
+                                </button>
+                            </h2>
+                            <div id="collapseCommunication" class="accordion-collapse collapse" data-bs-parent="#additionalFields">
+                                <div class="accordion-body">
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label for="{{ form.wechat_id.id_for_label }}" class="form-label">WeChat ID</label>
+                                            {{ form.wechat_id }}
+                                            {% if form.wechat_id.errors %}
+                                                <div class="text-danger">{{ form.wechat_id.errors }}</div>
+                                            {% endif %}
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="{{ form.preferred_communication_method.id_for_label }}" class="form-label">Preferred Communication</label>
+                                            {{ form.preferred_communication_method }}
+                                            {% if form.preferred_communication_method.errors %}
+                                                <div class="text-danger">{{ form.preferred_communication_method.errors }}</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label for="{{ form.linkedin_profile.id_for_label }}" class="form-label">LinkedIn Profile</label>
+                                            {{ form.linkedin_profile }}
+                                            {% if form.linkedin_profile.errors %}
+                                                <div class="text-danger">{{ form.linkedin_profile.errors }}</div>
+                                            {% endif %}
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="{{ form.facebook_profile.id_for_label }}" class="form-label">Facebook Profile</label>
+                                            {{ form.facebook_profile }}
+                                            {% if form.facebook_profile.errors %}
+                                                <div class="text-danger">{{ form.facebook_profile.errors }}</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label for="{{ form.twitter_handle.id_for_label }}" class="form-label">Twitter/X Handle</label>
+                                            {{ form.twitter_handle }}
+                                            {% if form.twitter_handle.errors %}
+                                                <div class="text-danger">{{ form.twitter_handle.errors }}</div>
+                                            {% endif %}
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="{{ form.instagram_handle.id_for_label }}" class="form-label">Instagram Handle</label>
+                                            {{ form.instagram_handle }}
+                                            {% if form.instagram_handle.errors %}
+                                                <div class="text-danger">{{ form.instagram_handle.errors }}</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="row mb-3">
+                                        <div class="col-md-12">
+                                            <label for="{{ form.youtube_handle.id_for_label }}" class="form-label">YouTube Handle</label>
+                                            {{ form.youtube_handle }}
+                                            {% if form.youtube_handle.errors %}
+                                                <div class="text-danger">{{ form.youtube_handle.errors }}</div>
+                                            {% endif %}
+                                            <div class="form-text">
+                                                <i class="fas fa-info-circle text-primary"></i> 
+                                                Just enter the @handle (e.g., <code>@robbybranham</code> or <code>robbybranham</code>)
+                                                <br><small class="text-muted">Channel URL will be auto-generated</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row mb-3">
+                                        <div class="col-md-12">
+                                            <label for="{{ form.interests.id_for_label }}" class="form-label">Learning Interests</label>
+                                            {{ form.interests }}
+                                            {% if form.interests.errors %}
+                                                <div class="text-danger">{{ form.interests.errors }}</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'crm:customer_list' %}" class="btn btn-secondary me-md-2">Cancel</a>
+                        <button type="submit" class="btn btn-primary" onclick="debugFormSubmit(event)">
+                            <i class="fas fa-save"></i> Save Customer
+                        </button>
+                    </div>
+
+<script>
+function debugFormSubmit(event) {
+    console.log('🚀 Form submission started');
+    
+    // Check all required fields
+    const requiredFields = [
+        'first_name', 'last_name', 'email_primary', 
+        'customer_type', 'status', 'preferred_communication_method'
+    ];
+    
+    let allValid = true;
+    requiredFields.forEach(fieldName => {
+        const field = document.getElementById(`id_${fieldName}`);
+        if (field) {
+            const isEmpty = !field.value || field.value.trim() === '';
+            console.log(`📝 ${fieldName}: "${field.value}" (Empty: ${isEmpty})`);
+            if (isEmpty) {
+                console.log(`❌ Missing required field: ${fieldName}`);
+                allValid = false;
+            }
+        } else {
+            console.log(`❌ Field not found: ${fieldName}`);
+        }
+    });
+    
+    // Check YouTube field
+    const youtubeField = document.getElementById('id_youtube_handle');
+    if (youtubeField && youtubeField.value) {
+        console.log(`📹 YouTube handle: "${youtubeField.value}"`);
+    }
+    
+    if (!allValid) {
+        console.log('❌ Form has missing required fields - browser will focus first invalid field');
+    } else {
+        console.log('✅ All required fields filled');
+    }
+    
+    // Let the form submit naturally
+    return true;
+}
+</script>
+                </form>
+            </div>
+        </div>
+    </div>
+
+<script>
+// Global updateCountryCodes function - Clean production version
+function updateCountryCodes(countryCode) {
+    if (!countryCode) return;
+    
+    const countryCodeMap = {
+        'CN': '+86', 'HK': '+852', 'TW': '+886', 'MO': '+853',
+        'SG': '+65', 'MY': '+60', 'TH': '+66', 'VN': '+84',
+        'PH': '+63', 'ID': '+62', 'KR': '+82', 'JP': '+81',
+        'IN': '+91', 'AU': '+61', 'NZ': '+64',
+        'GB': '+44', 'DE': '+49', 'FR': '+33', 'IT': '+39',
+        'ES': '+34', 'NL': '+31', 'BE': '+32', 'CH': '+41',
+        'AT': '+43', 'SE': '+46', 'NO': '+47', 'DK': '+45', 'FI': '+358',
+        'US': '+1', 'CA': '+1', 'MX': '+52', 'BR': '+55',
+        'AR': '+54', 'CL': '+56', 'CO': '+57', 'PE': '+51',
+        'AE': '+971', 'SA': '+966', 'IL': '+972', 'ZA': '+27',
+        'EG': '+20', 'KE': '+254', 'NG': '+234',
+        'RU': '+7', 'TR': '+90'
+    };
+    
+    const phoneCode = countryCodeMap[countryCode] || '+1';
+    
+    // Update primary phone country code field
+    const primaryField = document.getElementById('id_phone_primary_country_code') ||
+                        document.querySelector('input[name="phone_primary_country_code"]') ||
+                        document.querySelector('.country-code');
+    
+    if (primaryField) {
+        primaryField.value = phoneCode;
+        primaryField.dispatchEvent(new Event('input', { bubbles: true }));
+        primaryField.dispatchEvent(new Event('change', { bubbles: true }));
+        
+        // Visual feedback
+        primaryField.style.backgroundColor = '#d4edda';
+        setTimeout(() => {
+            primaryField.style.backgroundColor = 'yellow';
+        }, 800);
+    }
+    
+    // Update visual display
+    const primaryDisplay = document.getElementById('primary-country-code');
+    if (primaryDisplay) {
+        primaryDisplay.textContent = phoneCode;
+        primaryDisplay.style.backgroundColor = '#28a745';
+        primaryDisplay.style.color = 'white';
+        setTimeout(() => {
+            primaryDisplay.style.backgroundColor = '#e9ecef';
+            primaryDisplay.style.color = '#495057';
+        }, 800);
+    }
+}
+</script>
+
+    <div class="col-md-4">
+<script>
+console.log('🚨 EMERGENCY SCRIPT: This script is at the bottom of the page');
+console.log('🚨 Current time:', new Date().toLocaleTimeString());
+console.log('🚨 Page title:', document.title);
+
+// Country code mapping - Global version
+const countryCodeMap = {
+    'CN': '+86', 'HK': '+852', 'TW': '+886', 'MO': '+853',
+    'SG': '+65', 'MY': '+60', 'TH': '+66', 'VN': '+84',
+    'PH': '+63', 'ID': '+62', 'KR': '+82', 'JP': '+81',
+    'IN': '+91', 'AU': '+61', 'NZ': '+64',
+    'GB': '+44', 'DE': '+49', 'FR': '+33', 'IT': '+39',
+    'ES': '+34', 'NL': '+31', 'BE': '+32', 'CH': '+41',
+    'AT': '+43', 'SE': '+46', 'NO': '+47', 'DK': '+45', 'FI': '+358',
+    'US': '+1', 'CA': '+1', 'MX': '+52', 'BR': '+55',
+    'AR': '+54', 'CL': '+56', 'CO': '+57', 'PE': '+51',
+    'AE': '+971', 'SA': '+966', 'IL': '+972', 'ZA': '+27',
+    'EG': '+20', 'KE': '+254', 'NG': '+234',
+    'RU': '+7', 'TR': '+90'
+};
+
+// Global updateCountryCodes function - This MUST be available for onchange
+function updateCountryCodes(countryCode) {
+    console.log('🚨 GLOBAL updateCountryCodes called with:', countryCode);
+    
+    if (!countryCode) {
+        console.log('❌ No country code provided');
+        return;
+    }
+    
+    const phoneCode = countryCodeMap[countryCode] || '+1';
+    console.log('📞 Mapped phone code:', phoneCode);
+    
+    // Try multiple ways to find the primary phone country code field
+    let primaryField = null;
+    
+    // Method 1: Direct ID lookup
+    primaryField = document.getElementById('id_phone_primary_country_code');
+    console.log('🎯 Method 1 - Direct ID lookup:', !!primaryField);
+    
+    // Method 2: Query selector
+    if (!primaryField) {
+        primaryField = document.querySelector('input[name="phone_primary_country_code"]');
+        console.log('🎯 Method 2 - Name selector:', !!primaryField);
+    }
+    
+    // Method 3: Find by class
+    if (!primaryField) {
+        const countryCodeFields = document.querySelectorAll('.country-code');
+        console.log('🎯 Method 3 - Found country-code fields:', countryCodeFields.length);
+        if (countryCodeFields.length > 0) {
+            primaryField = countryCodeFields[0]; // Take the first one (should be primary)
+            console.log('🎯 Using first country-code field as primary');
+        }
+    }
+    
+    // Update the field if found
+    if (primaryField) {
+        console.log('✅ Primary field found, updating...');
+        console.log('📝 Before update:', primaryField.value);
+        primaryField.value = phoneCode;
+        console.log('📝 After update:', primaryField.value);
+        
+        // Trigger events
+        primaryField.dispatchEvent(new Event('input', { bubbles: true }));
+        primaryField.dispatchEvent(new Event('change', { bubbles: true }));
+        
+        // Visual feedback for the input field itself
+        primaryField.style.backgroundColor = '#90EE90';
+        setTimeout(() => {
+            primaryField.style.backgroundColor = 'yellow';
+        }, 1000);
+    } else {
+        console.log('❌ PRIMARY FIELD NOT FOUND!');
+        console.log('� Available inputs with phone in name or id:');
+        document.querySelectorAll('input').forEach(input => {
+            if (input.name?.includes('phone') || input.id?.includes('phone')) {
+                console.log(`  - ID: "${input.id}", Name: "${input.name}", Value: "${input.value}"`);
+            }
+        });
+    }
+    
+    // Update visual display
+    const primaryDisplay = document.getElementById('primary-country-code');
+    if (primaryDisplay) {
+        console.log('🏷️ Updating visual display');
+        primaryDisplay.textContent = phoneCode;
+        // Add visual feedback
+        primaryDisplay.style.backgroundColor = '#4caf50';
+        primaryDisplay.style.color = 'white';
+        setTimeout(() => {
+            primaryDisplay.style.backgroundColor = '#e9ecef';
+            primaryDisplay.style.color = '#495057';
+        }, 1000);
+    } else {
+        console.log('❌ Visual display not found');
+    }
+    
+    console.log('🏁 END updateCountryCodes');
+}
+
+// Test if we can find elements
+setTimeout(function() {
+    console.log('�🚨 DELAYED TEST: Checking for elements after 1 second');
+    const countrySelect = document.getElementById('id_country_region');
+    const primaryField = document.getElementById('id_phone_primary_country_code');
+    
+    console.log('🚨 Country select found:', !!countrySelect);
+    console.log('🚨 Primary field found:', !!primaryField);
+    
+    if (countrySelect) {
+        console.log('🚨 Country select details:', {
+            id: countrySelect.id,
+            tagName: countrySelect.tagName,
+            options: countrySelect.options.length,
+            onchange: countrySelect.getAttribute('onchange')
+        });
+    }
+    
+    if (primaryField) {
+        console.log('🚨 Primary field details:', {
+            id: primaryField.id,
+            value: primaryField.value,
+            type: primaryField.type,
+            className: primaryField.className
+        });
+    }
+}, 1000);
+
+// Simple test function that should always work
+function emergencyTest() {
+    console.log('🚨 EMERGENCY FUNCTION CALLED');
+    alert('Emergency test button works!');
+    
+    const countrySelect = document.getElementById('id_country_region');
+    const primaryField = document.getElementById('id_phone_primary_country_code');
+    
+    if (countrySelect && primaryField) {
+        primaryField.value = '+999';
+        primaryField.style.backgroundColor = 'red';
+        console.log('🚨 FORCED UPDATE: Set primary field to +999');
+    } else {
+        console.log('🚨 FIELDS NOT FOUND');
+    }
+}
+
+// Test the country code function directly
+function testCountryCode() {
+    console.log('🧪 === TESTING COUNTRY CODE FUNCTIONALITY ===');
+    updateCountryCodes('HK');
+    console.log('🧪 === TEST COMPLETE ===');
+}
+
+// Manual country change test
+function manualCountryChange() {
+    const countrySelect = document.getElementById('id_country_region');
+    if (countrySelect) {
+        console.log('🔄 Manual country change triggered, value:', countrySelect.value);
+        updateCountryCodes(countrySelect.value);
+    }
+}
+
+// Quick action functions for newly created customers
+function addAnotherCustomer() {
+    if (confirm('Clear the current form to add another customer?')) {
+        // Clear the form by reloading the page
+        window.location.reload();
+    }
+}
+
+function exportData() {
+    if (confirm('Export all customer data to CSV?')) {
+        // Redirect to export URL
+        window.location.href = '{% url "crm:export_customers_csv" %}';
+    }
+}
+
+// Auto-hide the quick actions card after 30 seconds on form page
+document.addEventListener('DOMContentLoaded', function() {
+    const quickActionsCard = document.querySelector('.card.border-success');
+    if (quickActionsCard) {
+        setTimeout(function() {
+            quickActionsCard.style.opacity = '0.7';
+            quickActionsCard.style.transition = 'opacity 2s ease-in-out';
+            // Add a small notice
+            const notice = document.createElement('small');
+            notice.className = 'text-muted';
+            notice.innerHTML = '<i class="fas fa-clock"></i> Quick actions will fade after 30 seconds';
+            quickActionsCard.querySelector('.card-body').appendChild(notice);
+        }, 30000); // 30 seconds
+    }
+});
+</script>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-info-circle"></i> Help</h5>
+            </div>
+            <div class="card-body">
+                <h6>Required Fields</h6>
+                <ul>
+                    <li>First Name</li>
+                    <li>Last Name</li>
+                    <li>Primary Email</li>
+                    <li>Country/Region</li>
+                    <li>Customer Type</li>
+                    <li>Preferred Communication Method</li>
+                </ul>
+                
+                <h6>Enhanced Fields</h6>
+                <ul class="small">
+                    <li><strong>Other name:</strong> Nickname, alias, or alternative name</li>
+                    <li><strong>Multiple Contact Methods:</strong> Email, phone, WhatsApp, WeChat, social media</li>
+                    <li><strong>Professional Info:</strong> Company details and positions</li>
+                    <li><strong>Physical Address:</strong> Complete street address components</li>
+                </ul>
+                
+                <h6>Security Status</h6>
+                <div class="alert alert-success small" role="alert">
+                    <i class="fas fa-shield-alt"></i> <strong>Secure Mode:</strong> You are logged in with authenticated access. UAT mode has been disabled for security.
+                </div>
+                
+                <h6>Country Code Features</h6>
+                <ul class="small">
+                    <li><strong>Primary Phone:</strong> Auto-updates when you select country/region</li>
+                    <li><strong>Secondary Phone:</strong> Manually selectable - independent of country selection</li>
+                    <li><strong>WhatsApp & Fax:</strong> Manually selectable for international flexibility</li>
+                    <li><strong>Visual Sync:</strong> Display badges always show current country codes</li>
+                    <li><strong>Format Help:</strong> Country codes should start with + (e.g., +852, +1, +86)</li>
+                </ul>
+                
+                <h6>Internal Use Form</h6>
+                <p class="small text-muted">
+                    Simplified form for internal customer data management with essential business information:
+                    <br>• Core contact details and names
+                    <br>• Professional information
+                    <br>• Communication & social media profiles
+                    <br>• Learning interests and preferences
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
