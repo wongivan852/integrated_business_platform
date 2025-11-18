@@ -5,9 +5,14 @@ Django settings for integrated business platform project.
 import os
 from pathlib import Path
 from decouple import config
+from datetime import datetime
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Application Version
+APP_VERSION = '1.2.0'
+APP_VERSION_DATE = '2025-11-17 16:45'  # Update this when version changes
 
 # Security
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-this-in-production-123456789')
@@ -93,7 +98,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                # 'business_platform.context_processors.app_context',  # TODO: Create context processor
+                'business_platform.context_processors.app_context',  # App version and global settings
             ],
         },
     },

@@ -17,7 +17,7 @@
 {% block page_subtitle %}
 <div class="d-flex align-items-center gap-3">
     <span class="badge bg-light text-dark">Gantt Chart View</span>
-    <span class="badge bg-success text-white">✓ Updated 16:45</span>
+    <span class="badge bg-success text-white" title="App Version {{ APP_VERSION }}">✓ Updated {{ APP_VERSION_DATE }}</span>
     <span class="status-badge {{ project.status }}">{{ project.get_status_display }}</span>
     {% if timeline_stats %}
     <span class="text-muted small">
