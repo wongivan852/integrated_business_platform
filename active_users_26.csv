@@ -1,0 +1,27 @@
+id,username,email,first_name,last_name,is_active,is_staff,employee_id,region,department,date_joined
+761,pm-admin@krystal.institute,pm-admin@krystal.institute,Project,Admin,t,f,002,HK,ADMIN,2025-10-30 14:04:45.731849+08
+1,admin@krystal-platform.com,admin@krystal-platform.com,Platform,Administrator,t,t,003,HK,IT,2025-09-29 12:00:36.217+08
+749,catina.yiu@krystal.institute,catina.yiu@krystal.institute,🐱,Catina Y,t,t,016,HK,OPERATIONS,2025-10-28 15:35:13.410949+08
+789,billy.chan@krystal.institute,billy.chan@krystal.institute,Billy,Chan,t,f,040,HK,MANAGEMENT,2025-11-17 11:13:27.760952+08
+753,jacky.chan@krystal.institute,jacky.chan@krystal.institute,Jacky,Chan,t,t,010,HK,SALES,2025-10-28 15:35:14.932608+08
+747,adrian.chow@krystal.institute,adrian.chow@krystal.institute,Adrian,Chow,t,t,009,HK,OPERATIONS,2025-10-28 15:35:12.652286+08
+771,sabrina.chow@krystal.institute,sabrina.chow@krystal.institute,Sabrina,Chow,t,f,018,HK,SALES,2025-11-06 15:57:19.385579+08
+745,eugene.choy@krystal.institute,eugene.choy@krystal.institute,Eugene,Choy,t,t,011,HK,SALES,2025-10-28 15:35:11.887258+08
+784,ange.du@cgge.media,ange.du@cgge.media,Ange,Du,t,f,023,CN,IT,2025-11-14 09:34:24.06954+08
+754,jeff.koo@krystal.institute,jeff.koo@krystal.institute,Jeff,Koo,t,t,012,HK,ADMIN,2025-10-28 15:35:15.301188+08
+783,xue.li@cgge.media,xue.li@cgge.media,Xue,Li,t,f,022,CN,SALES,2025-11-14 09:33:07.61759+08
+756,sidne.lui@krystal.institute,sidne.lui@krystal.institute,Sidne,Lui,t,t,004,HK,IT,2025-10-28 15:35:16.054895+08
+755,milne.man@krystal.institute,milne.man@krystal.institute,Milne,Man,t,t,013,HK,SALES,2025-10-28 15:35:15.677652+08
+765,magneoh@krystal.institute,magneoh@krystal.institute,Maggie,Neoh,t,t,001,HK,FINANCE,2025-11-03 11:58:01.821376+08
+751,danny.ng@krystal.institute,danny.ng@krystal.institute,Danny,Ng,t,t,014,HK,SALES,2025-10-28 15:35:14.17524+08
+785,qiaoyun.pan@cgge.meda,qiaoyun.pan@cgge.meda,Qiaoyun,Pang,t,f,024,CN,SALES,2025-11-14 09:35:41.157675+08
+782,zhanpeng.qi@cgge.media,zhanpeng.qi@cgge.media,Zhanpeng,Qi,t,f,021,CN,SALES,2025-11-14 09:31:45.34014+08
+759,tom.sin@krystal.institute,tom.sin@krystal.institute,Tom,Sin,t,t,005,HK,IT,2025-10-28 15:35:17.195825+08
+757,ss.tam@krystal.institute,ss.tam@krystal.institute,SS,Tam,t,t,006,HK,IT,2025-10-28 15:35:16.434831+08
+758,tim.tan@krystal.institute,tim.tan@krystal.institute,Tim,Tan,t,t,008,HK,MANAGEMENT,2025-10-28 15:35:16.816465+08
+786,yuxing.wen@cgge.media,yuxing.wen@cgge.media,Yuxing,Wen,t,f,025,CN,SALES,2025-11-14 09:36:56.217774+08
+752,ivan.wong@krystal.institute,ivan.wong@krystal.institute,Ivan,Wong,t,t,017,HK,SALES,2025-10-28 15:35:14.556278+08
+788,yiusing.wong@cgge.media,yiusing.wong@cgge.media,Yiusing,Wong,t,f,019,HK,IT,2025-11-14 09:39:36.316959+08
+781,ke.xiao@cgge.media,ke.xiao@cgge.media,Ke,Xiao,t,f,020,CN,SALES,2025-11-14 09:28:51.697532+08
+787,yong.xiao@cgge.media,yong.xiao@cgge.media,Yong,Xiao,t,f,026,CN,SALES,2025-11-14 09:38:02.088894+08
+760,yw.yeung@krystal.institute,yw.yeung@krystal.institute,🐑,Yeung,t,t,007,HK,IT,2025-10-28 15:35:17.573923+08
