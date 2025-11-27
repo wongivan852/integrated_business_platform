@@ -18,7 +18,7 @@ class AssetListView(LoginRequiredMixin, ListView):
     
     def get_queryset(self):
         queryset = Asset.objects.select_related(
-            'category', 'current_location', 'responsible_person'
+            'category', 'current_location', 'responsible_person', 'primary_user'
         ).order_by('asset_id')
         
         search = self.request.GET.get('search')
@@ -72,7 +72,7 @@ class AssetCreateView(LoginRequiredMixin, CreateView):
     template_name = 'assets/form.html'
     fields = ['asset_id', 'name', 'description', 'category', 'serial_number', 
               'model_number', 'manufacturer', 'purchase_date', 'purchase_value', 
-              'current_value', 'current_location', 'responsible_person', 'condition']
+              'current_value', 'current_location', 'responsible_person', 'primary_user', 'condition']
     
     def form_valid(self, form):
         form.instance.created_by = self.request.user
@@ -88,7 +88,7 @@ class AssetUpdateView(LoginRequiredMixin, UpdateView):
     template_name = 'assets/form.html'
     fields = ['name', 'description', 'category', 'serial_number', 'model_number', 
               'manufacturer', 'purchase_date', 'purchase_value', 'current_value', 
-              'current_location', 'responsible_person', 'condition', 'status', 'notes']
+              'current_location', 'responsible_person', 'primary_user', 'condition', 'status', 'notes']
     
     def form_valid(self, form):
         messages.success(self.request, f'Asset {form.instance.asset_id} updated successfully!')

@@ -75,7 +75,15 @@ class Asset(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='assigned_assets'
+        related_name='responsible_assets'
+    )
+    primary_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='primary_user_assets',
+        verbose_name='Asset assigned to'
     )
     
     # Metadata

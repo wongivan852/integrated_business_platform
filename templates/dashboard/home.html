@@ -29,9 +29,15 @@
                 </div>
                 <h5 class="card-title krystal-text-primary">{{ app.display_name }}</h5>
                 <p class="card-text krystal-text-muted">{{ app.description }}</p>
-                <a href="{{ app.url }}" class="krystal-btn krystal-btn-primary">
-                    <i class="fas fa-external-link-alt"></i> Launch App
-                </a>
+                {% if app.url|slice:":4" == "http" %}
+                    <a href="{% url 'dashboard:sso_redirect' app.name %}" class="krystal-btn krystal-btn-primary">
+                        <i class="fas fa-external-link-alt"></i> Launch App
+                    </a>
+                {% else %}
+                    <a href="{{ app.url }}" class="krystal-btn krystal-btn-primary">
+                        <i class="fas fa-external-link-alt"></i> Launch App
+                    </a>
+                {% endif %}
             </div>
         </div>
     </div>

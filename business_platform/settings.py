@@ -23,6 +23,12 @@ ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,0.0.0.0,*')
 csrf_origins = config('CSRF_TRUSTED_ORIGINS', default='')
 CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_origins.split(',') if origin.strip()]
 
+# SSO Configuration
+SSO_SECRET_KEY = config('SSO_SECRET_KEY', default=SECRET_KEY)
+SSO_ALGORITHM = config('SSO_ALGORITHM', default='HS256')
+SSO_TOKEN_LIFETIME = config('SSO_TOKEN_LIFETIME', default=3600, cast=int)  # 1 hour
+SSO_REFRESH_LIFETIME = config('SSO_REFRESH_LIFETIME', default=86400, cast=int)  # 24 hours
+
 # Application definition
 DJANGO_APPS = [
     'django.contrib.admin',

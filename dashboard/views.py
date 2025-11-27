@@ -3,9 +3,12 @@ Dashboard views for the integrated business platform.
 """
 
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.utils.translation import gettext_lazy as _
+from django.http import HttpResponse
 from authentication.models import ApplicationConfig, UserSession
+from sso.utils import SSOTokenManager
+from urllib.parse import urljoin
 
 
 @login_required
@@ -39,3 +42,30 @@ def home(request):
     }
 
     return render(request, 'dashboard/home.html', context)
+
+
+@login_required
+def sso_redirect(request, app_name):
+    """
+    Generate SSO token and redirect to external application.
+    """
+    try:
+        # Get application configuration
+        app_config = ApplicationConfig.objects.get(name=app_name, is_active=True)
+        
+        # Check if user has access
+        if not request.user.is_superuser and app_name not in request.user.apps_access:
+            return HttpResponse('Access denied', status=403)
+        
+        # Generate SSO token
+        tokens = SSOTokenManager.generate_token(request.user, request)
+        
+        # Build redirect URL with token
+        redirect_url = f"{app_config.url}?sso_token={tokens['access']}"
+        
+        return redirect(redirect_url)
+        
+    except ApplicationConfig.DoesNotExist:
+        return HttpResponse('Application not found', status=404)
+    except Exception as e:
+        return HttpResponse(f'SSO Error: {str(e)}', status=500)

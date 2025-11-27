@@ -9,7 +9,7 @@ class AssetCategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Asset)
 class AssetAdmin(admin.ModelAdmin):
-    list_display = ['asset_id', 'name', 'category', 'status', 'current_location', 'responsible_person']
+    list_display = ['asset_id', 'name', 'category', 'status', 'current_location', 'responsible_person', 'primary_user']
     list_filter = ['status', 'condition', 'category', 'current_location']
     search_fields = ['asset_id', 'name', 'serial_number']
     list_editable = ['status']
@@ -26,7 +26,7 @@ class AssetAdmin(admin.ModelAdmin):
             'fields': ('purchase_date', 'purchase_value', 'current_value', 'warranty_expiry')
         }),
         ('Status & Location', {
-            'fields': ('status', 'condition', 'current_location', 'responsible_person')
+            'fields': ('status', 'condition', 'current_location', 'responsible_person', 'primary_user')
         }),
         ('Metadata', {
             'fields': ('created_by', 'created_at', 'updated_at', 'notes'),
