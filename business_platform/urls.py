@@ -8,8 +8,21 @@ from django.conf.urls.static import static
 from django.views.generic import RedirectView
 from django.views.i18n import set_language
 from authentication.views import home_redirect
+from business_platform.health import (
+    health_check, health_db, health_redis,
+    health_full, health_ready, health_live, health_apps
+)
 
 urlpatterns = [
+    # Health Check Endpoints (no authentication required)
+    path('health/', health_check, name='health_check'),
+    path('health/db/', health_db, name='health_db'),
+    path('health/redis/', health_redis, name='health_redis'),
+    path('health/full/', health_full, name='health_full'),
+    path('health/ready/', health_ready, name='health_ready'),
+    path('health/live/', health_live, name='health_live'),
+    path('health/apps/', health_apps, name='health_apps'),
+
     # Admin
     path('admin/', admin.site.urls),
 

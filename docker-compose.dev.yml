@@ -1,0 +1,100 @@
+version: '3.8'
+
+#
+# Integrated Business Platform - Development Docker Composition
+# Usage: ./platform.sh start:dev (or docker-compose -f docker-compose.dev.yml up -d)
+#
+# Features:
+#   - Django runserver with auto-reload
+#   - Source code mounted for hot-reload
+#   - Debug mode enabled
+#   - No nginx (direct access to Django)
+#
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: ibp-dev-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-krystal_platform_dev}
+      POSTGRES_USER: ${DB_USER:-platformadmin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-5514}
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-platformadmin}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ibp-dev-network
+
+  # Redis for Caching and Sessions
+  redis:
+    image: redis:7-alpine
+    container_name: ibp-dev-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ibp-dev-network
+
+  # Django Development Server
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: ibp-dev-web
+    restart: unless-stopped
+    env_file:
+      - .env.dev
+    environment:
+      - DJANGO_SETTINGS_MODULE=business_platform.settings
+      - DEBUG=True
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=krystal_platform_dev
+      - REDIS_URL=redis://redis:6379/0
+      - USE_SQLITE=False
+    volumes:
+      # Mount source code for hot-reload
+      - .:/app
+      # Exclude these from mount
+      - /app/venv
+      - /app/__pycache__
+      - /app/.git
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - ibp-dev-network
+    # Run Django development server
+    command: python manage.py runserver 0.0.0.0:8000
+
+volumes:
+  postgres_dev_data:
+    name: ibp-dev-postgres-data
+
+networks:
+  ibp-dev-network:
+    name: ibp-dev-network
+    driver: bridge

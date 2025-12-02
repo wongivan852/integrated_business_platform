@@ -1,9 +1,13 @@
+# Development Dockerfile for Integrated Business Platform
+# Optimized for hot-reload and debugging
+
 FROM python:3.11-slim
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV DJANGO_SETTINGS_MODULE=business_platform.settings
+ENV DEBUG=True
 
 # Set work directory
 WORKDIR /app
@@ -16,33 +20,34 @@ RUN apt-get update \
         libpq-dev \
         gettext \
         curl \
+        git \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
 COPY requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy project
-COPY . /app/
+# Install development dependencies
+RUN pip install --no-cache-dir \
+    django-debug-toolbar \
+    ipython \
+    watchdog
 
-# Create static and media directories
+# Create directories
 RUN mkdir -p /app/staticfiles /app/media /app/logs
 
-# Create non-root user and set permissions
-RUN adduser --disabled-password --gecos '' appuser \
-    && chown -R appuser:appuser /app
+# Create non-root user
+RUN adduser --disabled-password --gecos '' devuser \
+    && chown -R devuser:devuser /app
 
-# Collect static files as appuser
-USER appuser
-RUN python manage.py collectstatic --noinput
-USER appuser
+USER devuser
 
 # Expose port
 EXPOSE 8000
 
-# Health check using the dedicated health endpoint
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8000/health/ || exit 1
 
-# Run application with Gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-", "business_platform.wsgi:application"]
+# Run Django development server (can be overridden)
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]

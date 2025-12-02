@@ -56,7 +56,7 @@ LOCAL_APPS = [
     'dashboard',
     'admin_panel',
     'sso',  # Single Sign-On module
-    # 'app_integration',  # TODO: Create app integration layer
+    'apps.app_registry',  # Centralized app registry
     # Expense Claim System Apps (expense_accounts disabled due to user model conflict)
     'expense_claims',
     # 'expense_accounts',  # Disabled - has conflicting User model
@@ -94,11 +94,15 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    'sso.middleware.SSOEnforcementMiddleware',  # Enforce SSO authentication on all requests
     'authentication.middleware.MaintenanceModeMiddleware',  # Check for maintenance mode
     'authentication.middleware.PasswordChangeRequiredMiddleware',  # Force password change on first login
-    # 'business_platform.middleware.AppAccessMiddleware',  # TODO: Create custom middleware for app access control
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+# SSO Enforcement Configuration
+# Set to False to disable SSO enforcement during development
+SSO_ENFORCE = config('SSO_ENFORCE', default=True, cast=bool)
 
 ROOT_URLCONF = 'business_platform.urls'
 
