@@ -261,6 +261,15 @@ class Task(models.Model):
         help_text='Single accountable owner for this task'
     )
 
+    # Process Members - team members working on this task under the process owner
+    process_members = models.ManyToManyField(
+        User,
+        related_name='process_member_tasks',
+        blank=True,
+        verbose_name='Process Members',
+        help_text='Team members working on this task under the process owner'
+    )
+
     # Definition of Done - acceptance criteria
     definition_of_done = models.TextField(
         blank=True,
@@ -603,6 +612,13 @@ class TaskAttachment(models.Model):
     def file_size_mb(self):
         """Return file size in megabytes"""
         return round(self.file_size / (1024 * 1024), 2)
+    
+    def file_exists(self):
+        """Check if the physical file exists on disk"""
+        try:
+            return self.file.storage.exists(self.file.name)
+        except:
+            return False
 
 
 class TaskActivity(models.Model):

@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+
+{% block title %}Delete Asset{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'assets:list' %}">Assets</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'assets:detail' object.pk %}">{{ object.asset_id }}</a></li>
+            <li class="breadcrumb-item active">Delete</li>
+        </ol>
+    </nav>
+
+    <div class="card">
+        <div class="card-header bg-danger text-white">
+            <h5 class="mb-0">
+                <i class="fas fa-trash"></i> Delete Asset: {{ object.asset_id }}
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle"></i>
+                <strong>Warning:</strong> You are about to delete this asset. This action cannot be undone.
+            </div>
+
+            <div class="mb-4">
+                <h6>Asset Details:</h6>
+                <ul class="list-unstyled ms-3">
+                    <li><strong>Asset ID:</strong> {{ object.asset_id }}</li>
+                    <li><strong>Name:</strong> {{ object.name }}</li>
+                    <li><strong>Category:</strong> {{ object.category.name|default:"-" }}</li>
+                    <li><strong>Location:</strong> {{ object.current_location.name|default:"-" }}</li>
+                </ul>
+            </div>
+
+            <form method="post">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash"></i> Confirm Delete
+                </button>
+                <a href="{% url 'assets:detail' object.pk %}" class="btn btn-secondary">
+                    Cancel
+                </a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

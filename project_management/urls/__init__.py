@@ -22,6 +22,7 @@ urlpatterns = [
     # View switching
     path('<int:pk>/gantt/', gantt_views.gantt_chart_view, name='project_gantt'),
     path('<int:pk>/kanban/', project_views.project_kanban_view, name='project_kanban'),
+    path('<int:project_pk>/files/', project_views.project_file_pool, name='project_file_pool'),
 
     # Task URLs
     path('<int:project_pk>/tasks/', task_views.task_list, name='task_list'),

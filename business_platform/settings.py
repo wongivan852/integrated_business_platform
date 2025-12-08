@@ -80,6 +80,8 @@ LOCAL_APPS = [
     'qr_attendance',  # QR code-based event attendance
     # CRM System
     'crm',  # Customer Relationship Management
+    # Stripe Integration
+    'stripe_integration',  # Stripe payment processing and analytics
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

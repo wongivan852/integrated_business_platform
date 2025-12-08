@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% if object %}Edit{% else %}Add{% endif %} Asset{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'assets:list' %}">Assets</a></li>
+            {% if object %}
+            <li class="breadcrumb-item"><a href="{% url 'assets:detail' object.pk %}">{{ object.asset_id }}</a></li>
+            <li class="breadcrumb-item active">Edit</li>
+            {% else %}
+            <li class="breadcrumb-item active">Add New Asset</li>
+            {% endif %}
+        </ol>
+    </nav>
+
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-{% if object %}edit{% else %}plus{% endif %}"></i>
+                {% if object %}Edit Asset: {{ object.asset_id }}{% else %}Add New Asset{% endif %}
+            </h5>
+        </div>
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                
+                {% if object and object.photo %}
+                <div class="mb-4">
+                    <label class="form-label"><strong>Current Photo:</strong></label>
+                    <div class="text-center p-3 border rounded bg-light">
+                        <img src="{{ object.photo.url }}" alt="{{ object.name }}" class="img-fluid" style="max-height: 300px; border-radius: 8px;">
+                        <div class="mt-2">
+                            <small class="text-muted">Upload a new photo below to replace this image</small>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% for field in form %}
+                    {% if field.name != 'photo' and field.name != 'document' %}
+                        {{ field|as_crispy_field }}
+                    {% endif %}
+                {% endfor %}
+                
+                <div class="mb-3 p-3 border border-primary rounded bg-light">
+                    <label class="form-label fw-bold" style="font-size: 1.1em;">
+                        <i class="fas fa-camera"></i> Asset Photo
+                    </label>
+                    {{ form.photo }}
+                    <div class="form-text">{{ form.photo.help_text }}</div>
+                    {% if form.photo.errors %}
+                        <div class="text-danger">{{ form.photo.errors }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-3 p-3 border border-success rounded bg-light">
+                    <label class="form-label fw-bold" style="font-size: 1.1em;">
+                        <i class="fas fa-file-pdf"></i> Asset Document
+                    </label>
+                    {{ form.document }}
+                    <div class="form-text">{{ form.document.help_text }}</div>
+                    {% if form.document.errors %}
+                        <div class="text-danger">{{ form.document.errors }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> {% if object %}Update{% else %}Create{% endif %} Asset
+                    </button>
+                    <a href="{% if object %}{% url 'assets:detail' object.pk %}{% else %}{% url 'assets:list' %}{% endif %}" class="btn btn-secondary">
+                        Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

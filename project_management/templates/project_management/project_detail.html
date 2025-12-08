@@ -33,6 +33,10 @@
     </a>
 </div>
 
+<a href="{% url 'project_management:project_file_pool' project.pk %}" class="btn btn-outline-light me-2">
+    <i class="fas fa-folder-open"></i> Files
+</a>
+
 {% if can_edit %}
 <a href="{% url 'project_management:project_edit' project.pk %}" class="btn btn-outline-light me-2">
     <i class="fas fa-edit"></i> Edit

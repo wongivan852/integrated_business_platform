@@ -7,6 +7,7 @@ from django.http import JsonResponse
 from django.db.models import Q
 
 from .models import Asset, AssetCategory, AssetRemark
+from .forms import AssetForm, AssetCreateForm
 from locations.models import Location
 
 
@@ -69,10 +70,8 @@ class AssetDetailView(LoginRequiredMixin, DetailView):
 
 class AssetCreateView(LoginRequiredMixin, CreateView):
     model = Asset
+    form_class = AssetCreateForm
     template_name = 'assets/form.html'
-    fields = ['asset_id', 'name', 'description', 'category', 'serial_number', 
-              'model_number', 'manufacturer', 'purchase_date', 'purchase_value', 
-              'current_value', 'current_location', 'responsible_person', 'primary_user', 'condition']
     
     def form_valid(self, form):
         form.instance.created_by = self.request.user
@@ -85,10 +84,8 @@ class AssetCreateView(LoginRequiredMixin, CreateView):
 
 class AssetUpdateView(LoginRequiredMixin, UpdateView):
     model = Asset
+    form_class = AssetForm
     template_name = 'assets/form.html'
-    fields = ['name', 'description', 'category', 'serial_number', 'model_number', 
-              'manufacturer', 'purchase_date', 'purchase_value', 'current_value', 
-              'current_location', 'responsible_person', 'primary_user', 'condition', 'status', 'notes']
     
     def form_valid(self, form):
         messages.success(self.request, f'Asset {form.instance.asset_id} updated successfully!')

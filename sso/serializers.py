@@ -14,6 +14,10 @@ class UserPermissionsSerializer(serializers.Serializer):
     can_access_crm_system = serializers.BooleanField()
     can_access_asset_management = serializers.BooleanField()
     can_access_stripe_dashboard = serializers.BooleanField()
+    can_access_attendance_system = serializers.BooleanField()
+    can_access_project_management = serializers.BooleanField()
+    can_access_event_management = serializers.BooleanField()
+    can_access_qr_attendance = serializers.BooleanField()
 
 
 class SSOUserSerializer(serializers.ModelSerializer):
@@ -56,6 +60,10 @@ class SSOUserSerializer(serializers.ModelSerializer):
             'crm_system': 'can_access_crm_system',
             'asset_management': 'can_access_asset_management',
             'stripe_dashboard': 'can_access_stripe_dashboard',
+            'attendance_system': 'can_access_attendance_system',
+            'project_management': 'can_access_project_management',
+            'event_management': 'can_access_event_management',
+            'qr_attendance': 'can_access_qr_attendance',
         }
 
         permissions = {}

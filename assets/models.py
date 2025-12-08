@@ -101,6 +101,8 @@ class Asset(models.Model):
     qr_code = models.CharField(max_length=100, blank=True, null=True)
     warranty_expiry = models.DateField(blank=True, null=True)
     notes = models.TextField(blank=True, null=True)
+    photo = models.ImageField(upload_to='assets/photos/', blank=True, null=True)
+    document = models.FileField(upload_to='assets/documents/', blank=True, null=True, help_text='Upload PDF, Word, Excel or other document files')
     
     class Meta:
         ordering = ['asset_id']

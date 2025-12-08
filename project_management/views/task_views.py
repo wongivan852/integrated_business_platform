@@ -204,6 +204,17 @@ def task_detail(request, project_pk, pk):
     attachments = task.attachments.select_related('uploaded_by').order_by('-uploaded_at')
     checklists = task.checklists.prefetch_related('items').order_by('position')
     activities = task.activities.select_related('user').order_by('-timestamp')[:20]
+    
+    # Check for missing files
+    missing_files = [att for att in attachments if not att.file_exists()]
+    if missing_files:
+        messages.warning(
+            request, 
+            f'{len(missing_files)} file(s) are missing from this task. '
+            f'They may have been lost when converting tasks to subtasks. '
+            f'<a href="{project.get_absolute_url()}/files/" class="alert-link">View File Pool</a> to manage files.',
+            extra_tags='safe'
+        )
 
     context = {
         'project': project,
@@ -214,6 +225,7 @@ def task_detail(request, project_pk, pk):
         'checklists': checklists,
         'activities': activities,
         'can_edit': user_role in ['owner', 'admin', 'member'],
+        'missing_files_count': len(missing_files),
     }
 
     return render(request, 'project_management/task_detail.html', context)
