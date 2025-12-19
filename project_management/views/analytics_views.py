@@ -31,6 +31,9 @@ def analytics_dashboard(request):
     """
     Main analytics dashboard with portfolio overview and key metrics
     """
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+
     # Get user's projects
     user_projects = Project.objects.filter(
         Q(owner=request.user) | Q(team_members=request.user)
@@ -74,7 +77,83 @@ def analytics_dashboard(request):
     # Recent activity (recently updated tasks)
     recent_activity = Task.objects.filter(
         project__in=user_projects
-    ).select_related('project', 'assigned_to').order_by('-updated_at')[:10]
+    ).select_related('project', 'process_owner').order_by('-updated_at')[:10]
+
+    # =========================================================================
+    # RESPONSIBLE PERSON FILTER - List tasks by selected process owner
+    # =========================================================================
+
+    # Get all process owners who have tasks in user's projects
+    process_owners = User.objects.filter(
+        owned_tasks__project__in=user_projects
+    ).distinct().order_by('first_name', 'last_name')
+
+    # Get all process members who are assigned to tasks in user's projects
+    process_members_list = User.objects.filter(
+        process_member_tasks__project__in=user_projects
+    ).distinct().order_by('first_name', 'last_name')
+
+    # Get selected process owner filter
+    selected_owner_id = request.GET.get('process_owner')
+    selected_owner = None
+    owner_tasks = []
+
+    # Get selected process member filter
+    selected_member_id = request.GET.get('process_member')
+    selected_member = None
+    member_tasks = []
+    member_task_stats = None
+
+    if selected_owner_id:
+        try:
+            selected_owner = User.objects.get(pk=selected_owner_id)
+            # Get all tasks owned by the selected person in user's projects
+            owner_tasks = Task.objects.filter(
+                project__in=user_projects,
+                process_owner=selected_owner
+            ).select_related('project').prefetch_related('process_members').order_by('-priority', 'due_date')
+
+            # Calculate task statistics for this owner
+            owner_task_stats = {
+                'total': owner_tasks.count(),
+                'completed': owner_tasks.filter(status='completed').count(),
+                'in_progress': owner_tasks.filter(status='in_progress').count(),
+                'todo': owner_tasks.filter(status='todo').count(),
+                'blocked': owner_tasks.filter(status='blocked').count(),
+                'overdue': owner_tasks.filter(
+                    status__in=['todo', 'in_progress'],
+                    due_date__lt=timezone.now().date()
+                ).count(),
+            }
+        except User.DoesNotExist:
+            selected_owner_id = None
+    else:
+        owner_task_stats = None
+
+    # Handle process member filter
+    if selected_member_id:
+        try:
+            selected_member = User.objects.get(pk=selected_member_id)
+            # Get all tasks where the selected person is a process member
+            member_tasks = Task.objects.filter(
+                project__in=user_projects,
+                process_members=selected_member
+            ).select_related('project', 'process_owner').order_by('-priority', 'due_date')
+
+            # Calculate task statistics for this member
+            member_task_stats = {
+                'total': member_tasks.count(),
+                'completed': member_tasks.filter(status='completed').count(),
+                'in_progress': member_tasks.filter(status='in_progress').count(),
+                'todo': member_tasks.filter(status='todo').count(),
+                'blocked': member_tasks.filter(status='blocked').count(),
+                'overdue': member_tasks.filter(
+                    status__in=['todo', 'in_progress'],
+                    due_date__lt=timezone.now().date()
+                ).count(),
+            }
+        except User.DoesNotExist:
+            selected_member_id = None
 
     context = {
         'portfolio_data': portfolio_data,
@@ -83,6 +162,18 @@ def analytics_dashboard(request):
         'upcoming_deadlines': upcoming_deadlines,
         'recent_activity': recent_activity,
         'recent_snapshots': recent_snapshots,
+        # Process owner filter context
+        'process_owners': process_owners,
+        'selected_owner': selected_owner,
+        'selected_owner_id': selected_owner_id,
+        'owner_tasks': owner_tasks,
+        'owner_task_stats': owner_task_stats,
+        # Process member filter context
+        'process_members_list': process_members_list,
+        'selected_member': selected_member,
+        'selected_member_id': selected_member_id,
+        'member_tasks': member_tasks,
+        'member_task_stats': member_task_stats,
     }
 
     return render(request, 'project_management/analytics/analytics_dashboard.html', context)

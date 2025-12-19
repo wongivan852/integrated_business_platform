@@ -41,6 +41,14 @@
     </a>
 </div>
 
+<a href="{% url 'project_management:analytics_dashboard' %}" class="btn btn-info me-2">
+    <i class="fas fa-chart-line"></i> Analytics Dashboard
+</a>
+
+<a href="{% url 'project_management:project_file_pool' project.pk %}" class="btn btn-outline-light me-2">
+    <i class="fas fa-folder-open"></i> File Pool
+</a>
+
 {% if is_admin %}
 <div class="btn-group me-2">
     <button class="btn btn-outline-light" onclick="showCreateBaselineModal()">
@@ -1607,6 +1615,11 @@
             {key: '{{ member.pk }}', label: '{{ member.get_full_name|default:member.email|escapejs }}'},
             {% endfor %}
         ]},
+        {name: "process_members", height: 120, map_to: "process_member_ids", type: "multiselect", options: [
+            {% for user in all_users %}
+            {key: '{{ user.pk }}', label: '{{ user.get_full_name|default:user.email|escapejs }}'},
+            {% endfor %}
+        ]},
         {name: "definition_of_done", height: 70, map_to: "definition_of_done", type: "textarea", focus: false},
         {name: "attachments", height: 250, map_to: "auto", type: "template", focus: false},
         {name: "move_task", height: 120, map_to: "auto", type: "template", focus: false},
@@ -1620,12 +1633,90 @@
     gantt.locale.labels.section_description = "Task Title (English)";
     gantt.locale.labels.section_chinese_title = "Task Title (中文)";
     gantt.locale.labels.section_process_owner = "Process Owner";
+    gantt.locale.labels.section_process_members = "Process Members";
     gantt.locale.labels.section_definition_of_done = "Definition of Done (DoD)";
     gantt.locale.labels.section_attachments = "File Attachments";
     gantt.locale.labels.section_move_task = "Move / Reorder Task";
     gantt.locale.labels.section_predecessors = "Dependencies / Predecessors";
     gantt.locale.labels.section_time = "Task Dates";
     gantt.locale.labels.section_duration = "Duration (days)";
+
+    // ========================================================================
+    // CUSTOM MULTISELECT FORM BLOCK FOR PROCESS MEMBERS (Checkbox Style)
+    // ========================================================================
+    gantt.form_blocks["multiselect"] = {
+        render: function(sns) {
+            var height = sns.height || 120;
+            var html = "<div class='gantt_cal_ltext gantt_cal_multiselect' style='height:" + height + "px; overflow-y:auto; padding:5px; border:1px solid #ccc; background:#fff;'>";
+            html += "<div class='multiselect-hint' style='font-size:11px; color:#666; margin-bottom:8px;'>Click to select multiple members:</div>";
+
+            if (sns.options) {
+                for (var i = 0; i < sns.options.length; i++) {
+                    html += "<div class='multiselect-item' style='padding:4px 8px; margin:2px 0; cursor:pointer; border-radius:3px;' data-value='" + sns.options[i].key + "'>";
+                    html += "<input type='checkbox' id='pm_" + sns.options[i].key + "' value='" + sns.options[i].key + "' style='margin-right:8px; cursor:pointer;'>";
+                    html += "<label for='pm_" + sns.options[i].key + "' style='cursor:pointer; margin:0;'>" + sns.options[i].label + "</label>";
+                    html += "</div>";
+                }
+            }
+            html += "</div>";
+            return html;
+        },
+        set_value: function(node, value, task, section) {
+            var checkboxes = node.querySelectorAll("input[type='checkbox']");
+            if (!checkboxes.length) return;
+
+            // Clear all checkboxes first
+            checkboxes.forEach(function(cb) {
+                cb.checked = false;
+                cb.parentElement.style.backgroundColor = '';
+            });
+
+            // Get values from task data
+            var values = value || task[section.map_to] || [];
+            if (!Array.isArray(values)) {
+                values = values ? [values] : [];
+            }
+
+            // Convert all values to strings for comparison
+            var stringValues = values.map(function(v) { return String(v); });
+
+            console.log('Setting process_member_ids:', stringValues);
+
+            // Set checked values
+            checkboxes.forEach(function(cb) {
+                if (stringValues.indexOf(cb.value) !== -1) {
+                    cb.checked = true;
+                    cb.parentElement.style.backgroundColor = '#e3f2fd';
+                }
+            });
+
+            // Add click handler for visual feedback
+            var items = node.querySelectorAll(".multiselect-item");
+            items.forEach(function(item) {
+                item.onclick = function(e) {
+                    if (e.target.tagName !== 'INPUT') {
+                        var cb = item.querySelector("input[type='checkbox']");
+                        cb.checked = !cb.checked;
+                    }
+                    var cb = item.querySelector("input[type='checkbox']");
+                    item.style.backgroundColor = cb.checked ? '#e3f2fd' : '';
+                };
+            });
+        },
+        get_value: function(node, task, section) {
+            var checkboxes = node.querySelectorAll("input[type='checkbox']:checked");
+            var result = [];
+            checkboxes.forEach(function(cb) {
+                result.push(cb.value);
+            });
+            console.log('Getting process_member_ids:', result);
+            return result;
+        },
+        focus: function(node) {
+            var firstCheckbox = node.querySelector("input[type='checkbox']");
+            if (firstCheckbox) firstCheckbox.focus();
+        }
+    };
 
     // ========================================================================
     // CUSTOM PREDECESSORS/DEPENDENCIES SECTION
@@ -2678,6 +2769,7 @@
                 critical: {% if task.id in critical_path %}true{% else %}false{% endif %},
                 open: true,
                 process_owner_id: {% if task.process_owner %}"{{ task.process_owner.pk }}"{% else %}""{% endif %},
+                process_member_ids: [{% for member in task.process_members.all %}"{{ member.pk }}"{% if not forloop.last %}, {% endif %}{% endfor %}],
                 definition_of_done: "{{ task.definition_of_done|escapejs }}",
                 assignees: [
                     {% for user in task.assigned_to.all %}
@@ -4352,6 +4444,7 @@
         console.log('  Task title:', task.text);
         console.log('  Chinese title:', task.title_cn);
         console.log('  Process owner ID:', task.process_owner_id);
+        console.log('  Process member IDs:', task.process_member_ids);
         console.log('  Definition of Done:', task.definition_of_done);
         console.log('  Start date:', task.start_date);
         console.log('  End date:', task.end_date);
@@ -4422,6 +4515,7 @@
                 progress: Math.round(task.progress * 100),
                 title_cn: task.title_cn || '',
                 process_owner_id: task.process_owner_id || null,
+                process_member_ids: task.process_member_ids || [],
                 definition_of_done: task.definition_of_done || ''
             })
         })

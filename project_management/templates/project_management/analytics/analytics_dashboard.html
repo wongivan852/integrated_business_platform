@@ -34,6 +34,337 @@
         </div>
     </div>
 
+    <!-- Responsible Person Filter -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-user-tie"></i> Filter Tasks by Responsible Person</h6>
+                </div>
+                <div class="card-body">
+                    <form method="get" class="row g-3 align-items-end">
+                        <div class="col-md-4">
+                            <label for="process_owner" class="form-label">Select Process Owner</label>
+                            <select name="process_owner" id="process_owner" class="form-select">
+                                <option value="">-- Select a process owner --</option>
+                                {% for owner in process_owners %}
+                                <option value="{{ owner.id }}" {% if selected_owner_id == owner.id|stringformat:"i" %}selected{% endif %}>
+                                    {{ owner.get_full_name|default:owner.username }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="process_member" class="form-label">Select Process Member</label>
+                            <select name="process_member" id="process_member" class="form-select">
+                                <option value="">-- Select a process member --</option>
+                                {% for member in process_members_list %}
+                                <option value="{{ member.id }}" {% if selected_member_id == member.id|stringformat:"i" %}selected{% endif %}>
+                                    {{ member.get_full_name|default:member.username }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-filter me-2"></i>Show Tasks
+                            </button>
+                            {% if selected_owner or selected_member %}
+                            <a href="{% url 'project_management:analytics_dashboard' %}" class="btn btn-outline-secondary ms-2">
+                                <i class="fas fa-times"></i> Clear
+                            </a>
+                            {% endif %}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tasks by Selected Person -->
+    {% if selected_owner %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-primary">
+                <div class="card-header bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-tasks me-2"></i>Tasks for {{ selected_owner.get_full_name|default:selected_owner.username }}
+                        </h5>
+                        <span class="badge bg-light text-primary">{{ owner_task_stats.total }} Total Tasks</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Task Statistics for Selected Person -->
+                    <div class="row mb-4">
+                        <div class="col-md-2">
+                            <div class="metric-box text-center">
+                                <h6 class="text-muted mb-1">To Do</h6>
+                                <h3 class="text-secondary mb-0">{{ owner_task_stats.todo }}</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="metric-box text-center">
+                                <h6 class="text-muted mb-1">In Progress</h6>
+                                <h3 class="text-info mb-0">{{ owner_task_stats.in_progress }}</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="metric-box text-center">
+                                <h6 class="text-muted mb-1">Completed</h6>
+                                <h3 class="text-success mb-0">{{ owner_task_stats.completed }}</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="metric-box text-center">
+                                <h6 class="text-muted mb-1">Blocked</h6>
+                                <h3 class="text-warning mb-0">{{ owner_task_stats.blocked }}</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="metric-box text-center">
+                                <h6 class="text-muted mb-1">Overdue</h6>
+                                <h3 class="text-danger mb-0">{{ owner_task_stats.overdue }}</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="metric-box text-center">
+                                <h6 class="text-muted mb-1">Completion</h6>
+                                {% widthratio owner_task_stats.completed owner_task_stats.total 100 as completion_pct %}
+                                <h3 class="text-primary mb-0">{{ completion_pct|default:0 }}%</h3>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Task List -->
+                    {% if owner_tasks %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Task</th>
+                                    <th>Project</th>
+                                    <th>Process Members</th>
+                                    <th>Priority</th>
+                                    <th>Status</th>
+                                    <th>Due Date</th>
+                                    <th>Progress</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for task in owner_tasks %}
+                                <tr class="{% if task.is_overdue %}table-danger{% endif %}">
+                                    <td>
+                                        <a href="{% url 'project_management:task_detail' task.project.id task.id %}">
+                                            {{ task.title }}
+                                        </a>
+                                        {% if task.is_overdue %}
+                                        <span class="badge bg-danger ms-1">Overdue</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'project_management:project_detail' task.project.id %}" class="text-muted">
+                                            {{ task.project.name }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        {% if task.process_members.exists %}
+                                        {% for member in task.process_members.all %}
+                                        <span class="badge bg-secondary">{{ member.get_full_name|default:member.username }}</span>
+                                        {% endfor %}
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge priority-{{ task.priority }}">
+                                            {{ task.get_priority_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge status-{{ task.status }}">
+                                            {{ task.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if task.due_date %}
+                                        {{ task.due_date|date:"M d, Y" }}
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="height: 20px; min-width: 80px;">
+                                            <div class="progress-bar {% if task.progress >= 100 %}bg-success{% elif task.progress >= 50 %}bg-info{% else %}bg-warning{% endif %}"
+                                                 style="width: {{ task.progress }}%;">
+                                                {{ task.progress }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'project_management:task_edit' task.project.id task.id %}" class="btn btn-sm btn-outline-primary" title="Edit Task">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-clipboard-check fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No tasks assigned to this person as process owner.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Tasks by Selected Process Member -->
+    {% if selected_member %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-success">
+                <div class="card-header bg-success text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-users me-2"></i>Tasks for {{ selected_member.get_full_name|default:selected_member.username }} (Process Member)
+                        </h5>
+                        <span class="badge bg-light text-success">{{ member_task_stats.total }} Total Tasks</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Task Statistics for Selected Member -->
+                    <div class="row mb-4">
+                        <div class="col-md-2">
+                            <div class="metric-box text-center">
+                                <h6 class="text-muted mb-1">To Do</h6>
+                                <h3 class="text-secondary mb-0">{{ member_task_stats.todo }}</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="metric-box text-center">
+                                <h6 class="text-muted mb-1">In Progress</h6>
+                                <h3 class="text-info mb-0">{{ member_task_stats.in_progress }}</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="metric-box text-center">
+                                <h6 class="text-muted mb-1">Completed</h6>
+                                <h3 class="text-success mb-0">{{ member_task_stats.completed }}</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="metric-box text-center">
+                                <h6 class="text-muted mb-1">Blocked</h6>
+                                <h3 class="text-warning mb-0">{{ member_task_stats.blocked }}</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="metric-box text-center">
+                                <h6 class="text-muted mb-1">Overdue</h6>
+                                <h3 class="text-danger mb-0">{{ member_task_stats.overdue }}</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="metric-box text-center">
+                                <h6 class="text-muted mb-1">Completion</h6>
+                                {% widthratio member_task_stats.completed member_task_stats.total 100 as member_completion_pct %}
+                                <h3 class="text-success mb-0">{{ member_completion_pct|default:0 }}%</h3>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Member Task List -->
+                    {% if member_tasks %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Task</th>
+                                    <th>Project</th>
+                                    <th>Process Owner</th>
+                                    <th>Priority</th>
+                                    <th>Status</th>
+                                    <th>Due Date</th>
+                                    <th>Progress</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for task in member_tasks %}
+                                <tr class="{% if task.is_overdue %}table-danger{% endif %}">
+                                    <td>
+                                        <a href="{% url 'project_management:task_detail' task.project.id task.id %}">
+                                            {{ task.title }}
+                                        </a>
+                                        {% if task.is_overdue %}
+                                        <span class="badge bg-danger ms-1">Overdue</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'project_management:project_detail' task.project.id %}" class="text-muted">
+                                            {{ task.project.name }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        {% if task.process_owner %}
+                                        <span class="badge bg-primary">{{ task.process_owner.get_full_name|default:task.process_owner.username }}</span>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge priority-{{ task.priority }}">
+                                            {{ task.get_priority_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge status-{{ task.status }}">
+                                            {{ task.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if task.due_date %}
+                                        {{ task.due_date|date:"M d, Y" }}
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="height: 20px; min-width: 80px;">
+                                            <div class="progress-bar {% if task.progress >= 100 %}bg-success{% elif task.progress >= 50 %}bg-info{% else %}bg-warning{% endif %}"
+                                                 style="width: {{ task.progress }}%;">
+                                                {{ task.progress }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'project_management:task_edit' task.project.id task.id %}" class="btn btn-sm btn-outline-primary" title="Edit Task">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-clipboard-check fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No tasks assigned to this person as process member.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Portfolio Summary Cards -->
     <div class="row mb-4">
         <div class="col-md-3">
@@ -307,6 +638,19 @@
     .badge-on_hold { background-color: #ffc107; color: #000; }
     .badge-completed { background-color: #007bff; }
     .badge-cancelled { background-color: #dc3545; }
+
+    /* Priority badges */
+    .priority-low { background-color: #6c757d; color: #fff; }
+    .priority-medium { background-color: #17a2b8; color: #fff; }
+    .priority-high { background-color: #fd7e14; color: #fff; }
+    .priority-critical { background-color: #dc3545; color: #fff; }
+
+    /* Status badges */
+    .status-todo { background-color: #6c757d; color: #fff; }
+    .status-in_progress { background-color: #17a2b8; color: #fff; }
+    .status-review { background-color: #6f42c1; color: #fff; }
+    .status-blocked { background-color: #fd7e14; color: #fff; }
+    .status-completed { background-color: #28a745; color: #fff; }
 
     .list-group-item {
         border-left: none;

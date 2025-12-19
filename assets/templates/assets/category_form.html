@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% if object %}Edit{% else %}Add{% endif %} Category{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'assets:categories' %}">Categories</a></li>
+            {% if object %}
+            <li class="breadcrumb-item active">Edit: {{ object.name }}</li>
+            {% else %}
+            <li class="breadcrumb-item active">Add New Category</li>
+            {% endif %}
+        </ol>
+    </nav>
+
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-{% if object %}edit{% else %}plus{% endif %}"></i>
+                {% if object %}Edit Category: {{ object.name }}{% else %}Add New Category{% endif %}
+            </h5>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                {{ form|crispy }}
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> {% if object %}Update{% else %}Create{% endif %} Category
+                    </button>
+                    <a href="{% url 'assets:categories' %}" class="btn btn-secondary">
+                        Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

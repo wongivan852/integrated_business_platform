@@ -79,6 +79,11 @@ def gantt_chart_view(request, pk):
 
     # Removed boundary tasks - no longer needed
 
+    # Get all active users for process members dropdown
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    all_users = User.objects.filter(is_active=True).order_by('first_name', 'last_name')
+
     context = {
         'project': project,
         'tasks': tasks_list,  # Use the list with boundary tasks
@@ -93,6 +98,7 @@ def gantt_chart_view(request, pk):
         'show_critical_path': request.GET.get('show_critical', 'true') == 'true',
         'show_dependencies': request.GET.get('show_deps', 'true') == 'true',
         'show_progress': request.GET.get('show_progress', 'true') == 'true',
+        'all_users': all_users,  # All active users for process members
     }
 
     return render(request, 'project_management/project_gantt.html', context)
@@ -587,13 +593,15 @@ def api_update_task_progress(request, project_pk, task_id):
         title = data.get('title', data.get('text'))  # Accept both 'title' and 'text'
         title_cn = data.get('title_cn', '')
         process_owner_id = data.get('process_owner_id')
+        process_member_ids = data.get('process_member_ids', [])
         definition_of_done = data.get('definition_of_done', '')
 
         # Log what we received
         import logging
         logger = logging.getLogger(__name__)
         logger.info(f"Update task {task_id}: progress={progress}, title={title}, title_cn={title_cn}, "
-                   f"process_owner_id={process_owner_id}, definition_of_done={definition_of_done[:50] if definition_of_done else ''}")
+                   f"process_owner_id={process_owner_id}, process_member_ids={process_member_ids}, "
+                   f"definition_of_done={definition_of_done[:50] if definition_of_done else ''}")
 
         if progress is None:
             return JsonResponse({'error': 'Progress value required'}, status=400)
@@ -635,6 +643,22 @@ def api_update_task_progress(request, project_pk, task_id):
 
         task.save(update_fields=['title', 'progress', 'status', 'title_cn', 'process_owner', 'definition_of_done'])
 
+        # Handle process members (ManyToMany field)
+        if process_member_ids is not None:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            try:
+                # Clear existing and set new process members
+                task.process_members.clear()
+                if process_member_ids:
+                    # Convert string IDs to integers and filter valid users
+                    member_ids = [int(mid) for mid in process_member_ids if mid]
+                    members = User.objects.filter(pk__in=member_ids)
+                    task.process_members.set(members)
+                    logger.info(f"Task {task_id} process_members set to: {list(members.values_list('pk', flat=True))}")
+            except Exception as pm_error:
+                logger.warning(f"Failed to update process_members: {pm_error}")
+
         # Log activity
         try:
             TaskActivity.objects.create(
@@ -658,6 +682,7 @@ def api_update_task_progress(request, project_pk, task_id):
             'status': task.status,
             'title_cn': task.title_cn,
             'process_owner_id': task.process_owner.pk if task.process_owner else None,
+            'process_member_ids': list(task.process_members.values_list('pk', flat=True)),
             'definition_of_done': task.definition_of_done
         })
 

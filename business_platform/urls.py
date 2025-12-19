@@ -67,6 +67,9 @@ urlpatterns = [
     # CRM System
     path('crm/', include('crm.urls')),  # Customer Relationship Management
 
+    # Stripe Integration
+    path('stripe/', include('stripe_integration.urls')),  # Stripe payment processing
+
     # API endpoints (commented out until api module is created)
     # path('api/v1/', include('app_integration.api.urls')),
 ]

@@ -459,3 +459,52 @@ def project_remove_member(request, pk, member_id):
     }
 
     return render(request, 'project_management/project_remove_member.html', context)
+
+
+@login_required
+def project_file_pool(request, project_pk):
+    """
+    Display all files uploaded to a project
+    """
+    from ..models import TaskAttachment
+    
+    project = get_object_or_404(Project, pk=project_pk)
+    
+    # Check access
+    has_access, user_role = check_project_access(request.user, project, required_role='viewer')
+    if not has_access:
+        messages.error(request, _('You do not have permission to view this project.'))
+        return redirect('project_management:project_list')
+    
+    # Get all attachments for this project's tasks
+    attachments = TaskAttachment.objects.filter(
+        task__project=project
+    ).select_related('task', 'uploaded_by').order_by('-uploaded_at')
+    
+    # Add file existence check to each attachment
+    for attachment in attachments:
+        attachment.exists = attachment.file_exists()
+    
+    # Filter options
+    show_missing_only = request.GET.get('missing') == 'true'
+    search_query = request.GET.get('search', '')
+    
+    if show_missing_only:
+        attachments = [a for a in attachments if not a.exists]
+    
+    if search_query:
+        attachments = [a for a in attachments if search_query.lower() in a.filename.lower()]
+    
+    # Count missing files
+    missing_count = sum(1 for a in TaskAttachment.objects.filter(task__project=project) if not a.file_exists())
+    
+    context = {
+        'project': project,
+        'attachments': attachments,
+        'user_role': user_role,
+        'missing_count': missing_count,
+        'show_missing_only': show_missing_only,
+        'search_query': search_query,
+    }
+    
+    return render(request, 'project_management/project_file_pool.html', context)

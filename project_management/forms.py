@@ -133,6 +133,7 @@ class TaskForm(forms.ModelForm):
             'priority',
             'assigned_to',
             'process_owner',
+            'process_members',
             'definition_of_done',
             'start_date',
             'end_date',
@@ -200,6 +201,10 @@ class TaskForm(forms.ModelForm):
             'process_owner': forms.Select(attrs={
                 'class': 'form-select',
             }),
+            'process_members': forms.SelectMultiple(attrs={
+                'class': 'form-select',
+                'size': '5',
+            }),
             'definition_of_done': forms.Textarea(attrs={
                 'class': 'form-control',
                 'placeholder': 'Enter acceptance criteria and completion requirements',
@@ -227,6 +232,9 @@ class TaskForm(forms.ModelForm):
 
             # Filter process_owner to only show project members
             self.fields['process_owner'].queryset = project.team_members.all()
+
+            # Filter process_members to only show project members
+            self.fields['process_members'].queryset = project.team_members.all()
 
     def clean(self):
         """
