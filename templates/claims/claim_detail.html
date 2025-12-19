@@ -93,13 +93,126 @@
 
             <!-- Expense Items -->
             <div class="card shadow mb-4">
-                <div class="card-header py-3">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
                     <h6 class="m-0 font-weight-bold text-primary">
                         <i class="fas fa-list me-2"></i>Expense Items
                     </h6>
+                    {% if claim.claimant == request.user and claim.status == 'draft' %}
+                    <button type="button" class="btn btn-success btn-sm" id="addExpenseItemBtn">
+                        <i class="fas fa-plus me-1"></i>Add Item
+                    </button>
+                    {% endif %}
                 </div>
                 <div class="card-body">
-                    {% if claim.expense_items.all %}
+                    {% if claim.claimant == request.user and claim.status == 'draft' %}
+                    <!-- Editable Form for Draft Claims -->
+                    <form method="post" action="{% url 'claims:claim_detail' claim.id %}" enctype="multipart/form-data" id="expenseItemsForm">
+                        {% csrf_token %}
+                        <input type="hidden" name="update_items" value="1">
+                        <div id="expense-items-container">
+                            {% for item in expense_items_ordered %}
+                            <div class="expense-item border rounded p-3 mb-3" data-item-id="{{ item.id }}">
+                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <h6 class="text-primary mb-0">
+                                        <i class="fas fa-receipt me-2"></i>Item #{{ forloop.counter }}
+                                    </h6>
+                                    <button type="button" class="btn btn-outline-danger btn-sm remove-expense-item">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                                <input type="hidden" name="expense_items[{{ forloop.counter0 }}][id]" value="{{ item.id }}">
+
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label class="form-label">Date <span class="text-danger">*</span></label>
+                                            <input type="date" name="expense_items[{{ forloop.counter0 }}][expense_date]"
+                                                   class="form-control" value="{{ item.expense_date|date:'Y-m-d' }}" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label class="form-label">Category <span class="text-danger">*</span></label>
+                                            <select name="expense_items[{{ forloop.counter0 }}][category]" class="form-select" required>
+                                                {% for cat in expense_categories %}
+                                                <option value="{{ cat.id }}" {% if item.category_id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label class="form-label">Currency <span class="text-danger">*</span></label>
+                                            <select name="expense_items[{{ forloop.counter0 }}][currency]" class="form-select currency-select" required>
+                                                {% for curr in currencies %}
+                                                <option value="{{ curr.code }}" data-rate="{{ curr.exchange_rate_to_hkd }}" {% if item.currency.code == curr.code %}selected{% endif %}>{{ curr.code }} - {{ curr.name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label class="form-label">Amount <span class="text-danger">*</span></label>
+                                            <input type="text" name="expense_items[{{ forloop.counter0 }}][amount]"
+                                                   class="form-control decimal-input-safe" value="{{ item.original_amount }}" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label class="form-label">Exchange Rate</label>
+                                            <input type="number" name="expense_items[{{ forloop.counter0 }}][exchange_rate]"
+                                                   class="form-control exchange-rate-input" value="{{ item.exchange_rate }}" step="0.0001" min="0.0001">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label class="form-label">Receipt</label>
+                                            {% if item.documents.exists %}
+                                            <div class="mb-2">
+                                                <a href="{{ item.documents.first.file.url }}" target="_blank" class="btn btn-outline-primary btn-sm">
+                                                    <i class="fas fa-paperclip me-1"></i>View Current
+                                                </a>
+                                            </div>
+                                            {% endif %}
+                                            <input type="file" name="expense_items[{{ forloop.counter0 }}][receipt][]"
+                                                   class="form-control receipt-input"
+                                                   accept="image/*,.pdf"
+                                                   multiple>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Description</label>
+                                    <textarea name="expense_items[{{ forloop.counter0 }}][description]"
+                                              class="form-control" rows="2">{{ item.description }}</textarea>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <!-- Show message if no items -->
+                            <div id="no-items-message" class="text-center text-muted py-4">
+                                <i class="fas fa-inbox fa-3x mb-3"></i>
+                                <p>No expense items added yet. Click "Add Item" to add your first expense.</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Total Display -->
+                        <div class="border-top pt-3 mt-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="text-primary mb-0">Total: <span id="total-amount">HK$ {{ claim.total_amount_hkd }}</span></h5>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-2"></i>Save Changes
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                    {% else %}
+                    <!-- Read-only View for Non-Draft or Other Users -->
+                    {% if expense_items_ordered %}
                     <div class="table-responsive">
                         <table class="table table-bordered table-striped">
                             <thead class="table-primary">
@@ -112,7 +225,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for item in claim.expense_items.all %}
+                                {% for item in expense_items_ordered %}
                                 <tr>
                                     <td>{{ item.expense_date|date:"M d, Y" }}</td>
                                     <td>{{ item.description }}</td>
@@ -148,6 +261,7 @@
                         <i class="fas fa-inbox fa-3x mb-3"></i>
                         <p>No expense items added yet.</p>
                     </div>
+                    {% endif %}
                     {% endif %}
                 </div>
             </div>
@@ -293,12 +407,112 @@
 {% block extra_js %}
 <script>
 $(document).ready(function() {
-    // Add any specific JavaScript for claim detail functionality
-    
     // Auto-dismiss alerts after 5 seconds
     setTimeout(function() {
         $('.alert').fadeOut('slow');
     }, 5000);
+
+    // Add Item button handler
+    var expenseItemIndex = {{ claim.expense_items.count }};
+
+    $('#addExpenseItemBtn').on('click', function() {
+        // Hide no items message if visible
+        $('#no-items-message').hide();
+
+        var newItem = `
+        <div class="expense-item border rounded p-3 mb-3" data-item-id="">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+                <h6 class="text-primary mb-0">
+                    <i class="fas fa-receipt me-2"></i>New Item
+                </h6>
+                <button type="button" class="btn btn-outline-danger btn-sm remove-expense-item">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label class="form-label">Date <span class="text-danger">*</span></label>
+                        <input type="date" name="expense_items[${expenseItemIndex}][expense_date]"
+                               class="form-control" value="{{ 'now'|date:'Y-m-d' }}" required>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label class="form-label">Category <span class="text-danger">*</span></label>
+                        <select name="expense_items[${expenseItemIndex}][category]" class="form-select" required>
+                            {% for cat in expense_categories %}
+                            <option value="{{ cat.id }}">{{ cat.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label class="form-label">Currency <span class="text-danger">*</span></label>
+                        <select name="expense_items[${expenseItemIndex}][currency]" class="form-select currency-select" required>
+                            {% for curr in currencies %}
+                            <option value="{{ curr.code }}" data-rate="{{ curr.exchange_rate_to_hkd }}"{% if curr.code == 'HKD' %} selected{% endif %}>{{ curr.code }} - {{ curr.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label class="form-label">Amount <span class="text-danger">*</span></label>
+                        <input type="text" name="expense_items[${expenseItemIndex}][amount]"
+                               class="form-control decimal-input-safe" value="0" required>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label class="form-label">Exchange Rate</label>
+                        <input type="number" name="expense_items[${expenseItemIndex}][exchange_rate]"
+                               class="form-control exchange-rate-input" value="1.0" step="0.0001" min="0.0001">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label class="form-label">Receipt</label>
+                        <input type="file" name="expense_items[${expenseItemIndex}][receipt][]"
+                               class="form-control receipt-input"
+                               accept="image/*,.pdf"
+                               multiple>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Description</label>
+                <textarea name="expense_items[${expenseItemIndex}][description]"
+                          class="form-control" rows="2" placeholder="Brief description"></textarea>
+            </div>
+        </div>
+        `;
+
+        $('#expense-items-container').append(newItem);
+        expenseItemIndex++;
+    });
+
+    // Remove expense item handler
+    $(document).on('click', '.remove-expense-item', function() {
+        $(this).closest('.expense-item').remove();
+
+        // Show no items message if all items removed
+        if ($('.expense-item').length === 0) {
+            $('#no-items-message').show();
+        }
+    });
+
+    // Currency change - update exchange rate
+    $(document).on('change', '.currency-select', function() {
+        var rate = $(this).find(':selected').data('rate') || 1.0;
+        $(this).closest('.expense-item').find('.exchange-rate-input').val(rate);
+    });
 });
 </script>
 {% endblock %}

@@ -144,10 +144,115 @@ class OptimizedExpenseClaimDetailView(LoginRequiredMixin, DetailView):
         return obj
     
     def get_context_data(self, **kwargs):
-        """Add delete permission to context."""
+        """Add delete permission and form data to context."""
         context = super().get_context_data(**kwargs)
         context['can_delete_claim'] = self.object.can_delete(self.request.user)
+        # Add categories and currencies for editable expense items
+        context['expense_categories'] = ExpenseCategory.objects.filter(is_active=True)
+        context['currencies'] = Currency.objects.filter(is_active=True)
+        # Add expense items ordered by date
+        context['expense_items_ordered'] = self.object.expense_items.all().order_by('expense_date', 'id')
         return context
+
+    def post(self, request, *args, **kwargs):
+        """Handle POST requests for updating expense items."""
+        self.object = self.get_object()
+        claim = self.object
+
+        # Check if this is an expense items update
+        if request.POST.get('update_items') == '1':
+            # Only allow owner of draft claims to update
+            if claim.claimant != request.user or claim.status != 'draft':
+                messages.error(request, 'You cannot edit this claim.')
+                return redirect('claims:claim_detail', pk=claim.pk)
+
+            # Process expense items
+            from decimal import Decimal, InvalidOperation as DecimalInvalidOperation
+            from expense_documents.models import ExpenseDocument
+            import re
+
+            existing_item_ids = set(claim.expense_items.values_list('id', flat=True))
+            processed_item_ids = set()
+            expense_items_processed = 0
+
+            for key in request.POST:
+                match = re.match(r'expense_items\[(\d+)\]\[(\w+)\]', key)
+                if match:
+                    index, field = match.groups()
+                    index = int(index)
+
+                    if field == 'category':
+                        try:
+                            item_id = request.POST.get(f'expense_items[{index}][id]')
+                            category_id = request.POST.get(f'expense_items[{index}][category]')
+                            currency_code = request.POST.get(f'expense_items[{index}][currency]')
+                            exchange_rate = request.POST.get(f'expense_items[{index}][exchange_rate]')
+                            amount_str = request.POST.get(f'expense_items[{index}][amount]', '').replace(',', '')
+                            expense_date = request.POST.get(f'expense_items[{index}][expense_date]')
+                            description = request.POST.get(f'expense_items[{index}][description]', '')
+
+                            if category_id and currency_code and amount_str and expense_date:
+                                original_amount = Decimal(amount_str)
+                                exchange_rate_val = Decimal(exchange_rate or '1.0')
+
+                                if item_id:
+                                    # Update existing item
+                                    expense_item = ExpenseItem.objects.get(id=int(item_id), expense_claim=claim)
+                                    processed_item_ids.add(expense_item.id)
+                                else:
+                                    # Create new item
+                                    next_number = claim.expense_items.count() + 1
+                                    expense_item = ExpenseItem(expense_claim=claim, item_number=next_number)
+
+                                expense_item.category_id = category_id
+                                expense_item.currency = Currency.objects.get(code=currency_code)
+                                expense_item.exchange_rate = exchange_rate_val
+                                expense_item.original_amount = original_amount
+                                expense_item.amount_hkd = original_amount * exchange_rate_val
+                                expense_item.expense_date = expense_date
+                                expense_item.description = description
+                                expense_item.save()
+                                expense_items_processed += 1
+
+                                # Handle receipt upload
+                                receipt_files = request.FILES.getlist(f'expense_items[{index}][receipt][]')
+                                if not receipt_files:
+                                    receipt_file = request.FILES.get(f'expense_items[{index}][receipt]')
+                                    if receipt_file:
+                                        receipt_files = [receipt_file]
+                                if receipt_files:
+                                    expense_item.documents.filter(document_type='receipt').delete()
+                                    for receipt_file in receipt_files:
+                                        ExpenseDocument.objects.create(
+                                            expense_item=expense_item,
+                                            document_type='receipt',
+                                            file=receipt_file,
+                                            uploaded_by=request.user
+                                        )
+                        except (ValueError, DecimalInvalidOperation) as e:
+                            messages.warning(request, f'Error processing expense item {index}: {str(e)}')
+                            continue
+
+            # Delete removed expense items
+            items_to_delete = existing_item_ids - processed_item_ids
+            if items_to_delete:
+                deleted_count = claim.expense_items.filter(id__in=items_to_delete).count()
+                claim.expense_items.filter(id__in=items_to_delete).delete()
+                if deleted_count > 0:
+                    messages.info(request, f'Removed {deleted_count} expense items.')
+
+            # Update claim totals
+            claim.update_totals()
+
+            if expense_items_processed > 0:
+                messages.success(request, f'Expense items updated successfully ({expense_items_processed} items).')
+            else:
+                messages.success(request, 'Expense items saved.')
+
+            return redirect('claims:claim_detail', pk=claim.pk)
+
+        # Handle other POST actions (submit/approve/reject)
+        return super().get(request, *args, **kwargs)
 
 
 class OptimizedExpenseClaimCreateView(LoginRequiredMixin, CreateView):
@@ -439,9 +544,14 @@ def claim_create_view(request):
                                     description=description
                                 )
                                 
-                                # Handle receipt upload
-                                receipt_file = request.FILES.get(f'expense_items[{index}][receipt]')
-                                if receipt_file:
+                                # Handle receipt upload (supports multiple files with [] suffix)
+                                receipt_files = request.FILES.getlist(f'expense_items[{index}][receipt][]')
+                                if not receipt_files:
+                                    # Fallback for single file without [] suffix
+                                    receipt_file = request.FILES.get(f'expense_items[{index}][receipt]')
+                                    if receipt_file:
+                                        receipt_files = [receipt_file]
+                                for receipt_file in receipt_files:
                                     ExpenseDocument.objects.create(
                                         expense_item=expense_item,
                                         document_type='receipt',
@@ -599,18 +709,24 @@ def claim_edit_view(request, pk):
                         expense_item.save()
                         expense_items_processed += 1
                         
-                        # Handle receipt upload
-                        receipt_file = request.FILES.get(f'expense_items[{index}][receipt]')
-                        if receipt_file:
-                            # Delete existing receipt for this item
+                        # Handle receipt upload (supports multiple files with [] suffix)
+                        receipt_files = request.FILES.getlist(f'expense_items[{index}][receipt][]')
+                        if not receipt_files:
+                            # Fallback for single file without [] suffix
+                            receipt_file = request.FILES.get(f'expense_items[{index}][receipt]')
+                            if receipt_file:
+                                receipt_files = [receipt_file]
+                        if receipt_files:
+                            # Delete existing receipts for this item
                             expense_item.documents.filter(document_type='receipt').delete()
-                            # Create new receipt document
-                            ExpenseDocument.objects.create(
-                                expense_item=expense_item,
-                                document_type='receipt',
-                                file=receipt_file,
-                                uploaded_by=request.user
-                            )
+                            # Create new receipt documents
+                            for receipt_file in receipt_files:
+                                ExpenseDocument.objects.create(
+                                    expense_item=expense_item,
+                                    document_type='receipt',
+                                    file=receipt_file,
+                                    uploaded_by=request.user
+                                )
                         
                     except (ValueError, DecimalInvalidOperation) as e:
                         messages.warning(request, f'Error processing expense item {index}: {str(e)}')
@@ -623,12 +739,15 @@ def claim_edit_view(request, pk):
                     claim.expense_items.filter(id__in=items_to_delete).delete()
                     if deleted_count > 0:
                         messages.info(request, f'Removed {deleted_count} expense items.')
-                
+
+                # Update claim totals
+                claim.update_totals()
+
                 if expense_items_processed > 0:
                     messages.success(request, f'Expense claim updated successfully with {expense_items_processed} items.')
                 else:
                     messages.success(request, 'Expense claim updated successfully.')
-                
+
                 return redirect('claims:claim_detail', pk=pk)
     else:
         form = ExpenseClaimForm(instance=claim, user=request.user)
