@@ -125,6 +125,7 @@ class Company(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
+        db_table = 'claims_company'
         verbose_name = _("Company")
         verbose_name_plural = _("Companies")
         ordering = ['name']
@@ -223,6 +224,7 @@ class ExpenseCategory(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
+        db_table = 'claims_expensecategory'
         verbose_name = _("Expense Category")
         verbose_name_plural = _("Expense Categories")
         ordering = ['sort_order', 'name']
@@ -273,6 +275,7 @@ class Currency(models.Model):
     is_active = models.BooleanField(_("Active"), default=True)
     
     class Meta:
+        db_table = 'claims_currency'
         verbose_name = _("Currency")
         verbose_name_plural = _("Currencies")
         ordering = ['name']
@@ -319,6 +322,7 @@ class ExchangeRate(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
+        db_table = 'claims_exchangerate'
         verbose_name = _("Exchange Rate")
         verbose_name_plural = _("Exchange Rates")
         ordering = ['-effective_date']
@@ -356,7 +360,17 @@ class ExpenseClaim(models.Model):
         related_name='expense_claims',
         verbose_name=_("Claimant")
     )
-    
+
+    claim_for = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='claims_submitted_for',
+        verbose_name=_("Claim For"),
+        help_text=_("Person the expense is being claimed for (if different from claimant)")
+    )
+
     company = models.ForeignKey(
         Company,
         on_delete=models.PROTECT,
@@ -452,6 +466,7 @@ class ExpenseClaim(models.Model):
     )
     
     class Meta:
+        db_table = 'claims_expenseclaim'
         verbose_name = _("Expense Claim")
         verbose_name_plural = _("Expense Claims")
         ordering = ['-created_at']
@@ -620,6 +635,7 @@ class ExpenseItem(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
+        db_table = 'claims_expenseitem'
         verbose_name = _("Expense Item")
         verbose_name_plural = _("Expense Items")
         ordering = ['expense_claim', 'item_number']
@@ -676,6 +692,7 @@ class ClaimComment(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
+        db_table = 'claims_claimcomment'
         verbose_name = _("Claim Comment")
         verbose_name_plural = _("Claim Comments")
         ordering = ['-created_at']
@@ -719,6 +736,7 @@ class ClaimStatusHistory(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
+        db_table = 'claims_claimstatushistory'
         verbose_name = _("Status History")
         verbose_name_plural = _("Status Histories")
         ordering = ['-created_at']

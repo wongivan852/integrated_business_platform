@@ -45,15 +45,28 @@
                 </select>
             </div>
             <div class="col-md-3">
+                <label for="sort" class="form-label">Sort By</label>
+                <select name="sort" id="sort" class="form-select">
+                    <option value="-expense_date" {% if current_filters.sort == '-expense_date' %}selected{% endif %}>Date of Occurrence (Newest First)</option>
+                    <option value="expense_date" {% if current_filters.sort == 'expense_date' %}selected{% endif %}>Date of Occurrence (Oldest First)</option>
+                    <option value="-claim_number" {% if current_filters.sort == '-claim_number' %}selected{% endif %}>Claim # (Newest First)</option>
+                    <option value="claim_number" {% if current_filters.sort == 'claim_number' %}selected{% endif %}>Claim # (Oldest First)</option>
+                    <option value="-total_amount_hkd" {% if current_filters.sort == '-total_amount_hkd' %}selected{% endif %}>Amount (Highest First)</option>
+                    <option value="total_amount_hkd" {% if current_filters.sort == 'total_amount_hkd' %}selected{% endif %}>Amount (Lowest First)</option>
+                    <option value="-created_at" {% if current_filters.sort == '-created_at' %}selected{% endif %}>Created (Newest First)</option>
+                    <option value="created_at" {% if current_filters.sort == 'created_at' %}selected{% endif %}>Created (Oldest First)</option>
+                </select>
+            </div>
+            <div class="col-md-2">
                 <label for="date_from" class="form-label">From Date</label>
                 <input type="date" name="date_from" id="date_from" class="form-control" value="{{ current_filters.date_from }}">
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label for="date_to" class="form-label">To Date</label>
                 <input type="date" name="date_to" id="date_to" class="form-control" value="{{ current_filters.date_to }}">
             </div>
-            <div class="col-12">
-                <button type="submit" class="btn btn-primary">
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">
                     <i class="fas fa-search"></i> Filter
                 </button>
                 <a href="{% url 'claims:claim_list' %}" class="btn btn-outline-secondary">
@@ -80,8 +93,10 @@
                     <tr>
                         <th>Claim #</th>
                         <th>Event/Purpose</th>
+                        <th>Claim For</th>
                         <th>Company</th>
                         <th>Period</th>
+                        <th>Date of Occurrence</th>
                         <th>Total Amount</th>
                         <th>Status</th>
                         <th>Created</th>
@@ -97,7 +112,22 @@
                         <td>
                             <strong>{{ claim.event_name|truncatechars:40 }}</strong>
                             {% if claim.expense_items.count %}
-                            <br><small class="text-muted">{{ claim.expense_items.count }} items</small>
+                            <br><small class="text-muted">{{ claim.expense_items.count }} items:</small>
+                            <br>
+                            {% for item in claim.expense_items.all|slice:":3" %}
+                            <small class="text-secondary">• {{ item.description|truncatechars:30 }}</small>{% if not forloop.last %}<br>{% endif %}
+                            {% endfor %}
+                            {% if claim.expense_items.count > 3 %}
+                            <br><small class="text-muted fst-italic">...and {{ claim.expense_items.count|add:"-3" }} more</small>
+                            {% endif %}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if claim.claim_for and claim.claim_for != claim.claimant %}
+                            <span class="badge bg-primary">{{ claim.claim_for.get_full_name }}</span>
+                            <br><small class="text-muted">by {{ claim.claimant.get_full_name }}</small>
+                            {% else %}
+                            <span class="text-muted">{{ claim.claimant.get_full_name }}</span>
                             {% endif %}
                         </td>
                         <td>
@@ -105,9 +135,19 @@
                         </td>
                         <td>
                             <small>
-                                {{ claim.period_from|date:"M d" }} - 
-                                {{ claim.period_to|date:"M d, Y" }}
+                                <strong>From:</strong> {{ claim.period_from|date:"M d, Y" }}<br>
+                                <strong>To:</strong> {{ claim.period_to|date:"M d, Y" }}
                             </small>
+                        </td>
+                        <td>
+                            {% if claim.earliest_expense_date %}
+                            <strong>{{ claim.earliest_expense_date|date:"M d, Y" }}</strong>
+                            {% if claim.latest_expense_date and claim.latest_expense_date != claim.earliest_expense_date %}
+                            <br><small class="text-muted">to {{ claim.latest_expense_date|date:"M d, Y" }}</small>
+                            {% endif %}
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
                         </td>
                         <td>
                             <strong class="text-success">
@@ -140,27 +180,45 @@
                             </small>
                         </td>
                         <td>
+                            <div class="btn-group me-1" role="group">
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-secondary move-claim-up"
+                                        data-claim-id="{{ claim.pk }}"
+                                        data-bs-toggle="tooltip"
+                                        title="Move Up"
+                                        {% if forloop.first %}disabled{% endif %}>
+                                    <i class="fas fa-arrow-up"></i>
+                                </button>
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-secondary move-claim-down"
+                                        data-claim-id="{{ claim.pk }}"
+                                        data-bs-toggle="tooltip"
+                                        title="Move Down"
+                                        {% if forloop.last %}disabled{% endif %}>
+                                    <i class="fas fa-arrow-down"></i>
+                                </button>
+                            </div>
                             <div class="btn-group" role="group">
-                                <a href="{% url 'claims:claim_detail' claim.pk %}" 
-                                   class="btn btn-sm btn-outline-primary" 
-                                   data-bs-toggle="tooltip" 
+                                <a href="{% url 'claims:claim_detail' claim.pk %}"
+                                   class="btn btn-sm btn-outline-primary"
+                                   data-bs-toggle="tooltip"
                                    title="View Details">
                                     <i class="fas fa-eye"></i>
                                 </a>
                                 {% if claim.status == 'draft' %}
-                                <a href="{% url 'claims:claim_edit' claim.pk %}" 
+                                <a href="{% url 'claims:claim_edit' claim.pk %}"
                                    class="btn btn-sm btn-outline-warning"
-                                   data-bs-toggle="tooltip" 
+                                   data-bs-toggle="tooltip"
                                    title="Edit">
                                     <i class="fas fa-edit"></i>
                                 </a>
                                 {% endif %}
                                 {% if claim.can_delete %}
-                                <button type="button" 
-                                        class="btn btn-sm btn-outline-danger delete-claim" 
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-danger delete-claim"
                                         data-claim-id="{{ claim.pk }}"
                                         data-claim-number="{{ claim.claim_number }}"
-                                        data-bs-toggle="tooltip" 
+                                        data-bs-toggle="tooltip"
                                         title="Delete Draft Claim">
                                     <i class="fas fa-trash"></i>
                                 </button>
@@ -298,6 +356,51 @@ document.addEventListener('DOMContentLoaded', function() {
         select.addEventListener('change', function() {
             // Optional: auto-submit on change
             // this.form.submit();
+        });
+    });
+
+    // Move claim up/down functionality
+    const moveUpButtons = document.querySelectorAll('.move-claim-up');
+    const moveDownButtons = document.querySelectorAll('.move-claim-down');
+
+    function moveClaim(claimId, direction) {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        // Use the current page's base path to determine the correct URL prefix
+        const basePath = window.location.pathname.split('/expense-claims/')[0] || '';
+
+        fetch(`${basePath}/expense-claims/${claimId}/move/${direction}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Reload the page to show updated order
+                window.location.reload();
+            } else {
+                alert(data.error || 'Failed to move claim');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while moving the claim');
+        });
+    }
+
+    moveUpButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const claimId = this.dataset.claimId;
+            moveClaim(claimId, 'up');
+        });
+    });
+
+    moveDownButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const claimId = this.dataset.claimId;
+            moveClaim(claimId, 'down');
         });
     });
 });

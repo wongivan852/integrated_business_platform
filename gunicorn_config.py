@@ -5,7 +5,7 @@ Gunicorn configuration file for Integrated Business Platform
 import multiprocessing
 
 # Server socket
-bind = "0.0.0.0:8000"
+bind = "0.0.0.0:8080"
 backlog = 2048
 
 # Worker processes
