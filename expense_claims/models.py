@@ -464,12 +464,19 @@ class ExpenseClaim(models.Model):
         null=True,
         blank=True
     )
-    
+
+    # Display order for custom sorting
+    display_order = models.PositiveIntegerField(
+        _("Display Order"),
+        default=0,
+        help_text=_("Custom sort order for dashboard display")
+    )
+
     class Meta:
         db_table = 'claims_expenseclaim'
         verbose_name = _("Expense Claim")
         verbose_name_plural = _("Expense Claims")
-        ordering = ['-created_at']
+        ordering = ['display_order', '-created_at']
         permissions = [
             ('can_approve_claims', 'Can approve expense claims'),
             ('can_view_all_claims', 'Can view all expense claims'),
