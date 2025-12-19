@@ -4,165 +4,177 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <base href="http://localhost:8080/">
     <title>Expense Claims Print View</title>
     <style>
         /* Print-specific styles */
         @media print {
             @page {
-                margin: 0.5in;
+                margin: 10mm 15mm;
                 size: A4 landscape;
             }
-            .no-print { display: none; }
+            .no-print { display: none !important; }
             .page-break { page-break-before: always; }
             .page-break-after { page-break-after: always; }
         }
-        
-        /* Base styles matching PDF format */
+
+        /* Base styles for print */
         body {
-            font-family: Arial, sans-serif;
-            font-size: 11px;
-            line-height: 1.2;
+            font-family: 'DejaVu Sans', Arial, sans-serif;
+            font-size: 12pt;
+            line-height: 1.3;
             margin: 0;
-            padding: 20px;
+            padding: 0;
+            color: #000;
         }
-        
-        .claim-container {
-            width: 100%;
-            margin-bottom: 40px;
+
+        .print-container {
+            max-width: 100%;
+            margin: 0;
         }
-        
-        .claim-header {
-            text-align: left;
+
+        /* Header styles */
+        .header {
+            text-align: center;
             margin-bottom: 20px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 10px;
         }
-        
+
         .company-name {
-            font-size: 16px;
+            font-size: 18pt;
             font-weight: bold;
             margin-bottom: 5px;
         }
-        
-        .claim-title {
-            font-size: 14px;
-            margin-bottom: 10px;
+
+        .form-title {
+            font-size: 16pt;
+            font-weight: bold;
+            margin: 5px 0;
         }
-        
-        .claim-info {
-            display: flex;
-            justify-content: space-between;
+
+        .subtitle {
+            font-size: 13pt;
+            color: #666;
+            margin: 3px 0;
+        }
+
+        /* Summary page styles */
+        .summary-section {
             margin-bottom: 20px;
         }
-        
-        .info-left, .info-right {
-            width: 48%;
+
+        .summary-section h3 {
+            font-size: 14pt;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 5px;
         }
-        
-        .info-line {
-            margin-bottom: 5px;
+
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
         }
-        
-        /* Table styles matching PDF */
+
+        .info-table td {
+            padding: 6px 10px;
+            border: 1px solid #ccc;
+            vertical-align: top;
+            font-size: 12pt;
+        }
+
+        .info-table td.label {
+            background-color: #f5f5f5;
+            font-weight: bold;
+            width: 25%;
+        }
+
+        /* Expense table styles */
         .expense-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 10px;
-            margin-bottom: 20px;
+            font-size: 11pt;
+            margin-bottom: 15px;
+            table-layout: fixed;
         }
-        
+
         .expense-table th,
         .expense-table td {
+            padding: 5px;
             border: 1px solid #000;
-            padding: 4px;
-            text-align: left;
+            text-align: center;
             vertical-align: top;
+            overflow: hidden;
+            word-wrap: break-word;
         }
-        
+
         .expense-table th {
             background-color: #f0f0f0;
             font-weight: bold;
             text-align: center;
         }
-        
+
         .expense-table .item-col { width: 30px; }
-        .expense-table .date-col { width: 60px; }
-        .expense-table .desc-col { width: 250px; }
-        .expense-table .currency-col { width: 50px; }
-        .expense-table .category-cols { width: 40px; }
+        .expense-table .date-col { width: 55px; }
+        .expense-table .desc-col { width: auto; text-align: left; }
+        .expense-table .currency-col { width: 45px; }
+        .expense-table .category-cols { width: 55px; }
         .expense-table .exchange-col { width: 50px; }
         .expense-table .total-col { width: 60px; }
-        
-        /* Category columns - matching PDF structure */
+
+        /* Category columns - horizontal labels */
         .category-header {
-            writing-mode: vertical-rl;
-            text-orientation: mixed;
-            font-size: 9px;
+            font-size: 8pt;
             text-align: center;
-            padding: 2px 1px !important;
+            padding: 2px !important;
+            line-height: 1.1;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            hyphens: auto;
         }
-        
+
+        .category-cols {
+            width: 55px;
+            min-width: 55px;
+            max-width: 55px;
+            font-size: 8pt;
+        }
+
         .amount-cell {
             text-align: right;
             font-family: monospace;
+            font-size: 10pt;
         }
-        
+
         .total-row {
             font-weight: bold;
             background-color: #f8f8f8;
         }
-        
+
         .total-row td {
             font-weight: bold;
         }
-        
+
         /* Approval section */
         .approval-section {
             margin-top: 30px;
             display: flex;
             justify-content: space-between;
         }
-        
+
         .approval-box {
             border: 1px solid #000;
             padding: 10px;
             width: 200px;
             height: 50px;
         }
-        
+
         .approval-label {
             font-weight: bold;
             margin-bottom: 5px;
         }
 
-        /* Receipt references section */
-        .receipt-references {
-            margin-top: 30px;
-            border-top: 1px solid #ccc;
-            padding-top: 15px;
-        }
-
-        .receipt-references-title {
-            font-weight: bold;
-            margin-bottom: 10px;
-            font-size: 12px;
-        }
-
-        .receipt-refs-row {
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            gap: 20px;
-            font-size: 10px;
-        }
-
-        .receipt-ref-item {
-            text-align: center;
-            flex: 1;
-            border: 1px dashed #999;
-            padding: 8px;
-            min-height: 30px;
-            background-color: #f9f9f9;
-        }
-        
         /* Print controls */
         .print-controls {
             position: fixed;
@@ -174,7 +186,7 @@
             border-radius: 5px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
-        
+
         .btn {
             padding: 8px 16px;
             margin: 0 5px;
@@ -184,28 +196,28 @@
             text-decoration: none;
             display: inline-block;
         }
-        
+
         .btn-primary {
             background-color: #007bff;
             color: white;
         }
-        
+
         .btn-secondary {
             background-color: #6c757d;
             color: white;
         }
-        
+
         .btn:hover {
             opacity: 0.8;
         }
-        
-        /* Receipt images placeholder */
+
+        /* Receipt note */
         .receipt-note {
-            font-size: 9px;
+            font-size: 9pt;
             font-style: italic;
             color: #666;
         }
-        
+
         /* Receipt copies section for A4 landscape */
         .receipt-copies-section {
             margin-top: 15px;
@@ -214,16 +226,16 @@
             display: flex;
             flex-direction: column;
         }
-        
+
         .receipt-copies-title {
             font-weight: bold;
-            font-size: 13px;
+            font-size: 13pt;
             margin-bottom: 15px;
             text-align: center;
             border-bottom: 1px solid #333;
             padding-bottom: 8px;
         }
-        
+
         .receipt-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -231,14 +243,14 @@
             align-items: stretch;
             flex-grow: 1;
         }
-        
+
         /* For landscape A4: 3 receipts per row */
         @media print {
             .receipt-grid {
                 grid-template-columns: repeat(3, 1fr);
                 gap: 25px;
             }
-            
+
             .receipt-copies-section {
                 margin-top: 0;
                 padding: 15px 0;
@@ -246,7 +258,7 @@
                 height: calc(100vh - 40px);
             }
         }
-        
+
         .receipt-item {
             border: 2px solid #333;
             padding: 15px;
@@ -257,17 +269,17 @@
             display: flex;
             flex-direction: column;
         }
-        
+
         .receipt-header {
             background: #e0e0e0;
             padding: 8px;
             margin: -15px -15px 15px -15px;
-            font-size: 11px;
+            font-size: 11pt;
             font-weight: bold;
             text-align: center;
             border-bottom: 1px solid #333;
         }
-        
+
         .receipt-image {
             width: 100%;
             height: 200px;
@@ -276,13 +288,13 @@
             background: #fafafa;
             margin-bottom: 8px;
         }
-        
+
         .receipt-details {
-            font-size: 10px;
+            font-size: 10pt;
             line-height: 1.4;
             margin-top: auto;
         }
-        
+
         .receipt-placeholder {
             width: 100%;
             height: 200px;
@@ -295,7 +307,7 @@
             font-style: italic;
             text-align: center;
             padding: 8px;
-            font-size: 11px;
+            font-size: 11pt;
             margin-bottom: 8px;
         }
     </style>
@@ -311,100 +323,136 @@
         </button>
     </div>
 
+    <div class="print-container">
     {% for claim_data in claims_data %}
         {% if not forloop.first %}
         <div class="page-break"></div>
         {% endif %}
-        
-        <div class="claim-container">
-            <!-- Header -->
-            <div class="claim-header">
+
+        <!-- SUMMARY PAGE -->
+        <div class="summary-section page-break-after">
+            <div class="header">
                 <div class="company-name">{{ claim_data.claim.company.name }}</div>
-                <div class="claim-title">Expense Claim for {{ claim_data.claim.event_name|default:"General Expenses" }}</div>
+                <div class="form-title">EXPENSE CLAIM SUMMARY</div>
+                <div class="subtitle">Print Date: {% now "F d, Y" %} | Reference: {{ claim_data.claim.claim_number }}</div>
             </div>
-            
-            <!-- Basic Information -->
-            <div class="claim-info">
-                <div class="info-left">
-                    <div class="info-line"><strong>Claim made by:</strong> {{ claim_data.claim.claimant.get_full_name }}</div>
-                </div>
-                <div class="info-right">
-                    <div class="info-line"><strong>Period:</strong> {{ claim_data.claim.period_from|date:"M d" }}-{{ claim_data.claim.period_to|date:"d, Y" }}</div>
-                </div>
+
+            <!-- Claim Information -->
+            <div class="summary-section">
+                <h3>Claim Information</h3>
+                <table class="info-table">
+                    <tr>
+                        <td class="label">Claim Number:</td>
+                        <td>{{ claim_data.claim.claim_number }}</td>
+                    </tr>
+                    <tr>
+                        <td class="label">Submitted by:</td>
+                        <td>{{ claim_data.claim.claimant.get_full_name }}</td>
+                    </tr>
+                    {% if claim_data.claim.claim_for %}
+                    <tr>
+                        <td class="label">Claim for:</td>
+                        <td>{{ claim_data.claim.claim_for.get_full_name }}</td>
+                    </tr>
+                    {% endif %}
+                    <tr>
+                        <td class="label">Event/Purpose:</td>
+                        <td>{{ claim_data.claim.event_name|default:"General Expenses" }}</td>
+                    </tr>
+                    <tr>
+                        <td class="label">Period:</td>
+                        <td>{{ claim_data.claim.period_from|date:"M d, Y" }} to {{ claim_data.claim.period_to|date:"M d, Y" }}</td>
+                    </tr>
+                    <tr>
+                        <td class="label">Total Items:</td>
+                        <td>{{ claim_data.expense_items|length }}</td>
+                    </tr>
+                    <tr>
+                        <td class="label">Total Amount:</td>
+                        <td><strong>HK$ {{ claim_data.total_hkd|floatformat:2 }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="label">Status:</td>
+                        <td>{{ claim_data.claim.get_status_display }}</td>
+                    </tr>
+                </table>
             </div>
-            
-            <!-- Expense Items Table -->
-            <table class="expense-table">
-                <thead>
-                    <tr>
-                        <th rowspan="2" class="item-col">Item</th>
-                        <th rowspan="2" class="date-col">Date</th>
-                        <th rowspan="2" class="desc-col">Description</th>
-                        <th rowspan="2" class="currency-col">Original Currency</th>
-                        <!-- Dynamic Category Headers - only present categories -->
-                        {% for category in claim_data.present_categories %}
-                        <th class="category-cols category-header">{{ category.zh_label }}</th>
+
+            <!-- Expense Items Summary -->
+            <div class="summary-section">
+                <h3>Expense Items Summary</h3>
+                <table class="expense-table">
+                    <thead>
+                        <tr>
+                            <th rowspan="2" class="item-col">Item</th>
+                            <th rowspan="2" class="date-col">Date</th>
+                            <th rowspan="2" class="desc-col">Description</th>
+                            <th rowspan="2" class="currency-col">Currency</th>
+                            <!-- Dynamic Category Headers - only present categories -->
+                            {% for category in claim_data.present_categories %}
+                            <th class="category-cols category-header">{{ category.zh_label }}</th>
+                            {% endfor %}
+                            <th rowspan="2" class="exchange-col">Exchange</th>
+                            <th rowspan="2" class="total-col">Total(HK)</th>
+                        </tr>
+                        <tr>
+                            <!-- Second row for English category labels -->
+                            {% for category in claim_data.present_categories %}
+                            <th class="category-cols">{{ category.en_label }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in claim_data.expense_items %}
+                        <tr>
+                            <td class="item-col">{{ item.item_number }}</td>
+                            <td class="date-col">{{ item.expense_date|date:"M d" }}</td>
+                            <td class="desc-col">
+                                {{ item.description }}
+                                <br><small><strong>Ref:</strong> {{ claim_data.claim.claim_number }}</small>
+                                {% if item.description_chinese %}
+                                <br><em>{{ item.description_chinese }}</em>
+                                {% endif %}
+                                {% if item.participants %}
+                                <br><small>({{ item.participants }})</small>
+                                {% endif %}
+                                {% if not item.has_receipt %}
+                                <br><span class="receipt-note">{{ item.receipt_notes|default:"without receipt" }}</span>
+                                {% else %}
+                                {% if item.receipt_notes %}
+                                <br><span class="receipt-note">{{ item.receipt_notes }}</span>
+                                {% endif %}
+                                {% endif %}
+                            </td>
+                            <td class="currency-col">{{ item.currency.code }}</td>
+
+                            <!-- Dynamic Category Amount Columns - only present categories -->
+                            {% for category in claim_data.present_categories %}
+                                {% if item.category.code == category.code %}
+                                <td class="amount-cell category-cols">{{ item.amount_hkd|floatformat:2 }}</td>
+                                {% else %}
+                                <td class="category-cols"></td>
+                                {% endif %}
+                            {% endfor %}
+
+                            <td class="amount-cell exchange-col">{{ item.exchange_rate|floatformat:2 }}</td>
+                            <td class="amount-cell total-col">{{ item.amount_hkd|floatformat:2 }}</td>
+                        </tr>
                         {% endfor %}
-                        <th rowspan="2" class="exchange-col">Exchange</th>
-                        <th rowspan="2" class="total-col">Total(HK)</th>
-                    </tr>
-                    <tr>
-                        <!-- Second row for English category labels -->
-                        {% for category in claim_data.present_categories %}
-                        <th class="category-cols">{{ category.en_label }}</th>
-                        {% endfor %}
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in claim_data.expense_items %}
-                    <tr>
-                        <td class="item-col">{{ item.item_number }}</td>
-                        <td class="date-col">{{ item.expense_date|date:"M d" }}</td>
-                        <td class="desc-col">
-                            {{ item.description }}
-                            <br><small><strong>Ref:</strong> {{ claim_data.claim.claim_number }}</small>
-                            {% if item.description_chinese %}
-                            <br><em>{{ item.description_chinese }}</em>
-                            {% endif %}
-                            {% if item.participants %}
-                            <br><small>({{ item.participants }})</small>
-                            {% endif %}
-                            {% if not item.has_receipt %}
-                            <br><span class="receipt-note">{{ item.receipt_notes|default:"without receipt" }}</span>
-                            {% else %}
-                            {% if item.receipt_notes %}
-                            <br><span class="receipt-note">{{ item.receipt_notes }}</span>
-                            {% endif %}
-                            {% endif %}
-                        </td>
-                        <td class="currency-col">{{ item.currency.code }}</td>
-                        
-                        <!-- Dynamic Category Amount Columns - only present categories -->
-                        {% for category in claim_data.present_categories %}
-                            {% if item.category.code == category.code %}
-                            <td class="amount-cell category-cols">{{ item.amount_hkd|floatformat:2 }}</td>
-                            {% else %}
-                            <td class="category-cols"></td>
-                            {% endif %}
-                        {% endfor %}
-                        
-                        <td class="amount-cell exchange-col">{{ item.exchange_rate|floatformat:2 }}</td>
-                        <td class="amount-cell total-col">{{ item.amount_hkd|floatformat:2 }}</td>
-                    </tr>
-                    {% endfor %}
-                    
-                    <!-- Total Row -->
-                    <tr class="total-row">
-                        <td colspan="4"><strong>Total</strong></td>
-                        {% for category in claim_data.present_categories %}
-                        <td class="amount-cell">{{ claim_data.category_totals|get_item:category.code|floatformat:2 }}</td>
-                        {% endfor %}
-                        <td></td>
-                        <td class="amount-cell"><strong>{{ claim_data.total_hkd|floatformat:2 }}</strong></td>
-                    </tr>
-                </tbody>
-            </table>
-            
+
+                        <!-- Total Row -->
+                        <tr class="total-row">
+                            <td colspan="4"><strong>Total</strong></td>
+                            {% for category in claim_data.present_categories %}
+                            <td class="amount-cell">{{ claim_data.category_totals|get_item:category.code|floatformat:2 }}</td>
+                            {% endfor %}
+                            <td></td>
+                            <td class="amount-cell"><strong>{{ claim_data.total_hkd|floatformat:2 }}</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
             <!-- Approval Section -->
             <div class="approval-section">
                 <div class="approval-box">
@@ -422,17 +470,8 @@
                     {% endif %}
                 </div>
             </div>
-
-            <!-- Claim Information Footer -->
-            <div style="margin-top: 20px; font-size: 10px; color: #666;">
-                <div><strong>Status:</strong> {{ claim_data.claim.get_status_display }}</div>
-                <div><strong>Created:</strong> {{ claim_data.claim.created_at|date:"F d, Y g:i A" }}</div>
-                {% if claim_data.claim.submitted_at %}
-                <div><strong>Submitted:</strong> {{ claim_data.claim.submitted_at|date:"F d, Y g:i A" }}</div>
-                {% endif %}
-            </div>
         </div>
-        
+
         <!-- Receipt Copies Section - With Page Breaks for A4 Landscape -->
         {% if claim_data.expense_items %}
         <div class="page-break"></div>
@@ -440,56 +479,62 @@
             <div class="receipt-copies-title">
                 Receipt Copies for Claim {{ claim_data.claim.claim_number }}
             </div>
-            
+
             <div class="receipt-grid">
+                {% with receipt_counter=0 %}
                 {% for item in claim_data.expense_items %}
-                <div class="receipt-item">
-                    <div class="receipt-header">
-                        Item #{{ item.item_number }} - {{ item.expense_date|date:"M d, Y" }}
-                    </div>
-                    
                     {% if item.documents.exists %}
-                        {% with receipt=item.documents.first %}
-                        {% if receipt.file %}
-                            {% if receipt.file.url|slice:"-4:"|lower == ".pdf" %}
-                            <div class="receipt-placeholder">
-                                <div>
-                                    <i class="fas fa-file-pdf fa-3x"></i><br>
-                                    PDF Receipt<br>
-                                    <small>{{ receipt.file.name|truncatechars:30 }}</small>
-                                </div>
+                        {% for receipt in item.documents.all %}
+                        <div class="receipt-item">
+                            <div class="receipt-header">
+                                Item #{{ item.item_number }} ({{ forloop.counter }}/{{ item.documents.count }}) - {{ item.expense_date|date:"M d, Y" }}
                             </div>
-                            {% else %}
-                            <img src="{{ receipt.file.url }}" class="receipt-image" alt="Receipt">
+
+                            {% if receipt.file %}
+                                {% if receipt.file.url|slice:"-4:"|lower == ".pdf" %}
+                                <div class="receipt-placeholder">
+                                    <div>
+                                        <i class="fas fa-file-pdf fa-3x"></i><br>
+                                        PDF Receipt<br>
+                                        <small>{{ receipt.file.name|truncatechars:30 }}</small>
+                                    </div>
+                                </div>
+                                {% else %}
+                                <img src="{{ receipt.file.url }}" class="receipt-image" alt="Receipt">
+                                {% endif %}
                             {% endif %}
-                        {% endif %}
-                        {% endwith %}
+
+                            <div class="receipt-details">
+                                <strong>{{ item.category.name }}</strong><br>
+                                {{ item.description|truncatechars:60 }}<br>
+                                <strong>Amount:</strong> {{ item.currency.code }} {{ item.original_amount|floatformat:2 }}<br>
+                                <strong>HKD:</strong> {{ item.amount_hkd|floatformat:2 }}
+                            </div>
+                        </div>
+                        {% endfor %}
                     {% else %}
-                        <div class="receipt-placeholder">
-                            <div>No Receipt<br><small>{{ item.receipt_notes|default:"Receipt not uploaded" }}</small></div>
+                        <div class="receipt-item">
+                            <div class="receipt-header">
+                                Item #{{ item.item_number }} - {{ item.expense_date|date:"M d, Y" }}
+                            </div>
+                            <div class="receipt-placeholder">
+                                <div>No Receipt<br><small>{{ item.receipt_notes|default:"Receipt not uploaded" }}</small></div>
+                            </div>
+                            <div class="receipt-details">
+                                <strong>{{ item.category.name }}</strong><br>
+                                {{ item.description|truncatechars:60 }}<br>
+                                <strong>Amount:</strong> {{ item.currency.code }} {{ item.original_amount|floatformat:2 }}<br>
+                                <strong>HKD:</strong> {{ item.amount_hkd|floatformat:2 }}
+                            </div>
                         </div>
                     {% endif %}
-                    
-                    <div class="receipt-details">
-                        <strong>{{ item.category.name }}</strong><br>
-                        {{ item.description|truncatechars:60 }}<br>
-                        <strong>Amount:</strong> {{ item.currency.code }} {{ item.original_amount|floatformat:2 }}<br>
-                        <strong>HKD:</strong> {{ item.amount_hkd|floatformat:2 }}
-                    </div>
-                </div>
-                
-                {% if forloop.counter|divisibleby:3 and not forloop.last %}
-                    </div>
-                    <!-- Page break after every 3 receipts -->
-                    <div class="page-break"></div>
-                    <div class="receipt-copies-section">
-                        <div class="receipt-grid">
-                {% endif %}
                 {% endfor %}
+                {% endwith %}
             </div>
         </div>
         {% endif %}
     {% endfor %}
+    </div>
 
     <script>
         // Auto-print when page loads (optional)

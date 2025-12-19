@@ -95,6 +95,155 @@
     }
 }
 </style>
+<script>
+// Global function to clear file input and feedback
+function clearFileInput(button) {
+    // Find the parent container and then the file input
+    var feedbackDiv = button.closest('.file-feedback');
+    if (feedbackDiv) {
+        var container = feedbackDiv.parentElement;
+        var fileInput = container.querySelector('input[type="file"]');
+        if (fileInput) {
+            fileInput.value = '';
+            console.log('File input cleared');
+        }
+        feedbackDiv.innerHTML = '';
+    }
+}
+
+// Global function for file selection - must be defined BEFORE the form HTML
+function handleFileSelect(input) {
+    console.log('handleFileSelect called');
+    var file = input.files[0];
+    var feedbackDiv = input.parentElement.querySelector('.file-feedback');
+
+    if (!feedbackDiv) {
+        console.log('No feedback div found, creating one');
+        feedbackDiv = document.createElement('div');
+        feedbackDiv.className = 'file-feedback';
+        input.parentElement.appendChild(feedbackDiv);
+    }
+
+    if (file) {
+        console.log('File selected:', file.name, 'Type:', file.type, 'Size:', file.size);
+
+        // Validate file type
+        var validTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
+        if (validTypes.indexOf(file.type) === -1) {
+            feedbackDiv.innerHTML = '<span class="text-danger"><i class="fas fa-exclamation-circle"></i> Invalid file type. Please use JPEG, PNG, GIF or PDF.</span>';
+            input.value = '';
+            return;
+        }
+
+        // Validate file size (5MB max)
+        var maxSize = 5 * 1024 * 1024;
+        if (file.size > maxSize) {
+            feedbackDiv.innerHTML = '<span class="text-danger"><i class="fas fa-exclamation-circle"></i> File too large. Maximum size is 5MB.</span>';
+            input.value = '';
+            return;
+        }
+
+        // Show success with clear button
+        var sizeStr = file.size < 1024 * 1024
+            ? (file.size / 1024).toFixed(1) + ' KB'
+            : (file.size / (1024 * 1024)).toFixed(1) + ' MB';
+        feedbackDiv.innerHTML = '<div class="d-flex align-items-center justify-content-between">' +
+            '<span class="text-success"><i class="fas fa-check-circle"></i> Selected: ' + file.name + ' (' + sizeStr + ')</span>' +
+            '<button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="clearFileInput(this)" title="Remove selected file">' +
+            '<i class="fas fa-times"></i> Clear</button></div>';
+    } else {
+        feedbackDiv.innerHTML = '';
+    }
+}
+
+// Global function for multiple file selection (up to maxFiles)
+function handleMultiFileSelect(input, maxFiles) {
+    console.log('handleMultiFileSelect called, maxFiles:', maxFiles);
+    var files = input.files;
+    var feedbackDiv = input.parentElement.querySelector('.file-feedback');
+
+    if (!feedbackDiv) {
+        console.log('No feedback div found, creating one');
+        feedbackDiv = document.createElement('div');
+        feedbackDiv.className = 'file-feedback';
+        input.parentElement.appendChild(feedbackDiv);
+    }
+
+    if (files && files.length > 0) {
+        console.log('Files selected:', files.length);
+
+        // Check if too many files
+        if (files.length > maxFiles) {
+            feedbackDiv.innerHTML = '<span class="text-danger"><i class="fas fa-exclamation-circle"></i> Too many files. Maximum is ' + maxFiles + ' files.</span>';
+            input.value = '';
+            return;
+        }
+
+        var validTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
+        var maxSize = 5 * 1024 * 1024; // 5MB
+        var validFiles = [];
+        var errors = [];
+
+        for (var i = 0; i < files.length; i++) {
+            var file = files[i];
+            console.log('File ' + (i+1) + ':', file.name, 'Type:', file.type, 'Size:', file.size);
+
+            // Validate file type
+            if (validTypes.indexOf(file.type) === -1) {
+                errors.push(file.name + ': Invalid type (use JPEG, PNG, GIF or PDF)');
+                continue;
+            }
+
+            // Validate file size
+            if (file.size > maxSize) {
+                errors.push(file.name + ': Too large (max 5MB)');
+                continue;
+            }
+
+            // File is valid
+            var sizeStr = file.size < 1024 * 1024
+                ? (file.size / 1024).toFixed(1) + ' KB'
+                : (file.size / (1024 * 1024)).toFixed(1) + ' MB';
+            validFiles.push(file.name + ' (' + sizeStr + ')');
+        }
+
+        // Build feedback message
+        var feedbackHtml = '';
+
+        if (validFiles.length > 0) {
+            feedbackHtml += '<div class="d-flex align-items-start justify-content-between">';
+            feedbackHtml += '<span class="text-success"><i class="fas fa-check-circle"></i> Selected ' + validFiles.length + ' file(s):<br>';
+            for (var j = 0; j < validFiles.length; j++) {
+                feedbackHtml += '&nbsp;&nbsp;• ' + validFiles[j] + '<br>';
+            }
+            feedbackHtml += '</span>';
+            // Add clear button
+            feedbackHtml += '<button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="clearFileInput(this)" title="Remove selected files">';
+            feedbackHtml += '<i class="fas fa-times"></i> Clear';
+            feedbackHtml += '</button>';
+            feedbackHtml += '</div>';
+        }
+
+        if (errors.length > 0) {
+            if (feedbackHtml) feedbackHtml += '<br>';
+            feedbackHtml += '<span class="text-danger"><i class="fas fa-exclamation-circle"></i> Errors:<br>';
+            for (var k = 0; k < errors.length; k++) {
+                feedbackHtml += '&nbsp;&nbsp;• ' + errors[k] + '<br>';
+            }
+            feedbackHtml += '</span>';
+
+            // If all files have errors, clear the input
+            if (validFiles.length === 0) {
+                input.value = '';
+            }
+        }
+
+        feedbackDiv.innerHTML = feedbackHtml;
+    } else {
+        feedbackDiv.innerHTML = '';
+    }
+}
+</script>
 {% endblock %}
 
 {% block content %}
@@ -161,12 +310,32 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
+                                <label for="{{ form.claim_for.id_for_label }}" class="form-label">
+                                    Claim For (Optional)
+                                </label>
+                                {{ form.claim_for|add_class:"form-select" }}
+                                <div class="form-text">
+                                    Leave empty if you are the expense owner. Select a user if submitting on behalf of someone else.
+                                </div>
+                                {% if form.claim_for.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.claim_for.errors.0 }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
                                 <label class="form-label">
                                     Expense Month <span class="text-danger">*</span>
                                 </label>
                                 <div class="row g-2">
                                     <div class="col-7">
-                                        <select name="expense_month" id="expense-month" class="form-select" required>
+                                        <select name="expense_month" id="expense-month" class="form-select" required
+                                        data-existing-period="{{ claim.period_from|date:'Y-m'|default:'' }}">
                                             <option value="">-- Select Month --</option>
                                             <option value="2024-01">January 2024</option>
                                             <option value="2024-02">February 2024</option>
@@ -188,7 +357,7 @@
                                             <option value="2025-06">June 2025</option>
                                             <option value="2025-07">July 2025</option>
                                             <option value="2025-08">August 2025</option>
-                                            <option value="2025-09" selected>September 2025</option>
+                                            <option value="2025-09">September 2025</option>
                                             <option value="2025-10">October 2025</option>
                                             <option value="2025-11">November 2025</option>
                                             <option value="2025-12">December 2025</option>
@@ -248,25 +417,40 @@
                     <h5 class="card-title mb-0">
                         <i class="fas fa-receipt"></i> Expense Items
                     </h5>
-                    <button type="button" class="btn btn-sm btn-primary" id="addExpenseItem">
-                        <i class="fas fa-plus"></i> Add Item
-                    </button>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="sortByDate" title="Sort items by date">
+                            <i class="fas fa-sort-amount-down"></i> Sort by Date
+                        </button>
+                        <button type="button" class="btn btn-sm btn-primary" id="addExpenseItem">
+                            <i class="fas fa-plus"></i> Add Item
+                        </button>
+                    </div>
                 </div>
                 <div class="card-body">
                     <div id="expense-items-container">
                         {% if claim.expense_items.all %}
                             <!-- Existing expense items (edit mode) -->
                             {% for item in claim.expense_items.all %}
-                            <div class="expense-item border rounded p-3 mb-3">
+                            <div class="expense-item border rounded p-3 mb-3" data-item-id="{{ item.id }}">
                                 <div class="d-flex justify-content-between align-items-center mb-3">
                                     <h6 class="mb-0">
-                                        <i class="fas fa-tag"></i> Expense Item #{{ forloop.counter }}
+                                        <i class="fas fa-tag"></i> Expense Item #<span class="item-number">{{ forloop.counter }}</span>
                                     </h6>
-                                    <button type="button" class="btn btn-sm btn-outline-danger remove-item" {% if forloop.first and forloop.last %}style="display: none;"{% endif %}>
-                                        <i class="fas fa-trash"></i>
-                                    </button>
+                                    <div class="btn-group">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary move-up" title="Move up" {% if forloop.first %}disabled{% endif %}>
+                                            <i class="fas fa-arrow-up"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary move-down" title="Move down" {% if forloop.last %}disabled{% endif %}>
+                                            <i class="fas fa-arrow-down"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-danger remove-item" {% if forloop.first and forloop.last %}style="display: none;"{% endif %}>
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
                                 </div>
-                                
+                                <!-- Hidden field to track item ID for updates -->
+                                <input type="hidden" name="expense_items[{{ forloop.counter0 }}][id]" value="{{ item.id }}">
+
                                 <div class="row">
                                     <div class="col-md-4">
                                         <div class="mb-3">
@@ -310,20 +494,20 @@
                                             <label class="form-label">💰 Amount (Fixed) <span class="text-danger">*</span></label>
                                             <div class="input-group">
                                                 <span class="input-group-text currency-symbol">{{ item.currency.symbol }}</span>
-                                                <input type="text" name="expense_items[{{ forloop.counter0 }}][amount]" 
-                                                       class="form-control decimal-input-safe" 
+                                                <input type="text" name="expense_items[{{ forloop.counter0 }}][amount]"
+                                                       class="form-control decimal-input-safe"
                                                        required
                                                        value="{{ item.original_amount }}"
                                                        placeholder="0.00"
-                                                       pattern="[0-9]+(\.[0-9]{1,2})?"
+                                                       pattern="-?[0-9]+(\.[0-9]{1,2})?"
                                                        inputmode="decimal"
                                                        data-original-amount="{{ item.original_amount }}"
-                                                       title="Enter amount (e.g., 123.45)"
+                                                       title="Enter amount (e.g., 123.45 or -50.00 for returns)"
                                                        autocomplete="off">
                                             </div>
                                             <div class="form-text">
                                                 <i class="fas fa-info-circle text-success"></i>
-                                                🎯 FIXED: Enter amount (e.g., 123.45) - No more jumping cursor!
+                                                🎯 Enter amount (e.g., 123.45 or -50.00 for returns)
                                             </div>
                                         </div>
                                     </div>
@@ -332,8 +516,8 @@
                                             <label class="form-label">HKD Equivalent</label>
                                             <div class="input-group">
                                                 <span class="input-group-text">HK$</span>
-                                                <input type="number" class="form-control hkd-equivalent" 
-                                                       readonly 
+                                                <input type="number" class="form-control hkd-equivalent"
+                                                       readonly
                                                        value="{{ item.amount_hkd }}"
                                                        placeholder="0.00"
                                                        title="Automatically calculated HKD amount">
@@ -356,23 +540,38 @@
                                     </div>
                                     <div class="col-md-6">
                                         <div class="mb-3">
-                                            <label class="form-label">Receipt</label>
+                                            <label class="form-label">Receipt (up to 5)</label>
                                             {% if item.documents.exists %}
                                             <div class="mb-2">
-                                                <a href="{{ item.documents.first.file.url }}" target="_blank" class="btn btn-sm btn-outline-info">
-                                                    <i class="fas fa-paperclip"></i> View Attached Receipt
-                                                </a>
-                                                <span class="text-success ms-2"><i class="fas fa-check-circle"></i> Receipt attached</span>
+                                                {% for doc in item.documents.all %}
+                                                <div class="d-inline-flex align-items-center me-2 mb-1">
+                                                    <a href="{{ doc.file.url }}" target="_blank" class="btn btn-sm btn-outline-info">
+                                                        <i class="fas fa-paperclip"></i> Receipt {{ forloop.counter }}
+                                                    </a>
+                                                    <button type="button" class="btn btn-sm btn-outline-danger ms-1 delete-receipt-btn"
+                                                            data-doc-id="{{ doc.id }}"
+                                                            data-doc-name="Receipt {{ forloop.counter }}"
+                                                            title="Delete this receipt">
+                                                        <i class="fas fa-times"></i>
+                                                    </button>
+                                                </div>
+                                                {% endfor %}
+                                                <span class="text-success ms-2"><i class="fas fa-check-circle"></i> {{ item.documents.count }} receipt(s) attached</span>
                                             </div>
                                             {% else %}
                                             <div class="mb-2">
                                                 <span class="text-muted"><i class="fas fa-times-circle"></i> No attachment</span>
                                             </div>
                                             {% endif %}
-                                            <input type="file" name="expense_items[{{ forloop.counter0 }}][receipt]" 
-                                                   class="form-control" 
-                                                   accept=".jpg,.jpeg,.png,.pdf">
-                                            <div class="form-text">JPEG, PNG, or PDF files up to 5MB{% if item.documents.exists %} (leave empty to keep current receipt){% endif %}</div>
+                                            <input type="file" name="expense_items[{{ forloop.counter0 }}][receipt][]"
+                                                   id="receipt_{{ forloop.counter0 }}"
+                                                   class="form-control receipt-input"
+                                                   accept="image/*,.pdf"
+                                                   multiple
+                                                   style="cursor: pointer;"
+                                                   onchange="handleMultiFileSelect(this, 5)">
+                                            <div class="form-text">Up to 5 files (JPEG, PNG, or PDF, max 5MB each){% if item.documents.exists %} (leave empty to keep current){% endif %}</div>
+                                            <div class="file-feedback"></div>
                                         </div>
                                     </div>
                                 </div>
@@ -390,11 +589,19 @@
                             <div class="expense-item border rounded p-3 mb-3">
                                 <div class="d-flex justify-content-between align-items-center mb-3">
                                     <h6 class="mb-0">
-                                        <i class="fas fa-tag"></i> Expense Item #1
+                                        <i class="fas fa-tag"></i> Expense Item #<span class="item-number">1</span>
                                     </h6>
-                                    <button type="button" class="btn btn-sm btn-outline-danger remove-item" style="display: none;">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
+                                    <div class="btn-group">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary move-up" title="Move up" disabled>
+                                            <i class="fas fa-arrow-up"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary move-down" title="Move down" disabled>
+                                            <i class="fas fa-arrow-down"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-danger remove-item" style="display: none;">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
                                 </div>
                                 
                                 <div class="row">
@@ -440,19 +647,19 @@
                                             <label class="form-label">💰 Amount (Fixed) <span class="text-danger">*</span></label>
                                             <div class="input-group">
                                                 <span class="input-group-text currency-symbol">$</span>
-                                                <input type="text" name="expense_items[0][amount]" 
-                                                       class="form-control decimal-input-safe" 
+                                                <input type="text" name="expense_items[0][amount]"
+                                                       class="form-control decimal-input-safe"
                                                        required
                                                        placeholder="0.00"
-                                                       pattern="[0-9]+(\.[0-9]{1,2})?"
+                                                       pattern="-?[0-9]+(\.[0-9]{1,2})?"
                                                        inputmode="decimal"
                                                        data-original-amount=""
-                                                       title="Enter amount (e.g., 123.45)"
+                                                       title="Enter amount (e.g., 123.45 or -50.00 for returns)"
                                                        autocomplete="off">
                                             </div>
                                             <div class="form-text">
                                                 <i class="fas fa-info-circle text-success"></i>
-                                                🎯 FIXED: Enter amount (e.g., 123.45) - No more jumping cursor!
+                                                🎯 Enter amount (e.g., 123.45 or -50.00 for returns)
                                             </div>
                                         </div>
                                     </div>
@@ -461,8 +668,8 @@
                                             <label class="form-label">HKD Equivalent</label>
                                             <div class="input-group">
                                                 <span class="input-group-text">HK$</span>
-                                                <input type="number" class="form-control hkd-equivalent" 
-                                                       readonly 
+                                                <input type="number" class="form-control hkd-equivalent"
+                                                       readonly
                                                        placeholder="0.00"
                                                        title="Automatically calculated HKD amount">
                                             </div>
@@ -470,12 +677,12 @@
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="mb-3">
                                             <label class="form-label">Date of Occurrence <span class="text-danger">*</span></label>
-                                            <input type="date" name="expense_items[0][expense_date]" 
+                                            <input type="date" name="expense_items[0][expense_date]"
                                                    class="form-control" required
                                                    title="When did this expense occur?">
                                             <div class="form-text">Specific date when this expense occurred</div>
@@ -483,18 +690,23 @@
                                     </div>
                                     <div class="col-md-6">
                                         <div class="mb-3">
-                                            <label class="form-label">Receipt</label>
-                                            <input type="file" name="expense_items[0][receipt]" 
-                                                   class="form-control" 
-                                                   accept=".jpg,.jpeg,.png,.pdf">
-                                            <div class="form-text">JPEG, PNG, or PDF files up to 5MB</div>
+                                            <label class="form-label" for="receipt_initial">Receipt (up to 5)</label>
+                                            <input type="file" name="expense_items[0][receipt][]"
+                                                   id="receipt_initial"
+                                                   class="form-control receipt-input"
+                                                   accept="image/*,.pdf"
+                                                   multiple
+                                                   style="cursor: pointer;"
+                                                   onchange="handleMultiFileSelect(this, 5)">
+                                            <div class="form-text">Up to 5 files (JPEG, PNG, or PDF, max 5MB each)</div>
+                                            <div class="file-feedback"></div>
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <div class="mb-3">
                                     <label class="form-label">Description</label>
-                                    <textarea name="expense_items[0][description]" 
+                                    <textarea name="expense_items[0][description]"
                                               class="form-control" rows="2"
                                               placeholder="Brief description of the expense"></textarea>
                                 </div>
@@ -585,9 +797,17 @@
             <h6 class="mb-0">
                 <i class="fas fa-tag"></i> Expense Item #<span class="item-number"></span>
             </h6>
-            <button type="button" class="btn btn-sm btn-outline-danger remove-item">
-                <i class="fas fa-trash"></i>
-            </button>
+            <div class="btn-group">
+                <button type="button" class="btn btn-sm btn-outline-secondary move-up" title="Move up">
+                    <i class="fas fa-arrow-up"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary move-down" title="Move down">
+                    <i class="fas fa-arrow-down"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-danger remove-item">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
         </div>
         
         <div class="row">
@@ -633,19 +853,19 @@
                     <label class="form-label">Amount <span class="text-danger">*</span></label>
                     <div class="input-group">
                         <span class="input-group-text currency-symbol">$</span>
-                        <input type="text" name="expense_items[INDEX][amount]" 
-                               class="form-control decimal-input-safe" 
+                        <input type="text" name="expense_items[INDEX][amount]"
+                               class="form-control decimal-input-safe"
                                required
                                placeholder="0.00"
-                               pattern="[0-9]+(\.[0-9]{1,2})?"
+                               pattern="-?[0-9]+(\.[0-9]{1,2})?"
                                inputmode="decimal"
                                data-original-amount=""
-                               title="Enter amount (e.g., 123.45)"
+                               title="Enter amount (e.g., 123.45 or -50.00 for returns)"
                                autocomplete="off">
                     </div>
                     <div class="form-text">
                         <i class="fas fa-info-circle text-primary"></i>
-                        Type numbers only, decimals auto-format
+                        Enter amount (e.g., 123.45 or -50.00 for returns)
                     </div>
                 </div>
             </div>
@@ -676,11 +896,15 @@
             </div>
             <div class="col-md-6">
                 <div class="mb-3">
-                    <label class="form-label">Receipt</label>
-                    <input type="file" name="expense_items[INDEX][receipt]" 
-                           class="form-control" 
-                           accept=".jpg,.jpeg,.png,.pdf">
-                    <div class="form-text">JPEG, PNG, or PDF files up to 5MB</div>
+                    <label class="form-label">Receipt (up to 5)</label>
+                    <input type="file" name="expense_items[INDEX][receipt][]"
+                           class="form-control receipt-input"
+                           accept="image/*,.pdf"
+                           multiple
+                           style="cursor: pointer;"
+                           onchange="handleMultiFileSelect(this, 5)">
+                    <div class="form-text">Up to 5 files (JPEG, PNG, or PDF, max 5MB each)</div>
+                    <div class="file-feedback"></div>
                 </div>
             </div>
         </div>
@@ -699,6 +923,46 @@
 {% block extra_js %}
 <!-- CLEAN SOLUTION: Minimal JS without input value manipulation -->
 <script>
+// Global function to handle file selection (called via onchange)
+function handleFileSelect(input) {
+    console.log('handleFileSelect called');
+    const file = input.files[0];
+    const feedbackDiv = input.parentElement.querySelector('.file-feedback');
+
+    if (!feedbackDiv) {
+        console.log('No feedback div found');
+        return;
+    }
+
+    if (file) {
+        console.log('File selected:', file.name, 'Type:', file.type, 'Size:', file.size);
+
+        // Validate file type
+        const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
+        if (!validTypes.includes(file.type)) {
+            feedbackDiv.innerHTML = '<span class="text-danger"><i class="fas fa-exclamation-circle"></i> Invalid file type. Please use JPEG, PNG, GIF or PDF.</span>';
+            input.value = '';
+            return;
+        }
+
+        // Validate file size (5MB max)
+        const maxSize = 5 * 1024 * 1024;
+        if (file.size > maxSize) {
+            feedbackDiv.innerHTML = '<span class="text-danger"><i class="fas fa-exclamation-circle"></i> File too large. Maximum size is 5MB.</span>';
+            input.value = '';
+            return;
+        }
+
+        // Show success
+        const sizeStr = file.size < 1024 * 1024
+            ? (file.size / 1024).toFixed(1) + ' KB'
+            : (file.size / (1024 * 1024)).toFixed(1) + ' MB';
+        feedbackDiv.innerHTML = '<span class="text-success"><i class="fas fa-check-circle"></i> Selected: ' + file.name + ' (' + sizeStr + ')</span>';
+    } else {
+        feedbackDiv.innerHTML = '';
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     let itemCounter = 1;
 
@@ -706,13 +970,13 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('addExpenseItem').addEventListener('click', function() {
         const template = document.getElementById('expense-item-template');
         const container = document.getElementById('expense-items-container');
-        
+
         // Clone template content
         const newItem = template.content.cloneNode(true);
-        
+
         // Update item number and form field names
         newItem.querySelector('.item-number').textContent = itemCounter + 1;
-        
+
         // Update all form field names with new index
         const inputs = newItem.querySelectorAll('input, select, textarea');
         inputs.forEach(input => {
@@ -720,12 +984,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 input.name = input.name.replace('INDEX', itemCounter);
             }
         });
-        
-        container.appendChild(newItem);
+
+        // Insert at the beginning (top) of the container instead of the end
+        container.insertBefore(newItem, container.firstChild);
         itemCounter++;
-        
+
         updateTotals();
         updateRemoveButtons();
+
+        // Renumber all items after insertion at top
+        updateItemNumbers();
     });
 
     // Remove expense item
@@ -735,8 +1003,102 @@ document.addEventListener('DOMContentLoaded', function() {
             updateTotals();
             updateRemoveButtons();
             updateItemNumbers();
+            updateMoveButtons();
         }
     });
+
+    // Move expense item up
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.move-up')) {
+            const item = e.target.closest('.expense-item');
+            const prevItem = item.previousElementSibling;
+            if (prevItem && prevItem.classList.contains('expense-item')) {
+                item.parentNode.insertBefore(item, prevItem);
+                updateItemNumbers();
+                updateFormIndices();
+                updateMoveButtons();
+            }
+        }
+    });
+
+    // Move expense item down
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.move-down')) {
+            const item = e.target.closest('.expense-item');
+            const nextItem = item.nextElementSibling;
+            if (nextItem && nextItem.classList.contains('expense-item')) {
+                item.parentNode.insertBefore(nextItem, item);
+                updateItemNumbers();
+                updateFormIndices();
+                updateMoveButtons();
+            }
+        }
+    });
+
+    // Sort by date button
+    document.getElementById('sortByDate').addEventListener('click', function() {
+        const container = document.getElementById('expense-items-container');
+        const items = Array.from(container.querySelectorAll('.expense-item'));
+
+        // Sort items by date
+        items.sort((a, b) => {
+            const dateA = a.querySelector('input[type="date"]')?.value || '';
+            const dateB = b.querySelector('input[type="date"]')?.value || '';
+            return dateA.localeCompare(dateB);
+        });
+
+        // Re-append items in sorted order
+        items.forEach(item => container.appendChild(item));
+
+        // Update indices and numbering
+        updateItemNumbers();
+        updateFormIndices();
+        updateMoveButtons();
+
+        // Show feedback
+        showSortFeedback('Items sorted by date');
+    });
+
+    function showSortFeedback(message) {
+        const sortBtn = document.getElementById('sortByDate');
+        const originalHtml = sortBtn.innerHTML;
+        sortBtn.innerHTML = '<i class="fas fa-check"></i> Sorted!';
+        sortBtn.classList.remove('btn-outline-secondary');
+        sortBtn.classList.add('btn-success');
+        setTimeout(() => {
+            sortBtn.innerHTML = originalHtml;
+            sortBtn.classList.remove('btn-success');
+            sortBtn.classList.add('btn-outline-secondary');
+        }, 1500);
+    }
+
+    function updateFormIndices() {
+        const items = document.querySelectorAll('.expense-item');
+        items.forEach((item, index) => {
+            // Update all input/select/textarea names with the new index
+            const formElements = item.querySelectorAll('input, select, textarea');
+            formElements.forEach(element => {
+                if (element.name) {
+                    element.name = element.name.replace(/expense_items\[\d+\]/, `expense_items[${index}]`);
+                }
+            });
+        });
+    }
+
+    function updateMoveButtons() {
+        const items = document.querySelectorAll('.expense-item');
+        items.forEach((item, index) => {
+            const moveUpBtn = item.querySelector('.move-up');
+            const moveDownBtn = item.querySelector('.move-down');
+
+            if (moveUpBtn) {
+                moveUpBtn.disabled = (index === 0);
+            }
+            if (moveDownBtn) {
+                moveDownBtn.disabled = (index === items.length - 1);
+            }
+        });
+    }
 
     // Simplified amount input handling - minimal interference during typing
     document.addEventListener('input', function(e) {
@@ -761,7 +1123,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Light validation on blur
     document.addEventListener('blur', function(e) {
-        if (e.target.classList.contains('amount-field')) {
+        if (e.target.classList.contains('amount-field') || e.target.classList.contains('decimal-input-safe')) {
             validateAndFormatAmount(e.target);
         }
         if (e.target.classList.contains('exchange-rate-input')) {
@@ -771,20 +1133,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function validateAndFormatAmount(input) {
         let value = input.value.trim();
-        
+
         if (value === '') {
             return; // Allow empty values
         }
-        
-        // Remove any non-numeric characters except decimal point
-        value = value.replace(/[^\d.]/g, '');
-        
-        // Handle multiple decimal points - keep only the first one
-        const parts = value.split('.');
-        if (parts.length > 2) {
-            value = parts[0] + '.' + parts.slice(1).join('');
+
+        // Remove any non-numeric characters except decimal point and minus sign
+        value = value.replace(/[^\d.\-]/g, '');
+
+        // Handle minus sign - only allow at the beginning
+        const isNegative = value.startsWith('-');
+        value = value.replace(/-/g, '');
+        if (isNegative) {
+            value = '-' + value;
         }
-        
+
+        // Handle multiple decimal points - keep only the first one
+        const parts = value.replace('-', '').split('.');
+        if (parts.length > 2) {
+            value = (isNegative ? '-' : '') + parts[0] + '.' + parts.slice(1).join('');
+        }
+
         // Limit to 2 decimal places
         if (value.includes('.')) {
             const [whole, decimal] = value.split('.');
@@ -792,24 +1161,31 @@ document.addEventListener('DOMContentLoaded', function() {
                 value = whole + '.' + decimal.substring(0, 2);
             }
         }
-        
+
         // Convert to number and validate
         const numValue = parseFloat(value);
-        if (isNaN(numValue) || numValue < 0) {
-            showAmountFeedback(input, '❌ Please enter a valid amount', 'error');
+        if (isNaN(numValue)) {
+            showAmountFeedback(input, '❌ Please enter a valid number', 'error');
             input.value = '';
             return;
         }
         
-        // Check reasonable limits
-        if (numValue > 999999.99) {
-            showAmountFeedback(input, '💰 Maximum amount: $999,999.99', 'info');
-            value = '999999.99';
+        // Check for zero (not allowed)
+        if (numValue === 0) {
+            showAmountFeedback(input, '❌ Amount cannot be zero (negative allowed for returns)', 'error');
+            input.value = '';
+            return;
         }
-        
+
+        // Check reasonable limits (absolute value)
+        if (Math.abs(numValue) > 999999.99) {
+            showAmountFeedback(input, '💰 Maximum amount: $999,999.99', 'info');
+            value = numValue > 0 ? '999999.99' : '-999999.99';
+        }
+
         // Format to 2 decimal places for consistency
         input.value = numValue.toFixed(2);
-        
+
         // Update HKD equivalent after validation
         const expenseItem = input.closest('.expense-item');
         if (expenseItem) {
@@ -1054,15 +1430,19 @@ document.addEventListener('DOMContentLoaded', function() {
             isValid = false;
         }
         
-        // Validate amount fields (both new and old classes)
-        const amountFields = document.querySelectorAll('.decimal-input-safe, .amount-field');
-        amountFields.forEach(field => {
-            const value = parseFloat(field.value);
-            if (isNaN(value) || value <= 0) {
-                field.setCustomValidity('Please enter a valid amount');
-                isValid = false;
-            } else {
-                field.setCustomValidity('');
+        // Validate amount fields (both new and old classes) - allows negative for returns
+        // Only validate visible expense items, not the template
+        const visibleExpenseItems = document.querySelectorAll('.expense-item:not(#expense-item-template)');
+        visibleExpenseItems.forEach(item => {
+            const amountField = item.querySelector('.decimal-input-safe, .amount-field');
+            if (amountField && amountField.offsetParent !== null) { // Check if visible
+                const value = parseFloat(amountField.value);
+                if (amountField.value.trim() !== '' && (isNaN(value) || value === 0)) {
+                    amountField.setCustomValidity('Please enter a valid non-zero amount (negative allowed for returns)');
+                    isValid = false;
+                } else {
+                    amountField.setCustomValidity('');
+                }
             }
         });
         
@@ -1089,23 +1469,22 @@ document.addEventListener('DOMContentLoaded', function() {
     const periodFromHidden = document.getElementById('period-from-hidden');
     const periodToHidden = document.getElementById('period-to-hidden');
     const periodDisplay = document.getElementById('period-display');
-    
+
     if (monthSelect) {
-        monthSelect.addEventListener('change', function() {
-            const selectedValue = this.value;
+        // Function to update period display based on selected month
+        function updatePeriodFromMonth(selectedValue) {
             if (selectedValue) {
                 const [year, month] = selectedValue.split('-');
-                const firstDay = new Date(parseInt(year), parseInt(month) - 1, 1);
                 const lastDay = new Date(parseInt(year), parseInt(month), 0);
-                
+
                 // Format dates without timezone issues
                 const firstDayStr = `${year}-${month.padStart(2, '0')}-01`;
                 const lastDayStr = `${year}-${month.padStart(2, '0')}-${lastDay.getDate().toString().padStart(2, '0')}`;
-                
+
                 // Update hidden fields
                 periodFromHidden.value = firstDayStr;
                 periodToHidden.value = lastDayStr;
-                
+
                 // Update display
                 const monthNames = [
                     'January', 'February', 'March', 'April', 'May', 'June',
@@ -1118,11 +1497,27 @@ document.addEventListener('DOMContentLoaded', function() {
                 periodToHidden.value = '';
                 periodDisplay.value = '';
             }
+        }
+
+        monthSelect.addEventListener('change', function() {
+            updatePeriodFromMonth(this.value);
         });
-        
-        // Initialize with current selection
-        if (monthSelect.value) {
-            monthSelect.dispatchEvent(new Event('change'));
+
+        // Initialize: Check for existing period (edit mode) or default to current month (create mode)
+        const existingPeriod = monthSelect.dataset.existingPeriod;
+        if (existingPeriod) {
+            // Edit mode: set dropdown to existing claim's month
+            monthSelect.value = existingPeriod;
+            updatePeriodFromMonth(existingPeriod);
+        } else {
+            // Create mode: default to current month
+            const now = new Date();
+            const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            // Only set if the option exists
+            if (monthSelect.querySelector(`option[value="${currentMonth}"]`)) {
+                monthSelect.value = currentMonth;
+                updatePeriodFromMonth(currentMonth);
+            }
         }
     }
     
@@ -1143,11 +1538,250 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize page
     updateRemoveButtons();
     updateTotals();
-    
+    updateMoveButtons();
+
     // Initialize item counter for edit mode
     {% if claim.expense_items.all %}
     itemCounter = {{ claim.expense_items.all|length }};
     {% endif %}
+
+    // ========================================
+    // IMAGE UPLOAD RETRY LOGIC
+    // ========================================
+    // Track failed uploads for retry
+    const failedUploads = new Map();
+    const MAX_RETRIES = 3;
+
+    // Helper function to format file size
+    function formatFileSize(bytes) {
+        if (bytes < 1024) return bytes + ' bytes';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    // Helper function to show upload feedback
+    function showUploadFeedback(input, message, type = 'info') {
+        // Remove existing feedback
+        const parentDiv = input.closest('.mb-3');
+        const existing = parentDiv ? parentDiv.querySelector('.upload-feedback') : null;
+        if (existing) {
+            existing.remove();
+        }
+
+        const feedback = document.createElement('div');
+        feedback.className = `upload-feedback small mt-1 ${type === 'error' ? 'text-danger' : type === 'success' ? 'text-success' : 'text-info'}`;
+
+        let icon = 'info-circle';
+        if (type === 'error') icon = 'exclamation-circle';
+        if (type === 'success') icon = 'check-circle';
+
+        feedback.innerHTML = `<i class="fas fa-${icon}"></i> ${message}`;
+
+        if (parentDiv) {
+            parentDiv.appendChild(feedback);
+        }
+
+        // Keep success messages visible so user knows file is still selected
+        // (removed auto-hide that was causing confusion)
+    }
+
+    // Handle file input change for receipts
+    document.addEventListener('change', function(e) {
+        if (e.target.type === 'file' && e.target.name && e.target.name.includes('[receipt]')) {
+            const fileInput = e.target;
+            const file = fileInput.files[0];
+
+            console.log('File selected:', file ? file.name : 'none');
+
+            if (file) {
+                // Validate file before upload attempt
+                const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
+                const maxSize = 5 * 1024 * 1024; // 5MB
+
+                console.log('File type:', file.type, 'Size:', file.size);
+
+                if (!validTypes.includes(file.type)) {
+                    showUploadFeedback(fileInput, 'Invalid file type. Please use JPEG, PNG, GIF or PDF.', 'error');
+                    fileInput.value = '';
+                    return;
+                }
+
+                if (file.size > maxSize) {
+                    showUploadFeedback(fileInput, 'File too large. Maximum size is 5MB.', 'error');
+                    fileInput.value = '';
+                    return;
+                }
+
+                // Show upload preview/status
+                showUploadFeedback(fileInput, `Selected: ${file.name} (${formatFileSize(file.size)})`, 'success');
+
+                // Store the file for potential retry
+                failedUploads.set(fileInput.name, {
+                    file: file,
+                    retries: 0,
+                    input: fileInput
+                });
+            }
+        }
+    });
+
+    // Handle form submission with upload retry logic
+    // Note: 'form' variable already declared above
+    const originalSubmitHandler = form.onsubmit;
+
+    form.addEventListener('submit', async function(e) {
+        // Check for any files that need validation
+        const fileInputs = form.querySelectorAll('input[type="file"]');
+        let hasInvalidFiles = false;
+
+        fileInputs.forEach(input => {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
+                const maxSize = 5 * 1024 * 1024;
+
+                if (!validTypes.includes(file.type) || file.size > maxSize) {
+                    hasInvalidFiles = true;
+                    showUploadFeedback(input, 'Please fix this file before submitting', 'error');
+                }
+            }
+        });
+
+        if (hasInvalidFiles) {
+            e.preventDefault();
+            showAmountFeedback(fileInputs[0], 'Please fix invalid files before submitting', 'error');
+        }
+    });
+
+    // Add retry button functionality for failed uploads
+    function addRetryButton(input) {
+        const parentDiv = input.closest('.mb-3');
+        const existingRetry = parentDiv ? parentDiv.querySelector('.retry-upload-btn') : null;
+        if (existingRetry) return;
+
+        const retryBtn = document.createElement('button');
+        retryBtn.type = 'button';
+        retryBtn.className = 'btn btn-sm btn-warning retry-upload-btn mt-1';
+        retryBtn.innerHTML = '<i class="fas fa-redo"></i> Retry Upload';
+        retryBtn.onclick = function() {
+            // Re-trigger file selection
+            input.click();
+        };
+
+        if (parentDiv) {
+            parentDiv.appendChild(retryBtn);
+        }
+    }
+
+    function removeRetryButton(input) {
+        const parentDiv = input.closest('.mb-3');
+        const existingRetry = parentDiv ? parentDiv.querySelector('.retry-upload-btn') : null;
+        if (existingRetry) {
+            existingRetry.remove();
+        }
+    }
+
+    // ========================================
+    // DELETE RECEIPT FUNCTIONALITY
+    // ========================================
+    // Handle delete receipt button clicks
+    document.addEventListener('click', function(e) {
+        const deleteBtn = e.target.closest('.delete-receipt-btn');
+        if (!deleteBtn) return;
+
+        e.preventDefault();
+
+        const docId = deleteBtn.dataset.docId;
+        const docName = deleteBtn.dataset.docName || 'this receipt';
+
+        if (!confirm(`Are you sure you want to delete ${docName}? This cannot be undone.`)) {
+            return;
+        }
+
+        // Show loading state
+        deleteBtn.disabled = true;
+        deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        // Get CSRF token
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+        // Make AJAX request to delete the document
+        // Use the current page's base path to determine the correct URL prefix
+        const basePath = window.location.pathname.split('/expense-claims/')[0] || '';
+        fetch(`${basePath}/expense-claims/document/${docId}/delete/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': csrfToken
+            },
+            body: `redirect_url=${encodeURIComponent(window.location.href)}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Get references BEFORE removing from DOM
+                const receiptContainer = deleteBtn.closest('.d-inline-flex');
+                const itemDiv = deleteBtn.closest('.expense-item') || deleteBtn.closest('.mb-3');
+
+                // Remove the receipt button and delete button from the DOM
+                if (receiptContainer) {
+                    receiptContainer.remove();
+                }
+
+                // Check if there are any receipts left (count AFTER removal)
+                if (itemDiv) {
+                    const remainingReceipts = itemDiv.querySelectorAll('.delete-receipt-btn');
+                    if (remainingReceipts.length === 0) {
+                        // Update the status to show no attachments
+                        const statusDiv = itemDiv.querySelector('.mb-2');
+                        if (statusDiv) {
+                            statusDiv.innerHTML = '<span class="text-muted"><i class="fas fa-times-circle"></i> No attachment</span>';
+                        }
+                    } else {
+                        // Update the count message
+                        const statusSpan = itemDiv.querySelector('.text-success');
+                        if (statusSpan) {
+                            statusSpan.innerHTML = `<i class="fas fa-check-circle"></i> ${remainingReceipts.length} receipt(s) attached`;
+                        }
+                    }
+                }
+
+                // Show success message
+                showDeleteFeedback('Receipt deleted successfully', 'success');
+            } else {
+                // Restore button state
+                deleteBtn.disabled = false;
+                deleteBtn.innerHTML = '<i class="fas fa-times"></i>';
+                showDeleteFeedback(data.error || 'Failed to delete receipt', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting receipt:', error);
+            // Restore button state
+            deleteBtn.disabled = false;
+            deleteBtn.innerHTML = '<i class="fas fa-times"></i>';
+            showDeleteFeedback('Error deleting receipt. Please try again.', 'error');
+        });
+    });
+
+    function showDeleteFeedback(message, type) {
+        // Create a toast notification
+        const toast = document.createElement('div');
+        toast.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
+        toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+        toast.innerHTML = `
+            <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(toast);
+
+        // Auto-remove after 3 seconds
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 150);
+        }, 3000);
+    }
 });
 </script>
 {% endblock %}
