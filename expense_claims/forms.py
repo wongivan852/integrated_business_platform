@@ -16,10 +16,10 @@ User = get_user_model()
 
 class ExpenseClaimForm(forms.ModelForm):
     """Optimized expense claim form with cached dropdowns."""
-    
+
     class Meta:
         model = ExpenseClaim
-        fields = ['company', 'event_name', 'period_from', 'period_to']
+        fields = ['company', 'event_name', 'claim_for', 'period_from', 'period_to']
         widgets = {
             'period_from': forms.DateInput(
                 attrs={'type': 'date', 'class': 'form-control'}
@@ -33,19 +33,31 @@ class ExpenseClaimForm(forms.ModelForm):
             'event_name': forms.TextInput(
                 attrs={'class': 'form-control', 'placeholder': 'e.g., IAICC event'}
             ),
+            'claim_for': forms.Select(
+                attrs={'class': 'form-select'}
+            ),
         }
-    
+
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
-        
+
         # Make event_name required
         self.fields['event_name'].required = True
-        
+
+        # Make claim_for optional
+        self.fields['claim_for'].required = False
+
         # Use cached company data
         companies = ExpenseSystemCache.get_active_companies()
         self.fields['company'].choices = [('', '--- Select Company ---')] + [
             (company.id, company.name) for company in companies
+        ]
+
+        # Populate claim_for with all active users
+        users = User.objects.filter(is_active=True).order_by('first_name', 'last_name', 'username')
+        self.fields['claim_for'].choices = [('', '--- Self (Leave empty) ---')] + [
+            (user.id, f"{user.get_full_name() or user.username}") for user in users
         ]
     
     def clean_event_name(self):
