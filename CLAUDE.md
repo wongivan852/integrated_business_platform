@@ -213,6 +213,7 @@ curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/expense-claims/
 - Added Move Up/Down buttons for claim reordering
 - Fixed print templates for PDF handling and image loading
 - Fixed Claim For dropdown in ExpenseClaimForm (was missing from form fields)
+- Fixed display_order field missing from ExpenseClaim model (caused NOT NULL constraint error)
 - Created CLAUDE.md for AI assistant context
 
 ### Known Working Features
