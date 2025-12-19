@@ -212,6 +212,8 @@ curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/expense-claims/
 - Added Date of Occurrence column
 - Added Move Up/Down buttons for claim reordering
 - Fixed print templates for PDF handling and image loading
+- Fixed Claim For dropdown in ExpenseClaimForm (was missing from form fields)
+- Created CLAUDE.md for AI assistant context
 
 ### Known Working Features
 - Expense claim creation with multi-currency
