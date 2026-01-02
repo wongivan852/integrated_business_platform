@@ -38,11 +38,11 @@ RUN python manage.py collectstatic --noinput
 USER appuser
 
 # Expose port
-EXPOSE 8000
+EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/admin/ || exit 1
+    CMD curl -f http://localhost:8080/admin/ || exit 1
 
 # Run application
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "120", "business_platform.wsgi:application"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "3", "--timeout", "120", "business_platform.wsgi:application"]

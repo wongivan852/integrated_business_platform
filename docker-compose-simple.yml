@@ -4,18 +4,22 @@ services:
   # Main Business Platform with Integrated Expense Claims
   web:
     build: .
-    ports:
-      - "0.0.0.0:8000:8000"
+    network_mode: "host"
     environment:
       - DJANGO_DEBUG=True
-      - USE_SQLITE=True  # Use SQLite for simplicity
+      - USE_SQLITE=False
+      - DB_NAME=krystal_platform
+      - DB_USER=platformadmin
+      - DB_PASSWORD=5514
+      - DB_HOST=localhost
+      - DB_PORT=5432
       - SECRET_KEY=integrated-business-platform-secret-key-2024
       - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0,web,192.168.0.104,*
+      - CSRF_TRUSTED_ORIGINS=https://dashboard.krystal.technology,http://192.168.0.104:8080,http://localhost:8080
     volumes:
       - ./media:/app/media
       - ./staticfiles:/app/staticfiles
       - ./logs:/app/logs
-      - ./db.sqlite3:/app/db.sqlite3
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/admin/"]
       interval: 30s
