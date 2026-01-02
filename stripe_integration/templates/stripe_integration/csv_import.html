@@ -1,0 +1,206 @@
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+
+{% block title %}Import CSV - Stripe{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'stripe:dashboard' %}">Stripe Dashboard</a></li>
+                    <li class="breadcrumb-item active">Import CSV</li>
+                </ol>
+            </nav>
+            <h1 class="h2">
+                <i class="fas fa-file-import"></i> Import Stripe Transactions from CSV
+            </h1>
+        </div>
+    </div>
+
+    {% if messages %}
+    <div class="row mb-3">
+        <div class="col-12">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <!-- Upload Form -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-upload"></i> Upload CSV File</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="account_id" class="form-label">Select Stripe Account *</label>
+                            <select class="form-select" id="account_id" name="account_id" required>
+                                <option value="">-- Select Account --</option>
+                                {% for account in accounts %}
+                                <option value="{{ account.id }}">{{ account.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted">
+                                Choose which Stripe account these transactions belong to.
+                            </small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="csv_files" class="form-label">CSV Files *</label>
+                            <input type="file" class="form-control" id="csv_files" name="csv_files" accept=".csv" multiple required>
+                            <small class="form-text text-muted">
+                                Select one or more CSV files exported from Stripe Dashboard. You can select multiple files at once.
+                            </small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="alert alert-info small mb-0">
+                                <i class="fas fa-info-circle"></i> <strong>Tip:</strong> You can select multiple CSV files at once by holding Ctrl (Windows/Linux) or Cmd (Mac) while clicking files.
+                            </div>
+                        </div>
+
+                        <div id="file-count" class="alert alert-secondary small mb-3" style="display: none;">
+                            <i class="fas fa-file-csv"></i> <span id="file-count-text">No files selected</span>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary" id="import-btn">
+                                <i class="fas fa-upload"></i> Import Transactions
+                            </button>
+                            <a href="{% url 'stripe:dashboard' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left"></i> Back to Dashboard
+                            </a>
+                        </div>
+                    </form>
+
+                    {% if not accounts %}
+                    <div class="alert alert-warning mt-3">
+                        <i class="fas fa-exclamation-triangle"></i> <strong>No accounts available!</strong>
+                        <br>Please <a href="{% url 'admin:stripe_integration_stripeaccount_add' %}" class="alert-link">create a Stripe account</a> first.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Instructions -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> Import Instructions</h5>
+                </div>
+                <div class="card-body">
+                    <h6>CSV File Format</h6>
+                    <p>The CSV file should contain the following columns:</p>
+                    <ul class="small">
+                        <li><strong>id</strong> or <strong>transaction_id</strong> - Unique Stripe transaction ID</li>
+                        <li><strong>amount</strong> or <strong>Amount</strong> - Transaction amount</li>
+                        <li><strong>fee</strong> or <strong>Fee</strong> - Processing fee (optional)</li>
+                        <li><strong>currency</strong> or <strong>Currency</strong> - Currency code (e.g., USD, EUR, HKD)</li>
+                        <li><strong>status</strong> or <strong>Status</strong> - Transaction status</li>
+                        <li><strong>type</strong> or <strong>Type</strong> - Transaction type</li>
+                        <li><strong>created</strong> or <strong>Created (UTC)</strong> - Transaction date</li>
+                        <li><strong>customer_email</strong> - Customer email (optional)</li>
+                        <li><strong>description</strong> - Transaction description (optional)</li>
+                    </ul>
+
+                    <h6 class="mt-3">How to Export from Stripe</h6>
+                    <ol class="small">
+                        <li>Login to your Stripe Dashboard</li>
+                        <li>Go to <strong>Payments → All Payments</strong></li>
+                        <li>Click the <strong>Export</strong> button</li>
+                        <li>Select date range and export format (CSV)</li>
+                        <li>Download the CSV file</li>
+                        <li>Upload it here</li>
+                    </ol>
+
+                    <h6 class="mt-3">Import Notes</h6>
+                    <div class="alert alert-info small mb-0">
+                        <ul class="mb-0">
+                            <li><strong>Duplicate Prevention:</strong> Transactions with the same Stripe ID will be skipped automatically</li>
+                            <li><strong>Safe Process:</strong> You can safely upload the same file multiple times</li>
+                            <li><strong>Account-Specific:</strong> Make sure to select the correct account for your CSV files</li>
+                            <li><strong>Precision:</strong> All amounts are stored in cents for accuracy</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="alert alert-warning small mt-2 mb-0">
+                        <i class="fas fa-exclamation-triangle"></i> <strong>Note:</strong> If you see "All transactions already exist", 
+                        it means these files have been imported before. This is normal and prevents duplicates. 
+                        Only NEW transactions will be imported.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Available CSV Files -->
+            {% if available_files %}
+            <div class="card mt-3">
+                <div class="card-header bg-secondary text-white">
+                    <h6 class="mb-0"><i class="fas fa-folder"></i> Available CSV Files on Server</h6>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted">Files found in: <code>/opt/stripe-dashboard/complete_csv/</code></p>
+                    <ul class="list-group list-group-flush small">
+                        {% for file in available_files %}
+                        <li class="list-group-item">
+                            <i class="fas fa-file-csv text-success"></i> {{ file|slice:"-50:" }}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    <p class="small text-muted mt-2 mb-0">
+                        <i class="fas fa-info-circle"></i> These files are available on the server but must be imported via admin interface or Django shell.
+                    </p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('csv_files');
+    const fileCount = document.getElementById('file-count');
+    const fileCountText = document.getElementById('file-count-text');
+    const importBtn = document.getElementById('import-btn');
+    
+    fileInput.addEventListener('change', function(e) {
+        const files = e.target.files;
+        if (files.length > 0) {
+            fileCount.style.display = 'block';
+            if (files.length === 1) {
+                fileCountText.textContent = `1 file selected: ${files[0].name}`;
+            } else {
+                const fileNames = Array.from(files).map(f => f.name).join(', ');
+                if (fileNames.length > 100) {
+                    fileCountText.textContent = `${files.length} files selected`;
+                } else {
+                    fileCountText.textContent = `${files.length} files selected: ${fileNames}`;
+                }
+            }
+            importBtn.disabled = false;
+        } else {
+            fileCount.style.display = 'none';
+            fileCountText.textContent = 'No files selected';
+            importBtn.disabled = true;
+        }
+    });
+    
+    // Initially disable button if no files
+    if (fileInput.files.length === 0) {
+        importBtn.disabled = true;
+    }
+});
+</script>
+{% endblock %}

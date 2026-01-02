@@ -186,3 +186,140 @@ class StripeSubscription(models.Model):
     def amount_formatted(self):
         """Return amount in dollars/euros etc (divided by 100)"""
         return self.amount / 100
+
+
+class MonthlyStatement(models.Model):
+    """
+    Monthly statement for Stripe account with proper balance tracking
+    Addresses: Opening/Closing balance, Payout reconciliation, Month-end definition
+    """
+    account = models.ForeignKey(StripeAccount, on_delete=models.CASCADE,
+                               related_name='monthly_statements')
+    year = models.IntegerField(help_text="Statement year")
+    month = models.IntegerField(help_text="Statement month (1-12)")
+    currency = models.CharField(max_length=3, default='hkd', 
+                               help_text="Currency code (hkd, usd, etc)")
+    
+    # Balance tracking (all amounts in cents)
+    opening_balance = models.IntegerField(default=0, 
+                                        help_text="Opening balance at start of month (cents)")
+    closing_balance = models.IntegerField(default=0,
+                                        help_text="Closing balance at end of month (cents)")
+    
+    # Revenue (before fees)
+    gross_revenue = models.IntegerField(default=0,
+                                      help_text="Total payments + charges (cents)")
+    refunds = models.IntegerField(default=0,
+                                 help_text="Total refunds - negative (cents)")
+    net_revenue = models.IntegerField(default=0,
+                                    help_text="Gross revenue + refunds (cents)")
+    
+    # Fees
+    processing_fees = models.IntegerField(default=0,
+                                        help_text="Total Stripe processing fees (cents)")
+    
+    # Activity balance (revenue - fees, before payouts)
+    activity_balance = models.IntegerField(default=0,
+                                         help_text="Net revenue - fees (cents)")
+    
+    # Payouts
+    payouts_in_month = models.IntegerField(default=0,
+                                         help_text="Payouts dated within month - negative (cents)")
+    payouts_for_month = models.IntegerField(default=0,
+                                          help_text="Payouts matched to this month's revenue (cents)")
+    
+    # Balance calculation: closing = opening + activity_balance + payouts
+    calculated_balance = models.IntegerField(default=0,
+                                           help_text="Calculated closing balance (cents)")
+    
+    # Transaction counts
+    transaction_count = models.IntegerField(default=0,
+                                          help_text="Total transactions in month")
+    payment_count = models.IntegerField(default=0,
+                                      help_text="Number of payments/charges")
+    payout_count = models.IntegerField(default=0,
+                                     help_text="Number of payouts")
+    refund_count = models.IntegerField(default=0,
+                                     help_text="Number of refunds")
+    
+    # Reconciliation
+    is_reconciled = models.BooleanField(default=False,
+                                      help_text="Whether balances are reconciled")
+    reconciliation_notes = models.TextField(blank=True,
+                                          help_text="Notes about reconciliation")
+    balance_discrepancy = models.IntegerField(default=0,
+                                            help_text="Difference if not reconciled (cents)")
+    
+    # Timestamps
+    generated_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        unique_together = ['account', 'year', 'month']
+        ordering = ['-year', '-month']
+        verbose_name = 'Monthly Statement'
+        verbose_name_plural = 'Monthly Statements'
+        indexes = [
+            models.Index(fields=['account', 'year', 'month']),
+            models.Index(fields=['year', 'month']),
+        ]
+    
+    def __str__(self):
+        return f"{self.account.name} - {self.year}-{self.month:02d} ({self.currency.upper()})"
+    
+    @property
+    def month_name(self):
+        """Return month name"""
+        import calendar
+        return calendar.month_name[self.month]
+    
+    @property
+    def opening_balance_formatted(self):
+        """Return opening balance in standard format"""
+        return self.opening_balance / 100
+    
+    @property
+    def closing_balance_formatted(self):
+        """Return closing balance in standard format"""
+        return self.closing_balance / 100
+    
+    @property
+    def gross_revenue_formatted(self):
+        """Return gross revenue in standard format"""
+        return self.gross_revenue / 100
+    
+    @property
+    def net_revenue_formatted(self):
+        """Return net revenue in standard format"""
+        return self.net_revenue / 100
+    
+    @property
+    def processing_fees_formatted(self):
+        """Return fees in standard format"""
+        return self.processing_fees / 100
+    
+    @property
+    def activity_balance_formatted(self):
+        """Return activity balance in standard format"""
+        return self.activity_balance / 100
+    
+    @property
+    def payouts_in_month_formatted(self):
+        """Return payouts in standard format"""
+        return abs(self.payouts_in_month) / 100  # Show as positive
+    
+    @property
+    def net_change_formatted(self):
+        """Return net change (closing - opening)"""
+        return (self.closing_balance - self.opening_balance) / 100
+    
+    def get_currency_symbol(self):
+        """Return currency symbol"""
+        symbols = {
+            'hkd': 'HK$',
+            'usd': '$',
+            'eur': '€',
+            'gbp': '£',
+            'cny': '¥',
+        }
+        return symbols.get(self.currency.lower(), self.currency.upper())

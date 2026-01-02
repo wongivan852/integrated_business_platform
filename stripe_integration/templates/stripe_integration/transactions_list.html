@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Transactions - Stripe{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'stripe:dashboard' %}">Stripe Dashboard</a></li>
+                    <li class="breadcrumb-item active">Transactions</li>
+                </ol>
+            </nav>
+            <h1 class="h2"><i class="fas fa-receipt"></i> All Transactions</h1>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Account</label>
+                            <select name="account" class="form-select form-select-sm">
+                                <option value="">All Accounts</option>
+                                {% for account in accounts %}
+                                <option value="{{ account.id }}" {% if selected_account == account.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ account.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Status</label>
+                            <select name="status" class="form-select form-select-sm">
+                                <option value="">All Status</option>
+                                <option value="succeeded" {% if selected_status == 'succeeded' %}selected{% endif %}>Succeeded</option>
+                                <option value="pending" {% if selected_status == 'pending' %}selected{% endif %}>Pending</option>
+                                <option value="failed" {% if selected_status == 'failed' %}selected{% endif %}>Failed</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Type</label>
+                            <select name="type" class="form-select form-select-sm">
+                                <option value="">All Types</option>
+                                <option value="charge" {% if selected_type == 'charge' %}selected{% endif %}>Charge</option>
+                                <option value="payment" {% if selected_type == 'payment' %}selected{% endif %}>Payment</option>
+                                <option value="refund" {% if selected_type == 'refund' %}selected{% endif %}>Refund</option>
+                                <option value="payout" {% if selected_type == 'payout' %}selected{% endif %}>Payout</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Search</label>
+                            <input type="text" name="search" class="form-control form-control-sm" placeholder="ID, email, description..." value="{{ search_query }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-filter"></i> Filter
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transactions Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    {% if page_obj %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Transaction ID</th>
+                                    <th>Account</th>
+                                    <th>Type</th>
+                                    <th class="text-end">Amount</th>
+                                    <th class="text-end">Fee</th>
+                                    <th class="text-end">Net</th>
+                                    <th>Status</th>
+                                    <th>Customer</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for transaction in page_obj %}
+                                <tr>
+                                    <td>{{ transaction.stripe_created|date:"Y-m-d H:i" }}</td>
+                                    <td>
+                                        <a href="{% url 'stripe:transaction_detail' transaction.id %}">
+                                            {{ transaction.stripe_id }}
+                                        </a>
+                                    </td>
+                                    <td>{{ transaction.account.name }}</td>
+                                    <td><span class="badge bg-secondary">{{ transaction.type }}</span></td>
+                                    <td class="text-end">${{ transaction.amount_formatted|floatformat:2 }}</td>
+                                    <td class="text-end">${{ transaction.fee_formatted|floatformat:2 }}</td>
+                                    <td class="text-end">${{ transaction.net_amount_formatted|floatformat:2 }}</td>
+                                    <td>
+                                        {% if transaction.status == 'succeeded' %}
+                                        <span class="badge bg-success">{{ transaction.status }}</span>
+                                        {% elif transaction.status == 'pending' %}
+                                        <span class="badge bg-warning">{{ transaction.status }}</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">{{ transaction.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="small">{{ transaction.customer_email|default:"-" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if page_obj.has_other_pages %}
+                    <nav>
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+                            </li>
+                            {% endif %}
+                            
+                            <li class="page-item active">
+                                <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                            </li>
+
+                            {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                    {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> No transactions found. <a href="{% url 'stripe:csv_import' %}">Import CSV data</a> to get started.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

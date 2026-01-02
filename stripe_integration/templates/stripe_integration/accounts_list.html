@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block title %}Stripe Accounts{% endblock %}
+{% block content %}
+<div class="container">
+    <h2>Stripe Accounts</h2>
+    <table class="table">
+        <thead><tr><th>Name</th><th>Transactions</th><th>Total</th><th>Fees</th><th>Net</th></tr></thead>
+        <tbody>
+        {% for summary in account_summary %}
+        <tr>
+            <td><a href="{% url 'stripe:account_detail' summary.account.id %}">{{ summary.account.name }}</a></td>
+            <td>{{ summary.total_transactions }}</td>
+            <td>\${{ summary.total_amount }}</td>
+            <td>\${{ summary.total_fees }}</td>
+            <td>\${{ summary.net_amount }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

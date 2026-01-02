@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import StripeAccount, Transaction, StripeCustomer, StripeSubscription
+from .models import StripeAccount, Transaction, StripeCustomer, StripeSubscription, MonthlyStatement
 
 
 @admin.register(StripeAccount)
@@ -110,3 +110,54 @@ class StripeSubscriptionAdmin(admin.ModelAdmin):
     def amount_display(self, obj):
         return f"{obj.amount_formatted:.2f}"
     amount_display.short_description = 'Amount'
+
+
+@admin.register(MonthlyStatement)
+class MonthlyStatementAdmin(admin.ModelAdmin):
+    list_display = ['account', 'year', 'month', 'month_name', 'currency_display', 
+                    'opening_display', 'closing_display', 'net_change_display', 
+                    'transaction_count', 'is_reconciled']
+    list_filter = ['account', 'year', 'is_reconciled', 'currency']
+    search_fields = ['account__name']
+    ordering = ['-year', '-month']
+    readonly_fields = ['generated_at', 'updated_at']
+    
+    fieldsets = (
+        ('Period', {
+            'fields': ('account', 'year', 'month', 'currency')
+        }),
+        ('Balance', {
+            'fields': ('opening_balance', 'closing_balance', 'calculated_balance')
+        }),
+        ('Revenue', {
+            'fields': ('gross_revenue', 'refunds', 'net_revenue', 'processing_fees', 'activity_balance')
+        }),
+        ('Payouts', {
+            'fields': ('payouts_in_month', 'payouts_for_month')
+        }),
+        ('Statistics', {
+            'fields': ('transaction_count', 'payment_count', 'payout_count', 'refund_count')
+        }),
+        ('Reconciliation', {
+            'fields': ('is_reconciled', 'balance_discrepancy', 'reconciliation_notes')
+        }),
+        ('Timestamps', {
+            'fields': ('generated_at', 'updated_at')
+        }),
+    )
+    
+    def currency_display(self, obj):
+        return obj.currency.upper()
+    currency_display.short_description = 'Currency'
+    
+    def opening_display(self, obj):
+        return f"{obj.get_currency_symbol()}{obj.opening_balance_formatted:,.2f}"
+    opening_display.short_description = 'Opening'
+    
+    def closing_display(self, obj):
+        return f"{obj.get_currency_symbol()}{obj.closing_balance_formatted:,.2f}"
+    closing_display.short_description = 'Closing'
+    
+    def net_change_display(self, obj):
+        return f"{obj.get_currency_symbol()}{obj.net_change_formatted:,.2f}"
+    net_change_display.short_description = 'Net Change'

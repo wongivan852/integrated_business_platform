@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}Analytics - Stripe{% endblock %}
+{% block content %}
+<div class="container">
+    <h2>Stripe Analytics</h2>
+    <p>Date Range: {{ start_date }} to {{ end_date }}</p>
+    <p>Total Transactions: {{ stats.total_count }}</p>
+    <p>Total Amount: \${{ stats.total_amount }}</p>
+</div>
+{% endblock %}

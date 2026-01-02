@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% block title %}{{ account.name }} - Stripe{% endblock %}
+{% block content %}
+<div class="container">
+    <h2>{{ account.name }}</h2>
+    <p>Transactions: {{ transaction_stats.total_count }}</p>
+    <p>Total Amount: \${{ transaction_stats.total_amount }}</p>
+</div>
+{% endblock %}

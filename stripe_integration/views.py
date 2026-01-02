@@ -7,8 +7,8 @@ from django.core.paginator import Paginator
 from django.db.models import Sum, Count, Q
 from datetime import datetime, timedelta
 
-from .models import StripeAccount, Transaction, StripeCustomer, StripeSubscription
-from .services import StripeService, CSVImportService
+from .models import StripeAccount, Transaction, StripeCustomer, StripeSubscription, MonthlyStatement
+from .services import StripeService, CSVImportService, MonthlyStatementService
 
 
 @login_required
@@ -238,52 +238,95 @@ def analytics(request):
 def csv_import(request):
     """
     View to import transactions from CSV files
+    Supports multiple file upload
     """
     if request.method == 'POST':
         account_id = request.POST.get('account_id')
-        uploaded_file = request.FILES.get('csv_file')
+        uploaded_files = request.FILES.getlist('csv_files')  # Support multiple files
 
-        if not account_id or not uploaded_file:
-            messages.error(request, 'Please select an account and upload a CSV file.')
+        if not account_id:
+            messages.error(request, 'Please select an account.')
+            return redirect('stripe:csv_import')
+
+        if not uploaded_files:
+            messages.error(request, 'Please upload at least one CSV file.')
             return redirect('stripe:csv_import')
 
         account = get_object_or_404(StripeAccount, id=account_id)
 
-        # Save uploaded file temporarily
+        # Import statistics across all files
+        total_imported = 0
+        total_skipped = 0
+        total_errors = []
+        total_files = len(uploaded_files)
+        
         import tempfile
         import os
 
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.csv') as tmp_file:
-            for chunk in uploaded_file.chunks():
-                tmp_file.write(chunk)
-            tmp_file_path = tmp_file.name
+        for uploaded_file in uploaded_files:
+            # Validate file extension
+            if not uploaded_file.name.endswith('.csv'):
+                messages.warning(request, f"Skipped '{uploaded_file.name}' - not a CSV file.")
+                continue
 
-        try:
-            # Import from CSV
-            csv_service = CSVImportService()
-            stats = csv_service.import_from_csv(tmp_file_path, account)
+            # Save uploaded file temporarily
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.csv', mode='wb') as tmp_file:
+                for chunk in uploaded_file.chunks():
+                    tmp_file.write(chunk)
+                tmp_file_path = tmp_file.name
 
-            # Clean up temp file
-            os.unlink(tmp_file_path)
+            try:
+                # Import from CSV
+                csv_service = CSVImportService()
+                stats = csv_service.import_from_csv(tmp_file_path, account)
 
-            # Show results
-            if stats['errors']:
+                # Aggregate statistics
+                total_imported += stats['imported']
+                total_skipped += stats['skipped']
+                if stats['errors']:
+                    total_errors.extend([f"{uploaded_file.name}: {err}" for err in stats['errors']])
+
+                # Clean up temp file
+                os.unlink(tmp_file_path)
+
+            except Exception as e:
+                messages.error(request, f"Error importing '{uploaded_file.name}': {str(e)}")
+                if os.path.exists(tmp_file_path):
+                    os.unlink(tmp_file_path)
+
+        # Show consolidated results
+        if total_imported > 0:
+            if total_errors:
                 messages.warning(
                     request,
-                    f"Import completed with {stats['imported']} transactions imported, "
-                    f"{stats['skipped']} skipped. {len(stats['errors'])} errors occurred."
+                    f"Import completed: {total_imported} transactions imported from {total_files} file(s), "
+                    f"{total_skipped} skipped, {len(total_errors)} errors occurred."
                 )
+                # Show first few errors
+                for error in total_errors[:5]:
+                    messages.error(request, error)
+                if len(total_errors) > 5:
+                    messages.info(request, f"... and {len(total_errors) - 5} more errors.")
             else:
                 messages.success(
                     request,
-                    f"Successfully imported {stats['imported']} transactions, "
-                    f"{stats['skipped']} skipped."
+                    f"Successfully imported {total_imported} transactions from {total_files} file(s), "
+                    f"{total_skipped} skipped (duplicates)."
                 )
-
-        except Exception as e:
-            messages.error(request, f"Error importing CSV: {str(e)}")
-            if os.path.exists(tmp_file_path):
-                os.unlink(tmp_file_path)
+        else:
+            # Check if everything was skipped (all duplicates) vs parsing errors
+            if total_skipped > 0:
+                messages.info(
+                    request,
+                    f"All {total_skipped} transactions from {total_files} file(s) already exist in the database for account '{account.name}'. "
+                    f"No duplicates were imported. This is normal if you've uploaded these files before."
+                )
+            else:
+                messages.warning(
+                    request,
+                    f"No transactions were imported from {total_files} file(s). "
+                    f"Check that your CSV files contain valid transaction data."
+                )
 
         return redirect('stripe:csv_import')
 
@@ -374,3 +417,148 @@ def api_dashboard_stats(request):
     stats = service.get_dashboard_stats()
 
     return JsonResponse(stats)
+
+
+@login_required
+def monthly_statements(request):
+    """
+    View to list and generate monthly statements
+    """
+    account_id = request.GET.get('account')
+    year = request.GET.get('year')
+    month = request.GET.get('month')
+    
+    # Get all accounts
+    accounts = StripeAccount.objects.filter(is_active=True)
+    
+    # If specific account selected
+    selected_account = None
+    statements = []
+    
+    if account_id:
+        selected_account = get_object_or_404(StripeAccount, id=account_id)
+        
+        # Get all statements for this account
+        statements = MonthlyStatement.objects.filter(
+            account=selected_account
+        ).order_by('-year', '-month')
+    
+    context = {
+        'accounts': accounts,
+        'selected_account': selected_account,
+        'statements': statements,
+        'page_title': 'Monthly Statements',
+    }
+    
+    return render(request, 'stripe_integration/monthly_statements.html', context)
+
+
+@login_required
+def monthly_statement_detail(request, statement_id):
+    """
+    View to show detailed monthly statement with transactions
+    """
+    statement = get_object_or_404(MonthlyStatement, id=statement_id)
+    service = MonthlyStatementService()
+    
+    # Get all transactions for this statement
+    transactions = service.get_transactions_for_statement(statement)
+    
+    # Separate by type
+    payments = transactions.filter(type__in=['payment', 'charge'])
+    refunds = transactions.filter(type='refund')
+    payouts = transactions.filter(type='payout')
+    
+    context = {
+        'statement': statement,
+        'transactions': transactions,
+        'payments': payments,
+        'refunds': refunds,
+        'payouts': payouts,
+        'page_title': f'Statement: {statement.account.name} - {statement.year}/{statement.month:02d}',
+    }
+    
+    return render(request, 'stripe_integration/monthly_statement_detail.html', context)
+
+
+@login_required
+@require_http_methods(["POST"])
+def generate_monthly_statement(request):
+    """
+    Generate or regenerate monthly statement for specific account and month
+    """
+    account_id = request.POST.get('account_id')
+    year = request.POST.get('year')
+    month = request.POST.get('month')
+    
+    if not all([account_id, year, month]):
+        messages.error(request, 'Please provide account, year, and month.')
+        return redirect('stripe:monthly_statements')
+    
+    try:
+        account = get_object_or_404(StripeAccount, id=account_id)
+        year = int(year)
+        month = int(month)
+        
+        if month < 1 or month > 12:
+            raise ValueError("Month must be between 1 and 12")
+        
+        # Generate statement
+        service = MonthlyStatementService()
+        statement = service.calculate_monthly_statement(account, year, month)
+        
+        messages.success(
+            request,
+            f"Successfully generated statement for {account.name} - {year}/{month:02d}"
+        )
+        
+        return redirect('stripe:monthly_statement_detail', statement_id=statement.id)
+        
+    except ValueError as e:
+        messages.error(request, f"Invalid input: {str(e)}")
+        return redirect('stripe:monthly_statements')
+    except Exception as e:
+        messages.error(request, f"Error generating statement: {str(e)}")
+        return redirect('stripe:monthly_statements')
+
+
+@login_required
+@require_http_methods(["POST"])
+def generate_all_statements(request):
+    """
+    Generate statements for all months with transactions
+    """
+    account_id = request.POST.get('account_id')
+    initial_balance = request.POST.get('initial_balance', '0')
+    
+    if not account_id:
+        messages.error(request, 'Please select an account.')
+        return redirect('stripe:monthly_statements')
+    
+    try:
+        account = get_object_or_404(StripeAccount, id=account_id)
+        initial_balance_cents = int(float(initial_balance) * 100) if initial_balance else 0
+        
+        # Generate all statements
+        service = MonthlyStatementService()
+        statements = service.generate_all_statements(
+            account,
+            initial_balance=initial_balance_cents
+        )
+        
+        if statements:
+            messages.success(
+                request,
+                f"Successfully generated {len(statements)} statements for {account.name}"
+            )
+        else:
+            messages.warning(
+                request,
+                f"No transactions found for {account.name}"
+            )
+        
+        return redirect('stripe:monthly_statements') + f'?account={account_id}'
+        
+    except Exception as e:
+        messages.error(request, f"Error generating statements: {str(e)}")
+        return redirect('stripe:monthly_statements')

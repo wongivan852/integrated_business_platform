@@ -1,0 +1,225 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load stripe_filters %}
+{% load humanize %}
+
+{% block title %}{{ page_title }} - Stripe Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <a href="{% url 'stripe:monthly_statements' %}?account={{ statement.account.id }}" class="btn btn-secondary mb-2">
+                <i class="fas fa-arrow-left"></i> Back to Statements
+            </a>
+            <h2>Monthly Statement: {{ statement.account.name }}</h2>
+            <h4>{{ statement.year }}/{{ statement.month|stringformat:"02d" }}</h4>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h6 class="text-muted">Opening Balance</h6>
+                    <h4>{{ statement.opening_balance|format_currency:statement.currency }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h6>Gross Revenue</h6>
+                    <h4>{{ statement.gross_revenue|format_currency:statement.currency }}</h4>
+                    <small>{{ statement.payment_count }} payment(s)</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body">
+                    <h6>Processing Fees</h6>
+                    <h4>{{ statement.processing_fees|format_currency:statement.currency }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h6>Closing Balance</h6>
+                    <h4>{{ statement.closing_balance|format_currency:statement.currency }}</h4>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Breakdown -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Revenue & Fees Breakdown</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table">
+                        <tr>
+                            <td>Gross Revenue</td>
+                            <td class="text-right text-success">{{ statement.gross_revenue|format_currency:statement.currency }}</td>
+                        </tr>
+                        <tr>
+                            <td>Refunds</td>
+                            <td class="text-right text-danger">{{ statement.refunds|format_currency:statement.currency }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Net Revenue</strong></td>
+                            <td class="text-right"><strong>{{ statement.net_revenue|format_currency:statement.currency }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Processing Fees</td>
+                            <td class="text-right text-danger">- {{ statement.processing_fees|format_currency:statement.currency }}</td>
+                        </tr>
+                        <tr class="table-active">
+                            <td><strong>Activity Balance</strong></td>
+                            <td class="text-right"><strong>{{ statement.activity_balance|format_currency:statement.currency }}</strong></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Balance Calculation</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table">
+                        <tr>
+                            <td>Opening Balance</td>
+                            <td class="text-right">{{ statement.opening_balance|format_currency:statement.currency }}</td>
+                        </tr>
+                        <tr>
+                            <td>Activity Balance</td>
+                            <td class="text-right text-success">+ {{ statement.activity_balance|format_currency:statement.currency }}</td>
+                        </tr>
+                        <tr>
+                            <td>Payouts in Month</td>
+                            <td class="text-right text-danger">{{ statement.payouts_in_month|format_currency:statement.currency }}</td>
+                        </tr>
+                        <tr class="table-active">
+                            <td><strong>Closing Balance</strong></td>
+                            <td class="text-right"><strong>{{ statement.closing_balance|format_currency:statement.currency }}</strong></td>
+                        </tr>
+                        {% if statement.balance_discrepancy != 0 %}
+                        <tr class="table-warning">
+                            <td><strong>Discrepancy</strong></td>
+                            <td class="text-right text-danger"><strong>{{ statement.balance_discrepancy|format_currency:statement.currency }}</strong></td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transaction Statistics -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Transaction Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 text-center">
+                            <h6 class="text-muted">Total Transactions</h6>
+                            <h3>{{ statement.transaction_count }}</h3>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <h6 class="text-muted">Payments</h6>
+                            <h3 class="text-success">{{ statement.payment_count }}</h3>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <h6 class="text-muted">Refunds</h6>
+                            <h3 class="text-danger">{{ statement.refund_count }}</h3>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <h6 class="text-muted">Payouts</h6>
+                            <h3 class="text-primary">{{ statement.payout_count }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transactions List -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>All Transactions ({{ transactions.count }})</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active" data-toggle="tab" href="#all">All ({{ transactions.count }})</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-toggle="tab" href="#payments">Payments ({{ payments.count }})</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-toggle="tab" href="#refunds">Refunds ({{ refunds.count }})</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-toggle="tab" href="#payouts">Payouts ({{ payouts.count }})</a>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content mt-3">
+                        <!-- All Transactions -->
+                        <div id="all" class="tab-pane fade show active">
+                            {% include 'stripe_integration/partials/transaction_table.html' with trans_list=transactions %}
+                        </div>
+
+                        <!-- Payments -->
+                        <div id="payments" class="tab-pane fade">
+                            {% include 'stripe_integration/partials/transaction_table.html' with trans_list=payments %}
+                        </div>
+
+                        <!-- Refunds -->
+                        <div id="refunds" class="tab-pane fade">
+                            {% include 'stripe_integration/partials/transaction_table.html' with trans_list=refunds %}
+                        </div>
+
+                        <!-- Payouts -->
+                        <div id="payouts" class="tab-pane fade">
+                            {% include 'stripe_integration/partials/transaction_table.html' with trans_list=payouts %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+    font-weight: 600;
+}
+.bg-success { background-color: #28a745 !important; }
+.bg-danger { background-color: #dc3545 !important; }
+.bg-primary { background-color: #007bff !important; }
+.text-success { color: #28a745 !important; }
+.text-danger { color: #dc3545 !important; }
+</style>
+{% endblock %}

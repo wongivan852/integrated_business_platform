@@ -1,0 +1,224 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Stripe Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h2">
+                <i class="fab fa-stripe-s"></i> Stripe Dashboard
+            </h1>
+            <p class="text-muted">Payment processing and financial analytics</p>
+        </div>
+    </div>
+
+    <!-- Navigation Menu -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="btn-group" role="group">
+                <a href="{% url 'stripe:dashboard' %}" class="btn btn-primary active">
+                    <i class="fas fa-home"></i> Dashboard
+                </a>
+                <a href="{% url 'stripe:csv_import' %}" class="btn btn-outline-primary">
+                    <i class="fas fa-upload"></i> Import CSV
+                </a>
+                <a href="{% url 'stripe:monthly_statements' %}" class="btn btn-outline-primary">
+                    <i class="fas fa-file-invoice"></i> Monthly Statements
+                </a>
+                <a href="{% url 'stripe:transactions_list' %}" class="btn btn-outline-primary">
+                    <i class="fas fa-list"></i> Transactions
+                </a>
+                <a href="{% url 'stripe:accounts_list' %}" class="btn btn-outline-primary">
+                    <i class="fas fa-building"></i> Accounts
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-primary">
+                <div class="card-body">
+                    <h6 class="card-subtitle text-muted mb-2">Total Transactions</h6>
+                    <h3 class="card-title mb-0">{{ stats.total_transactions|intcomma }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-success">
+                <div class="card-body">
+                    <h6 class="card-subtitle text-muted mb-2">Total Amount</h6>
+                    <h3 class="card-title mb-0">${{ stats.total_amount|floatformat:2|intcomma }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-warning">
+                <div class="card-body">
+                    <h6 class="card-subtitle text-muted mb-2">Total Fees</h6>
+                    <h3 class="card-title mb-0">${{ stats.total_fees|floatformat:2|intcomma }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-info">
+                <div class="card-body">
+                    <h6 class="card-subtitle text-muted mb-2">Net Amount</h6>
+                    <h3 class="card-title mb-0">${{ stats.net_amount|floatformat:2|intcomma }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Accounts Summary -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-building"></i> Stripe Accounts</h5>
+                </div>
+                <div class="card-body">
+                    {% if account_summary %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Account Name</th>
+                                    <th>Status</th>
+                                    <th class="text-end">Transactions</th>
+                                    <th class="text-end">Total Amount</th>
+                                    <th class="text-end">Fees</th>
+                                    <th class="text-end">Net Amount</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for summary in account_summary %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ summary.account.name }}</strong>
+                                    </td>
+                                    <td>
+                                        {% if summary.account.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">{{ summary.total_transactions|intcomma }}</td>
+                                    <td class="text-end">${{ summary.total_amount|floatformat:2|intcomma }}</td>
+                                    <td class="text-end">${{ summary.total_fees|floatformat:2|intcomma }}</td>
+                                    <td class="text-end">${{ summary.net_amount|floatformat:2|intcomma }}</td>
+                                    <td>
+                                        <a href="{% url 'stripe:account_detail' summary.account.id %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> No Stripe accounts configured yet.
+                        <a href="{% url 'admin:stripe_integration_stripeaccount_add' %}" class="alert-link">Add one in admin</a>.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Transactions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-receipt"></i> Recent Transactions</h5>
+                    <a href="{% url 'stripe:transactions_list' %}" class="btn btn-sm btn-light">
+                        View All <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if recent_transactions %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Transaction ID</th>
+                                    <th>Account</th>
+                                    <th>Type</th>
+                                    <th class="text-end">Amount</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for transaction in recent_transactions %}
+                                <tr>
+                                    <td>{{ transaction.stripe_created|date:"Y-m-d H:i" }}</td>
+                                    <td>
+                                        <a href="{% url 'stripe:transaction_detail' transaction.id %}">
+                                            {{ transaction.stripe_id }}
+                                        </a>
+                                    </td>
+                                    <td>{{ transaction.account.name }}</td>
+                                    <td><span class="badge bg-secondary">{{ transaction.type }}</span></td>
+                                    <td class="text-end">${{ transaction.amount_formatted|floatformat:2 }}</td>
+                                    <td>
+                                        {% if transaction.status == 'succeeded' %}
+                                        <span class="badge bg-success">{{ transaction.status }}</span>
+                                        {% elif transaction.status == 'pending' %}
+                                        <span class="badge bg-warning">{{ transaction.status }}</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">{{ transaction.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> No transactions found.
+                        <a href="{% url 'stripe:csv_import' %}" class="alert-link">Import CSV data</a> to get started.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-bolt"></i> Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2 d-md-flex">
+                        <a href="{% url 'stripe:csv_import' %}" class="btn btn-primary">
+                            <i class="fas fa-file-import"></i> Import CSV Data
+                        </a>
+                        <a href="{% url 'stripe:transactions_list' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-list"></i> View All Transactions
+                        </a>
+                        <a href="{% url 'stripe:analytics' %}" class="btn btn-outline-info">
+                            <i class="fas fa-chart-line"></i> Analytics
+                        </a>
+                        <a href="{% url 'admin:stripe_integration_stripeaccount_changelist' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-cog"></i> Manage Accounts
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
