@@ -77,6 +77,15 @@ class CSVImportHandler:
         ],
         'referral_source': [
             'referral_source', 'referral', 'referred_by', 'referrer'
+        ],
+        'customer_centre': [
+            'customer_centre', 'centre', 'center', 'service_centre', 'service_center',
+            'location', 'branch', 'office', 'region_office', 'regional_office'
+        ],
+        'service_subscribed': [
+            'service_subscribed', 'service', 'subscription', 'product',
+            'service_type', 'subscribed_service', 'product_subscribed',
+            'program', 'course_type', 'membership'
         ]
     }
     
@@ -91,6 +100,42 @@ class CSVImportHandler:
         'instructor': ['instructor', 'teacher', 'trainer', 'educator', 'faculty']
     }
     
+    # Customer centre mappings for flexible input
+    CUSTOMER_CENTRE_MAPPINGS = {
+        'hk': ['hk', 'hong_kong', 'hongkong', 'hong kong'],
+        'cn': ['cn', 'china', 'mainland', 'china_mainland', 'prc'],
+        'sg': ['sg', 'singapore'],
+        'tw': ['tw', 'taiwan'],
+        'my': ['my', 'malaysia'],
+        'th': ['th', 'thailand'],
+        'vn': ['vn', 'vietnam'],
+        'id': ['id', 'indonesia'],
+        'ph': ['ph', 'philippines'],
+        'jp': ['jp', 'japan'],
+        'kr': ['kr', 'korea', 'south_korea'],
+        'au': ['au', 'australia'],
+        'nz': ['nz', 'new_zealand', 'newzealand'],
+        'uk': ['uk', 'united_kingdom', 'britain', 'gb', 'england'],
+        'us': ['us', 'usa', 'united_states', 'america'],
+        'eu': ['eu', 'europe', 'european'],
+        'other': ['other', 'misc', 'unknown']
+    }
+
+    # Service subscribed mappings for flexible input
+    SERVICE_SUBSCRIBED_MAPPINGS = {
+        'blender_studio': ['blender_studio', 'blender', 'blender studio'],
+        'origin_cg': ['origin_cg', 'origin', 'origincg', 'origin cg'],
+        'krystal_institute': ['krystal_institute', 'ki', 'institute', 'krystal institute'],
+        'krystal_technology': ['krystal_technology', 'kt', 'technology', 'krystal technology', 'krystal tech'],
+        'cgge': ['cgge', 'cg_global', 'cgglobal', 'cg global entertainment'],
+        'online_course': ['online_course', 'online', 'elearning', 'e-learning'],
+        'workshop': ['workshop', 'workshops'],
+        'mentorship': ['mentorship', 'mentor', 'mentoring', 'mentorship_program'],
+        'corporate_training': ['corporate_training', 'corporate', 'enterprise', 'b2b'],
+        'consulting': ['consulting', 'consultant', 'advisory'],
+        'other': ['other', 'misc', 'unknown']
+    }
+
     # Source mappings for flexible input
     SOURCE_MAPPINGS = {
         'website': ['website', 'web', 'online', 'site'],
@@ -283,7 +328,47 @@ class CSVImportHandler:
             return value_lower
         
         return 'other'  # Default fallback for unrecognized sources
-    
+
+    def normalize_customer_centre(self, value: str) -> str:
+        """Normalize customer centre values"""
+        if not value:
+            return ''  # Empty is allowed
+
+        value_lower = value.lower().strip().replace(' ', '_')
+
+        for standard_centre, variations in self.CUSTOMER_CENTRE_MAPPINGS.items():
+            if value_lower in variations:
+                return standard_centre
+
+        # Check if it matches any valid choices directly
+        from .models import Customer
+        valid_centres = [choice[0] for choice in Customer.CUSTOMER_CENTRE_CHOICES if choice[0]]
+
+        if value_lower in valid_centres:
+            return value_lower
+
+        return ''  # Return empty if no valid match
+
+    def normalize_service_subscribed(self, value: str) -> str:
+        """Normalize service subscribed values"""
+        if not value:
+            return ''  # Empty is allowed
+
+        value_lower = value.lower().strip().replace(' ', '_')
+
+        for standard_service, variations in self.SERVICE_SUBSCRIBED_MAPPINGS.items():
+            if value_lower in variations:
+                return standard_service
+
+        # Check if it matches any valid choices directly
+        from .models import Customer
+        valid_services = [choice[0] for choice in Customer.SERVICE_SUBSCRIBED_CHOICES if choice[0]]
+
+        if value_lower in valid_services:
+            return value_lower
+
+        return ''  # Return empty if no valid match
+
     def normalize_email(self, email: str) -> str:
         """Clean and validate email, handling multiple email addresses"""
         if not email:
@@ -408,6 +493,10 @@ class CSVImportHandler:
                     customer_data[model_field] = self.normalize_customer_type(value)
                 elif model_field == 'source':
                     customer_data[model_field] = self.normalize_source(value)
+                elif model_field == 'customer_centre':
+                    customer_data[model_field] = self.normalize_customer_centre(value)
+                elif model_field == 'service_subscribed':
+                    customer_data[model_field] = self.normalize_service_subscribed(value)
                 else:
                     customer_data[model_field] = value
             
