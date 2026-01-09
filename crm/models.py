@@ -409,7 +409,57 @@ class Customer(models.Model):
     # Customer Classification
     customer_type = models.CharField(max_length=20, choices=CUSTOMER_TYPES)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='prospect')
-    
+
+    # Customer Centre
+    CUSTOMER_CENTRE_CHOICES = [
+        ('', 'Select Centre'),
+        ('hk', 'Hong Kong'),
+        ('cn', 'China Mainland'),
+        ('sg', 'Singapore'),
+        ('tw', 'Taiwan'),
+        ('my', 'Malaysia'),
+        ('th', 'Thailand'),
+        ('vn', 'Vietnam'),
+        ('id', 'Indonesia'),
+        ('ph', 'Philippines'),
+        ('jp', 'Japan'),
+        ('kr', 'Korea'),
+        ('au', 'Australia'),
+        ('nz', 'New Zealand'),
+        ('uk', 'United Kingdom'),
+        ('us', 'United States'),
+        ('eu', 'Europe'),
+        ('other', 'Other'),
+    ]
+    customer_centre = models.CharField(
+        max_length=20,
+        choices=CUSTOMER_CENTRE_CHOICES,
+        blank=True,
+        help_text="Customer's assigned service centre"
+    )
+
+    # Service Subscribed
+    SERVICE_SUBSCRIBED_CHOICES = [
+        ('', 'Select Service'),
+        ('blender_studio', 'Blender Studio'),
+        ('origin_cg', 'Origin CG'),
+        ('krystal_institute', 'Krystal Institute'),
+        ('krystal_technology', 'Krystal Technology'),
+        ('cgge', 'CGGE'),
+        ('online_course', 'Online Course'),
+        ('workshop', 'Workshop'),
+        ('mentorship', 'Mentorship Program'),
+        ('corporate_training', 'Corporate Training'),
+        ('consulting', 'Consulting'),
+        ('other', 'Other'),
+    ]
+    service_subscribed = models.CharField(
+        max_length=30,
+        choices=SERVICE_SUBSCRIBED_CHOICES,
+        blank=True,
+        help_text="Primary service the customer subscribed to"
+    )
+
     # Professional Information (Multiple positions for career progression)
     company_primary = models.CharField(max_length=200, blank=True, help_text="Current/Primary company")
     position_primary = models.CharField(max_length=100, blank=True, help_text="Current/Primary position")
@@ -481,8 +531,11 @@ class Customer(models.Model):
             models.Index(fields=['youtube_handle']),
             models.Index(fields=['created_at', 'status']),
             models.Index(fields=['customer_type', 'created_at']),
+            models.Index(fields=['customer_centre']),
+            models.Index(fields=['service_subscribed']),
+            models.Index(fields=['customer_centre', 'service_subscribed']),
         ]
-    
+
     def __str__(self):
         # Build name with title and designation if available
         name_parts = []

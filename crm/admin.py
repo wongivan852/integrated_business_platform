@@ -26,12 +26,13 @@ class CustomerCommunicationPreferenceInline(admin.TabularInline):
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
     list_display = [
-        'full_name', 'email_primary', 'customer_type', 'status', 
-        'source', 'country_region', 'marketing_consent', 'created_at'
+        'full_name', 'email_primary', 'customer_type', 'status',
+        'customer_centre', 'service_subscribed', 'source', 'country_region',
+        'marketing_consent', 'created_at'
     ]
     list_filter = [
-        'customer_type', 'status', 'source', 'country_region',
-        'marketing_consent', 'created_at'
+        'customer_type', 'status', 'customer_centre', 'service_subscribed',
+        'source', 'country_region', 'marketing_consent', 'created_at'
     ]
     search_fields = [
         'first_name', 'last_name', 'email_primary', 'email_secondary',
@@ -56,6 +57,10 @@ class CustomerAdmin(admin.ModelAdmin):
         ('Social Media', {
             'fields': ('linkedin_profile', 'facebook_profile', 'twitter_handle', 'instagram_handle', 'youtube_handle', 'youtube_channel_url'),
             'classes': ('collapse',)
+        }),
+        ('Customer Centre & Subscription', {
+            'fields': ('customer_centre', 'service_subscribed'),
+            'description': 'Assign customer to a service centre and track their subscription'
         }),
         ('Professional Information', {
             'fields': (

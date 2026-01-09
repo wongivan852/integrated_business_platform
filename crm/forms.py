@@ -34,7 +34,8 @@ class CustomerForm(forms.ModelForm):
             'preferred_communication_method',
             
             # CRM fields
-            'customer_type', 'status', 'preferred_learning_format', 'interests'
+            'customer_type', 'status', 'customer_centre', 'service_subscribed',
+            'preferred_learning_format', 'interests'
         ]
         widgets = {
             'first_name': forms.TextInput(attrs={
@@ -112,6 +113,14 @@ class CustomerForm(forms.ModelForm):
             }),
             'customer_type': forms.Select(attrs={'class': 'form-control'}),
             'status': forms.Select(attrs={'class': 'form-control'}),
+            'customer_centre': forms.Select(attrs={
+                'class': 'form-select',
+                'id': 'id_customer_centre'
+            }),
+            'service_subscribed': forms.Select(attrs={
+                'class': 'form-select',
+                'id': 'id_service_subscribed'
+            }),
             'company_primary': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Enter primary company'
