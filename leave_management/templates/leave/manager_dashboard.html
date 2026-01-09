@@ -1,0 +1,230 @@
+{% extends "leave/base.html" %}
+
+{% block title %}Manager Dashboard - Leave Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="mb-0">
+                <i class="fas fa-user-tie mr-2"></i>Manager Dashboard
+            </h2>
+            <p class="text-muted">Review and approve pending leave applications and claims</p>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-left-primary">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Pending Leave Applications</h6>
+                            <h2 class="mb-0">{{ pending_leaves.count }}</h2>
+                        </div>
+                        <i class="fas fa-calendar-alt fa-2x text-primary"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-left-success">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Pending Special Leave</h6>
+                            <h2 class="mb-0">{{ pending_special_leaves.count }}</h2>
+                        </div>
+                        <i class="fas fa-star fa-2x text-success"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-left-warning">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Pending Work Claims</h6>
+                            <h2 class="mb-0">{{ pending_claims.count }}</h2>
+                        </div>
+                        <i class="fas fa-briefcase fa-2x text-warning"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pending Leave Applications -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">
+                <i class="fas fa-calendar-alt mr-2"></i>Pending Leave Applications
+            </h5>
+        </div>
+        <div class="card-body">
+            {% if pending_leaves %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Employee</th>
+                            <th>Leave Type</th>
+                            <th>From</th>
+                            <th>To</th>
+                            <th>Days</th>
+                            <th>Applied On</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for leave in pending_leaves %}
+                        <tr>
+                            <td>
+                                <strong>{{ leave.employee.user.get_full_name }}</strong>
+                                <br><small class="text-muted">{{ leave.employee.department|default:"" }}</small>
+                            </td>
+                            <td><span class="badge badge-primary">{{ leave.leave_type.name }}</span></td>
+                            <td>{{ leave.date_from|date:"M d, Y" }}</td>
+                            <td>{{ leave.date_to|date:"M d, Y" }}</td>
+                            <td><span class="badge badge-info">{{ leave.days_applied }} day{% if leave.days_applied > 1 %}s{% endif %}</span></td>
+                            <td>{{ leave.created_at|date:"M d, Y" }}</td>
+                            <td>
+                                <a href="{% url 'leave:approve_leave_application' leave.id %}" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-eye mr-1"></i>Review
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+                <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                <p class="text-muted mb-0">No pending leave applications</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Pending Special Leave Applications -->
+    <div class="card mb-4">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0">
+                <i class="fas fa-star mr-2"></i>Pending Special Leave Applications
+            </h5>
+        </div>
+        <div class="card-body">
+            {% if pending_special_leaves %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Employee</th>
+                            <th>Leave Type</th>
+                            <th>From</th>
+                            <th>To</th>
+                            <th>Days</th>
+                            <th>Applied On</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for leave in pending_special_leaves %}
+                        <tr>
+                            <td>
+                                <strong>{{ leave.employee.user.get_full_name }}</strong>
+                                <br><small class="text-muted">{{ leave.employee.department|default:"" }}</small>
+                            </td>
+                            <td><span class="badge badge-success">{{ leave.special_leave_type.name }}</span></td>
+                            <td>{{ leave.date_from|date:"M d, Y" }}</td>
+                            <td>{{ leave.date_to|date:"M d, Y" }}</td>
+                            <td><span class="badge badge-info">{{ leave.days_applied }} day{% if leave.days_applied > 1 %}s{% endif %}</span></td>
+                            <td>{{ leave.created_at|date:"M d, Y" }}</td>
+                            <td>
+                                <a href="{% url 'leave:approve_special_leave_application' leave.id %}" class="btn btn-sm btn-success">
+                                    <i class="fas fa-eye mr-1"></i>Review
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+                <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                <p class="text-muted mb-0">No pending special leave applications</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Pending Special Work Claims -->
+    <div class="card mb-4">
+        <div class="card-header bg-warning text-dark">
+            <h5 class="mb-0">
+                <i class="fas fa-briefcase mr-2"></i>Pending Special Work Claims
+            </h5>
+        </div>
+        <div class="card-body">
+            {% if pending_claims %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Employee</th>
+                            <th>Work Date</th>
+                            <th>Work Type</th>
+                            <th>Hours</th>
+                            <th>Description</th>
+                            <th>Applied On</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for claim in pending_claims %}
+                        <tr>
+                            <td>
+                                <strong>{{ claim.employee.user.get_full_name }}</strong>
+                                <br><small class="text-muted">{{ claim.employee.department|default:"" }}</small>
+                            </td>
+                            <td>{{ claim.work_date|date:"M d, Y" }}</td>
+                            <td><span class="badge badge-warning text-dark">{{ claim.get_work_type_display }}</span></td>
+                            <td>{{ claim.hours_worked }}</td>
+                            <td>{{ claim.description|truncatewords:10 }}</td>
+                            <td>{{ claim.created_at|date:"M d, Y" }}</td>
+                            <td>
+                                <a href="{% url 'leave:approve_special_work_claim' claim.id %}" class="btn btn-sm btn-warning">
+                                    <i class="fas fa-eye mr-1"></i>Review
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+                <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                <p class="text-muted mb-0">No pending work claims</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.border-left-primary {
+    border-left: 4px solid #007bff !important;
+}
+.border-left-success {
+    border-left: 4px solid #28a745 !important;
+}
+.border-left-warning {
+    border-left: 4px solid #ffc107 !important;
+}
+</style>
+{% endblock %}

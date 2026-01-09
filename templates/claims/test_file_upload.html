@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>File Upload Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-box { border: 2px solid #ccc; padding: 20px; margin: 10px 0; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>File Upload Test Page</h1>
+    
+    <div class="test-box">
+        <h3>Test 1: Basic file input</h3>
+        <input type="file" id="test1" onchange="testFile(this, 'result1')">
+        <div id="result1"></div>
+    </div>
+    
+    <div class="test-box">
+        <h3>Test 2: File input with accept attribute</h3>
+        <input type="file" id="test2" accept="image/*,.pdf" onchange="testFile(this, 'result2')">
+        <div id="result2"></div>
+    </div>
+    
+    <div class="test-box">
+        <h3>Test 3: File input with Bootstrap class</h3>
+        <input type="file" id="test3" class="form-control" accept="image/*,.pdf" onchange="testFile(this, 'result3')">
+        <div id="result3"></div>
+    </div>
+
+    <script>
+    function testFile(input, resultId) {
+        console.log('testFile called for', resultId);
+        var result = document.getElementById(resultId);
+        if (input.files && input.files[0]) {
+            var file = input.files[0];
+            result.innerHTML = '<span class="success">SUCCESS! File: ' + file.name + ' (' + file.size + ' bytes, type: ' + file.type + ')</span>';
+            console.log('File selected:', file.name, file.type, file.size);
+        } else {
+            result.innerHTML = '<span class="error">No file selected</span>';
+        }
+    }
+    console.log('Test page loaded');
+    </script>
+</body>
+</html>
