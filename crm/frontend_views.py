@@ -174,7 +174,6 @@ def api_youtube_test(request):
     return render(request, 'crm/api_youtube_test.html')
 
 @login_required
-@login_required
 def customer_list(request):
     """List all customers with search and filter capabilities - SECURE LOGIN REQUIRED"""
     customers = Customer.objects.all()
