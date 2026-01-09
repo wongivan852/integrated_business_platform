@@ -1042,254 +1042,7 @@ function debugFormSubmit(event) {
         </div>
     </div>
 
-<script>
-// Global updateCountryCodes function - Clean production version
-function updateCountryCodes(countryCode) {
-    if (!countryCode) return;
-    
-    const countryCodeMap = {
-        'CN': '+86', 'HK': '+852', 'TW': '+886', 'MO': '+853',
-        'SG': '+65', 'MY': '+60', 'TH': '+66', 'VN': '+84',
-        'PH': '+63', 'ID': '+62', 'KR': '+82', 'JP': '+81',
-        'IN': '+91', 'AU': '+61', 'NZ': '+64',
-        'GB': '+44', 'DE': '+49', 'FR': '+33', 'IT': '+39',
-        'ES': '+34', 'NL': '+31', 'BE': '+32', 'CH': '+41',
-        'AT': '+43', 'SE': '+46', 'NO': '+47', 'DK': '+45', 'FI': '+358',
-        'US': '+1', 'CA': '+1', 'MX': '+52', 'BR': '+55',
-        'AR': '+54', 'CL': '+56', 'CO': '+57', 'PE': '+51',
-        'AE': '+971', 'SA': '+966', 'IL': '+972', 'ZA': '+27',
-        'EG': '+20', 'KE': '+254', 'NG': '+234',
-        'RU': '+7', 'TR': '+90'
-    };
-    
-    const phoneCode = countryCodeMap[countryCode] || '+1';
-    
-    // Update primary phone country code field
-    const primaryField = document.getElementById('id_phone_primary_country_code') ||
-                        document.querySelector('input[name="phone_primary_country_code"]') ||
-                        document.querySelector('.country-code');
-    
-    if (primaryField) {
-        primaryField.value = phoneCode;
-        primaryField.dispatchEvent(new Event('input', { bubbles: true }));
-        primaryField.dispatchEvent(new Event('change', { bubbles: true }));
-        
-        // Visual feedback
-        primaryField.style.backgroundColor = '#d4edda';
-        setTimeout(() => {
-            primaryField.style.backgroundColor = 'yellow';
-        }, 800);
-    }
-    
-    // Update visual display
-    const primaryDisplay = document.getElementById('primary-country-code');
-    if (primaryDisplay) {
-        primaryDisplay.textContent = phoneCode;
-        primaryDisplay.style.backgroundColor = '#28a745';
-        primaryDisplay.style.color = 'white';
-        setTimeout(() => {
-            primaryDisplay.style.backgroundColor = '#e9ecef';
-            primaryDisplay.style.color = '#495057';
-        }, 800);
-    }
-}
-</script>
-
-    <div class="col-md-4">
-<script>
-console.log('🚨 EMERGENCY SCRIPT: This script is at the bottom of the page');
-console.log('🚨 Current time:', new Date().toLocaleTimeString());
-console.log('🚨 Page title:', document.title);
-
-// Country code mapping - Global version
-const countryCodeMap = {
-    'CN': '+86', 'HK': '+852', 'TW': '+886', 'MO': '+853',
-    'SG': '+65', 'MY': '+60', 'TH': '+66', 'VN': '+84',
-    'PH': '+63', 'ID': '+62', 'KR': '+82', 'JP': '+81',
-    'IN': '+91', 'AU': '+61', 'NZ': '+64',
-    'GB': '+44', 'DE': '+49', 'FR': '+33', 'IT': '+39',
-    'ES': '+34', 'NL': '+31', 'BE': '+32', 'CH': '+41',
-    'AT': '+43', 'SE': '+46', 'NO': '+47', 'DK': '+45', 'FI': '+358',
-    'US': '+1', 'CA': '+1', 'MX': '+52', 'BR': '+55',
-    'AR': '+54', 'CL': '+56', 'CO': '+57', 'PE': '+51',
-    'AE': '+971', 'SA': '+966', 'IL': '+972', 'ZA': '+27',
-    'EG': '+20', 'KE': '+254', 'NG': '+234',
-    'RU': '+7', 'TR': '+90'
-};
-
-// Global updateCountryCodes function - This MUST be available for onchange
-function updateCountryCodes(countryCode) {
-    console.log('🚨 GLOBAL updateCountryCodes called with:', countryCode);
-    
-    if (!countryCode) {
-        console.log('❌ No country code provided');
-        return;
-    }
-    
-    const phoneCode = countryCodeMap[countryCode] || '+1';
-    console.log('📞 Mapped phone code:', phoneCode);
-    
-    // Try multiple ways to find the primary phone country code field
-    let primaryField = null;
-    
-    // Method 1: Direct ID lookup
-    primaryField = document.getElementById('id_phone_primary_country_code');
-    console.log('🎯 Method 1 - Direct ID lookup:', !!primaryField);
-    
-    // Method 2: Query selector
-    if (!primaryField) {
-        primaryField = document.querySelector('input[name="phone_primary_country_code"]');
-        console.log('🎯 Method 2 - Name selector:', !!primaryField);
-    }
-    
-    // Method 3: Find by class
-    if (!primaryField) {
-        const countryCodeFields = document.querySelectorAll('.country-code');
-        console.log('🎯 Method 3 - Found country-code fields:', countryCodeFields.length);
-        if (countryCodeFields.length > 0) {
-            primaryField = countryCodeFields[0]; // Take the first one (should be primary)
-            console.log('🎯 Using first country-code field as primary');
-        }
-    }
-    
-    // Update the field if found
-    if (primaryField) {
-        console.log('✅ Primary field found, updating...');
-        console.log('📝 Before update:', primaryField.value);
-        primaryField.value = phoneCode;
-        console.log('📝 After update:', primaryField.value);
-        
-        // Trigger events
-        primaryField.dispatchEvent(new Event('input', { bubbles: true }));
-        primaryField.dispatchEvent(new Event('change', { bubbles: true }));
-        
-        // Visual feedback for the input field itself
-        primaryField.style.backgroundColor = '#90EE90';
-        setTimeout(() => {
-            primaryField.style.backgroundColor = 'yellow';
-        }, 1000);
-    } else {
-        console.log('❌ PRIMARY FIELD NOT FOUND!');
-        console.log('� Available inputs with phone in name or id:');
-        document.querySelectorAll('input').forEach(input => {
-            if (input.name?.includes('phone') || input.id?.includes('phone')) {
-                console.log(`  - ID: "${input.id}", Name: "${input.name}", Value: "${input.value}"`);
-            }
-        });
-    }
-    
-    // Update visual display
-    const primaryDisplay = document.getElementById('primary-country-code');
-    if (primaryDisplay) {
-        console.log('🏷️ Updating visual display');
-        primaryDisplay.textContent = phoneCode;
-        // Add visual feedback
-        primaryDisplay.style.backgroundColor = '#4caf50';
-        primaryDisplay.style.color = 'white';
-        setTimeout(() => {
-            primaryDisplay.style.backgroundColor = '#e9ecef';
-            primaryDisplay.style.color = '#495057';
-        }, 1000);
-    } else {
-        console.log('❌ Visual display not found');
-    }
-    
-    console.log('🏁 END updateCountryCodes');
-}
-
-// Test if we can find elements
-setTimeout(function() {
-    console.log('�🚨 DELAYED TEST: Checking for elements after 1 second');
-    const countrySelect = document.getElementById('id_country_region');
-    const primaryField = document.getElementById('id_phone_primary_country_code');
-    
-    console.log('🚨 Country select found:', !!countrySelect);
-    console.log('🚨 Primary field found:', !!primaryField);
-    
-    if (countrySelect) {
-        console.log('🚨 Country select details:', {
-            id: countrySelect.id,
-            tagName: countrySelect.tagName,
-            options: countrySelect.options.length,
-            onchange: countrySelect.getAttribute('onchange')
-        });
-    }
-    
-    if (primaryField) {
-        console.log('🚨 Primary field details:', {
-            id: primaryField.id,
-            value: primaryField.value,
-            type: primaryField.type,
-            className: primaryField.className
-        });
-    }
-}, 1000);
-
-// Simple test function that should always work
-function emergencyTest() {
-    console.log('🚨 EMERGENCY FUNCTION CALLED');
-    alert('Emergency test button works!');
-    
-    const countrySelect = document.getElementById('id_country_region');
-    const primaryField = document.getElementById('id_phone_primary_country_code');
-    
-    if (countrySelect && primaryField) {
-        primaryField.value = '+999';
-        primaryField.style.backgroundColor = 'red';
-        console.log('🚨 FORCED UPDATE: Set primary field to +999');
-    } else {
-        console.log('🚨 FIELDS NOT FOUND');
-    }
-}
-
-// Test the country code function directly
-function testCountryCode() {
-    console.log('🧪 === TESTING COUNTRY CODE FUNCTIONALITY ===');
-    updateCountryCodes('HK');
-    console.log('🧪 === TEST COMPLETE ===');
-}
-
-// Manual country change test
-function manualCountryChange() {
-    const countrySelect = document.getElementById('id_country_region');
-    if (countrySelect) {
-        console.log('🔄 Manual country change triggered, value:', countrySelect.value);
-        updateCountryCodes(countrySelect.value);
-    }
-}
-
-// Quick action functions for newly created customers
-function addAnotherCustomer() {
-    if (confirm('Clear the current form to add another customer?')) {
-        // Clear the form by reloading the page
-        window.location.reload();
-    }
-}
-
-function exportData() {
-    if (confirm('Export all customer data to CSV?')) {
-        // Redirect to export URL
-        window.location.href = '{% url "crm:export_customers_csv" %}';
-    }
-}
-
-// Auto-hide the quick actions card after 30 seconds on form page
-document.addEventListener('DOMContentLoaded', function() {
-    const quickActionsCard = document.querySelector('.card.border-success');
-    if (quickActionsCard) {
-        setTimeout(function() {
-            quickActionsCard.style.opacity = '0.7';
-            quickActionsCard.style.transition = 'opacity 2s ease-in-out';
-            // Add a small notice
-            const notice = document.createElement('small');
-            notice.className = 'text-muted';
-            notice.innerHTML = '<i class="fas fa-clock"></i> Quick actions will fade after 30 seconds';
-            quickActionsCard.querySelector('.card-body').appendChild(notice);
-        }, 30000); // 30 seconds
-    }
-});
-</script>
-    
+    <!-- Help Sidebar -->
     <div class="col-md-4">
         <div class="card">
             <div class="card-header">
@@ -1340,4 +1093,19 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
     </div>
 </div>
+
+<!-- Quick action functions for newly created customers -->
+<script>
+function addAnotherCustomer() {
+    if (confirm('Clear the current form to add another customer?')) {
+        window.location.reload();
+    }
+}
+
+function exportData() {
+    if (confirm('Export all customer data to CSV?')) {
+        window.location.href = '{% url "crm:export_customers_csv" %}';
+    }
+}
+</script>
 {% endblock %}

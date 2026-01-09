@@ -1,0 +1,143 @@
+{% extends 'crm/base.html' %}
+
+{% block title %}Send Message - Learning Institute CRM{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="fas fa-paper-plane"></i> Send Message</h1>
+    <a href="{% url 'crm:customer_detail' customer.id %}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Customer
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-envelope"></i> Compose Message</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+
+                    <!-- Recipient Info -->
+                    <div class="mb-3">
+                        <label class="form-label"><i class="fas fa-user"></i> Recipient</label>
+                        <div class="form-control-plaintext">
+                            <strong>{{ customer.first_name }} {{ customer.last_name }}</strong>
+                            <br>
+                            <small class="text-muted">{{ customer.email_primary }}</small>
+                        </div>
+                    </div>
+
+                    <!-- Communication Channel -->
+                    <div class="mb-3">
+                        <label for="channel" class="form-label"><i class="fas fa-broadcast-tower"></i> Communication Channel *</label>
+                        <select name="channel" id="channel" class="form-select" required>
+                            {% for value, label in channels %}
+                            <option value="{{ value }}" {% if customer.preferred_communication_method == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">
+                            Customer's preferred method: <strong>{{ customer.get_preferred_communication_method_display }}</strong>
+                        </div>
+                    </div>
+
+                    <!-- Subject -->
+                    <div class="mb-3">
+                        <label for="subject" class="form-label"><i class="fas fa-heading"></i> Subject</label>
+                        <input type="text" name="subject" id="subject" class="form-control" placeholder="Enter message subject...">
+                    </div>
+
+                    <!-- Message Content -->
+                    <div class="mb-3">
+                        <label for="content" class="form-label"><i class="fas fa-comment"></i> Message Content *</label>
+                        <textarea name="content" id="content" class="form-control" rows="8" required placeholder="Type your message here..."></textarea>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'crm:customer_detail' customer.id %}" class="btn btn-secondary me-md-2">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane"></i> Send Message
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Customer Info Sidebar -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-info-circle"></i> Customer Info</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm table-borderless">
+                    <tr>
+                        <th>Name:</th>
+                        <td>{{ customer.first_name }} {{ customer.last_name }}</td>
+                    </tr>
+                    <tr>
+                        <th>Type:</th>
+                        <td>{{ customer.get_customer_type_display }}</td>
+                    </tr>
+                    <tr>
+                        <th>Status:</th>
+                        <td>
+                            <span class="badge bg-{% if customer.status == 'active' %}success{% elif customer.status == 'inactive' %}secondary{% else %}warning{% endif %}">
+                                {{ customer.get_status_display }}
+                            </span>
+                        </td>
+                    </tr>
+                </table>
+
+                <h6 class="mt-3"><i class="fas fa-address-book"></i> Contact Details</h6>
+                <table class="table table-sm table-borderless">
+                    <tr>
+                        <th>Email:</th>
+                        <td><a href="mailto:{{ customer.email_primary }}">{{ customer.email_primary }}</a></td>
+                    </tr>
+                    {% if customer.phone_primary %}
+                    <tr>
+                        <th>Phone:</th>
+                        <td>{{ customer.phone_primary_country_code }} {{ customer.phone_primary }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if customer.whatsapp_number %}
+                    <tr>
+                        <th>WhatsApp:</th>
+                        <td>{{ customer.whatsapp_country_code }} {{ customer.whatsapp_number }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if customer.wechat_id %}
+                    <tr>
+                        <th>WeChat:</th>
+                        <td>{{ customer.wechat_id }}</td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-lightbulb"></i> Tips</h5>
+            </div>
+            <div class="card-body">
+                <ul class="small mb-0">
+                    <li>Use the customer's preferred communication method when possible</li>
+                    <li>Keep messages professional and concise</li>
+                    <li>Include your contact information for follow-up</li>
+                    <li>Messages are logged automatically in communication history</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
