@@ -96,6 +96,9 @@ class Command(BaseCommand):
                             'preferred_learning_format': row.get('Preferred Learning Format', '').strip(),
                             'preferred_communication_method': self.map_communication_method(row.get('Preferred Communication Method', 'email').strip()),
                             'interests': row.get('Interests', '').strip(),
+                            # Customer Centre and Service Subscribed fields
+                            'customer_centre': self.map_customer_centre(row.get('Customer Centre', row.get('Centre', '')).strip()),
+                            'service_subscribed': self.map_service_subscribed(row.get('Service Subscribed', row.get('Service', '')).strip()),
                         }
                         
                         # Clean empty strings to None for optional fields
@@ -306,5 +309,74 @@ class Command(BaseCommand):
             'hong kong': 'HK',
             'malaysia': 'MY',
             'thailand': 'TH',
+        }
+        return mapping.get(csv_value.lower(), '')
+
+    def map_customer_centre(self, csv_value):
+        """Map CSV customer centre to model choices"""
+        if not csv_value:
+            return ''
+        mapping = {
+            'hong kong': 'hk',
+            'hk': 'hk',
+            'china': 'cn',
+            'china mainland': 'cn',
+            'cn': 'cn',
+            'singapore': 'sg',
+            'sg': 'sg',
+            'taiwan': 'tw',
+            'tw': 'tw',
+            'malaysia': 'my',
+            'my': 'my',
+            'thailand': 'th',
+            'th': 'th',
+            'vietnam': 'vn',
+            'vn': 'vn',
+            'indonesia': 'id',
+            'id': 'id',
+            'philippines': 'ph',
+            'ph': 'ph',
+            'japan': 'jp',
+            'jp': 'jp',
+            'korea': 'kr',
+            'kr': 'kr',
+            'australia': 'au',
+            'au': 'au',
+            'new zealand': 'nz',
+            'nz': 'nz',
+            'united kingdom': 'uk',
+            'uk': 'uk',
+            'united states': 'us',
+            'us': 'us',
+            'usa': 'us',
+            'europe': 'eu',
+            'eu': 'eu',
+            'other': 'other',
+        }
+        return mapping.get(csv_value.lower(), '')
+
+    def map_service_subscribed(self, csv_value):
+        """Map CSV service subscribed to model choices"""
+        if not csv_value:
+            return ''
+        mapping = {
+            'blender studio': 'blender_studio',
+            'blender': 'blender_studio',
+            'origin cg': 'origin_cg',
+            'origin': 'origin_cg',
+            'krystal institute': 'krystal_institute',
+            'ki': 'krystal_institute',
+            'krystal technology': 'krystal_technology',
+            'kt': 'krystal_technology',
+            'cgge': 'cgge',
+            'online course': 'online_course',
+            'online': 'online_course',
+            'workshop': 'workshop',
+            'mentorship': 'mentorship',
+            'mentorship program': 'mentorship',
+            'corporate training': 'corporate_training',
+            'corporate': 'corporate_training',
+            'consulting': 'consulting',
+            'other': 'other',
         }
         return mapping.get(csv_value.lower(), '')
