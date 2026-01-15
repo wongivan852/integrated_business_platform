@@ -31,7 +31,7 @@ class CustomerViewSet(viewsets.ModelViewSet):
     queryset = Customer.objects.all()
     serializer_class = CustomerSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['customer_type', 'status']
+    filterset_fields = ['customer_type', 'status', 'customer_centre', 'service_subscribed']
     search_fields = ['first_name', 'last_name', 'email_primary', 'company_primary']
     ordering_fields = ['created_at', 'last_name', 'first_name']
     ordering = ['-created_at']

@@ -197,20 +197,34 @@ def customer_list(request):
     status = request.GET.get('status')
     if status:
         customers = customers.filter(status=status)
-    
+
+    # Filter by customer centre
+    customer_centre = request.GET.get('customer_centre')
+    if customer_centre:
+        customers = customers.filter(customer_centre=customer_centre)
+
+    # Filter by service subscribed
+    service_subscribed = request.GET.get('service_subscribed')
+    if service_subscribed:
+        customers = customers.filter(service_subscribed=service_subscribed)
+
     # Pagination
     paginator = Paginator(customers, 25)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
-    
+
     context = {
         'page_obj': page_obj,
         'customers': page_obj,  # For backward compatibility
         'search_query': search_query,
         'customer_types': Customer.CUSTOMER_TYPES,
         'statuses': Customer.STATUS_CHOICES,
+        'customer_centres': Customer.CUSTOMER_CENTRE_CHOICES,
+        'services_subscribed': Customer.SERVICE_SUBSCRIBED_CHOICES,
         'selected_type': customer_type,
         'selected_status': status,
+        'selected_centre': customer_centre,
+        'selected_service': service_subscribed,
         'page_title': 'Customer List - Secure Access',
     }
     return render(request, 'crm/customer_list.html', context)

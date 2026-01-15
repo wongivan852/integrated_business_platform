@@ -61,21 +61,34 @@ class LeaveApplicationForm(forms.ModelForm):
         start_session = cleaned_data.get('start_session')
         end_date = cleaned_data.get('end_date')
         end_session = cleaned_data.get('end_session')
-        
+        leave_type = cleaned_data.get('leave_type')
+
         if start_date and end_date:
             # Validate date order
             if end_date < start_date:
                 raise ValidationError("End date cannot be before start date.")
-            
+
             # Validate that start date is not in the past
+            # Exception: Sick Leave can be backdated up to 7 days
             from django.utils import timezone
-            if start_date < timezone.now().date():
-                raise ValidationError("Leave cannot start in the past.")
-            
+            from datetime import timedelta
+            today = timezone.now().date()
+
+            if start_date < today:
+                # Check if this is Sick Leave - allow backdating up to 7 days
+                is_sick_leave = leave_type and leave_type.name.lower() == 'sick leave'
+                max_backdate = today - timedelta(days=7)
+
+                if is_sick_leave:
+                    if start_date < max_backdate:
+                        raise ValidationError("Sick leave can only be backdated up to 7 days.")
+                else:
+                    raise ValidationError("Leave cannot start in the past. Only Sick Leave can be backdated.")
+
             # Validate weekend restrictions
             if start_date.weekday() >= 5 or end_date.weekday() >= 5:
                 raise ValidationError("Leave cannot start or end on weekends.")
-        
+
         return cleaned_data
     
     def save(self, commit=True):

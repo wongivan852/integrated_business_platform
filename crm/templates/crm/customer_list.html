@@ -16,11 +16,11 @@
 <div class="card mb-4">
     <div class="card-body">
         <form method="get" class="row g-3">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label for="search" class="form-label">Search</label>
                 <input type="text" class="form-control" id="search" name="search" value="{{ search_query }}" placeholder="Name, email, or company">
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label for="customer_type" class="form-label">Customer Type</label>
                 <select class="form-control" id="customer_type" name="customer_type">
                     <option value="">All Types</option>
@@ -29,7 +29,7 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label for="status" class="form-label">Status</label>
                 <select class="form-control" id="status" name="status">
                     <option value="">All Statuses</option>
@@ -39,10 +39,32 @@
                 </select>
             </div>
             <div class="col-md-2">
+                <label for="customer_centre" class="form-label">Centre</label>
+                <select class="form-control" id="customer_centre" name="customer_centre">
+                    <option value="">All Centres</option>
+                    {% for value, label in customer_centres %}
+                        {% if value %}
+                            <option value="{{ value }}" {% if value == selected_centre %}selected{% endif %}>{{ label }}</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="service_subscribed" class="form-label">Service</label>
+                <select class="form-control" id="service_subscribed" name="service_subscribed">
+                    <option value="">All Services</option>
+                    {% for value, label in services_subscribed %}
+                        {% if value %}
+                            <option value="{{ value }}" {% if value == selected_service %}selected{% endif %}>{{ label }}</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-1">
                 <label class="form-label">&nbsp;</label>
                 <div class="d-grid">
                     <button type="submit" class="btn btn-outline-primary">
-                        <i class="fas fa-search"></i> Filter
+                        <i class="fas fa-search"></i>
                     </button>
                 </div>
             </div>
@@ -152,10 +174,10 @@
                     <ul class="pagination justify-content-center">
                         {% if page_obj.has_previous %}
                             <li class="page-item">
-                                <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_type %}&customer_type={{ selected_type }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">First</a>
+                                <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_type %}&customer_type={{ selected_type }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_centre %}&customer_centre={{ selected_centre }}{% endif %}{% if selected_service %}&service_subscribed={{ selected_service }}{% endif %}">First</a>
                             </li>
                             <li class="page-item">
-                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_type %}&customer_type={{ selected_type }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">Previous</a>
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_type %}&customer_type={{ selected_type }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_centre %}&customer_centre={{ selected_centre }}{% endif %}{% if selected_service %}&service_subscribed={{ selected_service }}{% endif %}">Previous</a>
                             </li>
                         {% endif %}
 
@@ -167,10 +189,10 @@
 
                         {% if page_obj.has_next %}
                             <li class="page-item">
-                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_type %}&customer_type={{ selected_type }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">Next</a>
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_type %}&customer_type={{ selected_type }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_centre %}&customer_centre={{ selected_centre }}{% endif %}{% if selected_service %}&service_subscribed={{ selected_service }}{% endif %}">Next</a>
                             </li>
                             <li class="page-item">
-                                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_type %}&customer_type={{ selected_type }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">Last</a>
+                                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_type %}&customer_type={{ selected_type }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_centre %}&customer_centre={{ selected_centre }}{% endif %}{% if selected_service %}&service_subscribed={{ selected_service }}{% endif %}">Last</a>
                             </li>
                         {% endif %}
                     </ul>
